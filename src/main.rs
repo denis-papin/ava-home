@@ -24,6 +24,8 @@ use mqtt::control::variable_header::ConnectReturnCode;
 use mqtt::packet::*;
 use mqtt::TopicFilter;
 use mqtt::{Decodable, Encodable, QualityOfService};
+use crate::DeviceType::{HallInterSwitch, KitchenInterDim, KitchenLamp};
+use crate::LoopType::KitchenLoop;
 use crate::publish::{connect_publisher, publish};
 
 fn generate_client_id() -> String {
@@ -222,6 +224,170 @@ fn ping_broker(stream : &mut TcpStream, params : &Params) -> Result<(), String> 
     Ok(())
 }
 
+
+enum DeviceType {
+    HallInterSwitch(HallInterSwitchDevice),
+    KitchenInterDim(KitchenInterDimDevice),
+    KitchenLamp(KitchenLampDevice),
+}
+
+struct HallInterSwitchDevice {
+
+}
+
+impl HallInterSwitchDevice {
+    pub fn new() -> Self {
+        Self {
+
+        }
+    }
+
+    pub fn execute(&self) {
+        info!(">>>>>>>>>> execute device SWITCH");
+    }
+}
+
+struct KitchenInterDimDevice {
+
+}
+
+impl KitchenInterDimDevice {
+    pub fn new() -> Self {
+        Self {
+
+        }
+    }
+
+
+    // TODO handle the locks
+    //      Create a generic BasicDevice to make this routine general
+    //      Build closure to process the publish to other devices
+    pub fn execute(&self, topic : &str, msg : &str, mut pub_stream: &mut TcpStream) {
+        info!(">>>>>>>>>> execute device DIMMER");
+
+        let mut dim_locks : u32 = 0;
+
+        let mut last_inter_dim = InterDim {
+            brightness: 0,
+            // linkquality: 0,
+            state: "".to_string()
+        };
+
+        if topic == "zigbee2mqtt/kitchen_inter_dim" {
+            let r_info: Result<InterDim, _> = serde_json::from_str(msg);
+            let inter_dim = r_info.unwrap();
+
+            if dim_locks > 0 {
+                info!("⛔ DIMMER MESSAGE Here we are, {:?} ", &inter_dim);
+                info!("DIMMER IS LOCKED BY THE DIMMER ({}): {}", topic, msg);
+                dim_locks -= 1;
+            } else {
+
+                if inter_dim == last_inter_dim {
+                    info!("⛔ DIMMER [same message], {:?} ", &inter_dim);
+                } else {
+                    info!("🍺 DIMMER MESSAGE Here we are, {:?} ", &inter_dim);
+
+                    // TODO lamp_locks += 1;
+                    let lamp_rgb = LampBasic {
+                        brightness: inter_dim.brightness,
+                        state: inter_dim.state.clone(),
+                    };
+
+                    let message = serde_json::to_string(&lamp_rgb).unwrap();
+                    publish(&mut pub_stream, "zigbee2mqtt/kitchen_lamp/set", &message);
+
+                    // TODO switch_locks += 1;
+                    let message = format!("{{\"state\":\"{}\"}}", &inter_dim.state);
+                    publish(&mut pub_stream, "zigbee2mqtt/hall_inter_switch/set", &message);
+                }
+
+            }
+            last_inter_dim = inter_dim;
+        }
+
+
+    }
+}
+
+struct KitchenLampDevice {
+}
+
+impl KitchenLampDevice {
+    pub fn new() -> Self {
+        Self {
+
+        }
+    }
+
+    pub fn execute(&self, topic : &str, msg : &str, mut pub_stream: &mut TcpStream) {
+        info!(">>>>>>>>>> execute device LAMP");
+    }
+}
+
+enum LoopType {
+    KitchenLoop(Vec<DeviceType>),
+    HallLoop(Vec<DeviceType>),
+}
+
+struct Loop {
+    // pub KITCHEN_LAMP : DeviceType,
+    // pub KITCHEN_INTER_DIM : DeviceType,
+    // pub HALL_INTER_SWITCH: DeviceType,
+    pub KITCHEN_LOOP : LoopType,
+}
+
+// const KITCHEN_LAMP : DeviceType = KitchenLamp(KitchenLampDevice::new());
+// const KITCHEN_INTER_DIM : DeviceType = KitchenInterDim(KitchenInterDimDevice::new());
+// const HALL_INTER_SWITCH: DeviceType = HallInterSwitch(HallInterSwitchDevice::new());
+// const KITCHEN_LOOP : LoopType = KitchenLoop(vec![KITCHEN_LAMP, KITCHEN_INTER_DIM, HALL_INTER_SWITCH]);
+
+impl Loop {
+
+    pub fn new() -> Self {
+        let KITCHEN_LAMP : DeviceType = KitchenLamp(KitchenLampDevice::new());
+        let KITCHEN_INTER_DIM : DeviceType = KitchenInterDim(KitchenInterDimDevice::new());
+        let HALL_INTER_SWITCH: DeviceType = HallInterSwitch(HallInterSwitchDevice::new());
+        let KITCHEN_LOOP : LoopType = KitchenLoop(vec![KITCHEN_LAMP, KITCHEN_INTER_DIM, HALL_INTER_SWITCH]);
+
+        Self {
+            // KITCHEN_LAMP,
+            // KITCHEN_INTER_DIM ,
+            // HALL_INTER_SWITCH ,
+            KITCHEN_LOOP,
+        }
+    }
+
+    pub fn find_loops(&'_ self, topic : &str) -> Vec<&'_ LoopType> {
+        vec![&self.KITCHEN_LOOP]
+    }
+
+    pub fn execute(lt : &LoopType, topic : &str, msg : &str, mut pub_stream: &mut TcpStream) {
+        info!(">>>>>>>>>> In the main loop");
+
+        match lt {
+            KitchenLoop(deviceTypes) => {
+                for dt in deviceTypes {
+                    match dt  {
+                        HallInterSwitch(device) => {
+                            device.execute();
+                        }
+                        KitchenInterDim(device) => {
+                            device.execute(topic, msg, &mut pub_stream);
+                        }
+                        KitchenLamp(device) => {
+                            device.execute(topic, msg, &mut pub_stream);
+                        }
+                    }
+                }
+            }
+            LoopType::HallLoop(_) => {}
+        }
+    }
+
+}
+
+
 fn process_incomming_message(mut stream : &mut TcpStream, mut pub_stream: &mut TcpStream) -> Result<(), String> {
 
     let mut lamp_locks : u32 = 0;
@@ -249,6 +415,9 @@ fn process_incomming_message(mut stream : &mut TcpStream, mut pub_stream: &mut T
         state: "".to_string()
     };
 
+
+    let dispatch_loop = Loop::new();
+
     loop {
         let packet = match VariablePacket::decode(&mut stream) {
             Ok(pk) => pk,
@@ -273,45 +442,47 @@ fn process_incomming_message(mut stream : &mut TcpStream, mut pub_stream: &mut T
                 };
                 info!("PUBLISH ({}): {}", publ.topic_name(), msg);
 
-                // dbg!(&publ);
-                
-                if (publ.topic_name()) == "zigbee2mqtt/kitchen_inter_dim" {
-                    let r_info: Result<InterDim, _> = serde_json::from_str(msg);
-                    let inter_dim = r_info.unwrap();
+                // ---
 
-                    if dim_locks > 0 {
-                        info!("⛔ DIMMER MESSAGE Here we are, {:?} ", &inter_dim);
-                        info!("DIMMER IS LOCKED BY THE DIMMER ({}): {}", publ.topic_name(), msg);
-                        dim_locks -= 1;
-                    } else {
+                    let loopTypes = dispatch_loop.find_loops(&publ.topic_name());
 
-                        if inter_dim == last_inter_dim {
-                            info!("⛔ DIMMER [same message], {:?} ", &inter_dim);
-                        } else {
-                            info!("🍺 DIMMER MESSAGE Here we are, {:?} ", &inter_dim);
-
-                            lamp_locks += 1;
-
-                            /*
-                            //let message = r#"{"brightness":100,"linkquality":189,"state":"ON"}"#.to_string();
-                            let message = format!("{{\"brightness\":{},\"state\":\"{}\"}}", inter_dim.brightness, &inter_dim.state);
-                             */
-                            let lamp_rgb = LampBasic {
-                                brightness: inter_dim.brightness,
-                                state: inter_dim.state.clone(),
-                            };
-
-                            let message = serde_json::to_string(&lamp_rgb).unwrap();
-                            publish(&mut pub_stream, "zigbee2mqtt/kitchen_lamp/set", &message);
-
-                            switch_locks += 1;
-                            let message = format!("{{\"state\":\"{}\"}}", &inter_dim.state);
-                            publish(&mut pub_stream, "zigbee2mqtt/hall_inter_switch/set", &message);
-                        }
-
+                    for lt in loopTypes {
+                        Loop::execute(lt, &publ.topic_name(), &msg, &mut pub_stream);
                     }
-                    last_inter_dim = inter_dim;
-                }
+                //
+
+                // if (publ.topic_name()) == "zigbee2mqtt/kitchen_inter_dim" {
+                //     let r_info: Result<InterDim, _> = serde_json::from_str(msg);
+                //     let inter_dim = r_info.unwrap();
+                //
+                //     if dim_locks > 0 {
+                //         info!("⛔ DIMMER MESSAGE Here we are, {:?} ", &inter_dim);
+                //         info!("DIMMER IS LOCKED BY THE DIMMER ({}): {}", publ.topic_name(), msg);
+                //         dim_locks -= 1;
+                //     } else {
+                //
+                //         if inter_dim == last_inter_dim {
+                //             info!("⛔ DIMMER [same message], {:?} ", &inter_dim);
+                //         } else {
+                //             info!("🍺 DIMMER MESSAGE Here we are, {:?} ", &inter_dim);
+                //
+                //             lamp_locks += 1;
+                //             let lamp_rgb = LampBasic {
+                //                 brightness: inter_dim.brightness,
+                //                 state: inter_dim.state.clone(),
+                //             };
+                //
+                //             let message = serde_json::to_string(&lamp_rgb).unwrap();
+                //             publish(&mut pub_stream, "zigbee2mqtt/kitchen_lamp/set", &message);
+                //
+                //             switch_locks += 1;
+                //             let message = format!("{{\"state\":\"{}\"}}", &inter_dim.state);
+                //             publish(&mut pub_stream, "zigbee2mqtt/hall_inter_switch/set", &message);
+                //         }
+                //
+                //     }
+                //     last_inter_dim = inter_dim;
+                // }
 
 
                 if (publ.topic_name()) == "zigbee2mqtt/kitchen_lamp" {
