@@ -1,3 +1,3 @@
 "# ava-home" 
 
-Organise your mqtt home message
+Control your Zigbee home devices
