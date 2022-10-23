@@ -5,7 +5,7 @@ use std::net::TcpStream;
 use std::ops::Deref;
 use std::sync::Arc;
 use serde_derive::*;
-use crate::{LampRGB, Locks, publish};
+use crate::{INSIDE_TEMP_SENSOR, LampRGB, Locks, OUTSIDE_TEMP_SENSOR, publish};
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]
 pub (crate) struct TempSensor {
@@ -31,7 +31,7 @@ impl InsideTempSensorDevice {
             let borr = arc_locks.as_ref().borrow();
             let mut locks = borr.deref().clone();
 
-            if topic == "zigbee2mqtt/inside_temp_sensor" {
+            if topic == format!("zigbee2mqtt/{}", INSIDE_TEMP_SENSOR ) || topic == format!("zigbee2mqtt/{}", OUTSIDE_TEMP_SENSOR ) {
                 let r_info: Result<TempSensor, _> = serde_json::from_str(msg);
                 let message = match r_info {
                     Ok(lamp) => { lamp }

@@ -53,6 +53,7 @@ const HALL_LAMP : &str = "hall_lamp";
 const KITCHEN_INTER_DIM : &str = "kitchen_inter_dim";
 const HALL_INTER_SWITCH : &str = "hall_inter_switch";
 const INSIDE_TEMP_SENSOR : &str = "inside_temp_sensor";
+const OUTSIDE_TEMP_SENSOR : &str = "0x00124b002503888f";
 
 
 #[derive(Debug, Clone)]
