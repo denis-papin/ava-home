@@ -14,16 +14,15 @@ use mqtt::control::variable_header::ConnectReturnCode;
 use mqtt::packet::*;
 use mqtt::{Decodable, Encodable, QualityOfService};
 use mqtt::{TopicFilter, TopicName};
+use crate::Params;
 
 fn generate_client_id() -> String {
     format!("/MQTT/rust/{}", Uuid::new_v4())
 }
 
-pub fn connect_publisher() -> /*( TcpStream, ConnectPacket, ConnackPacket)*/ TcpStream {
-
+pub fn connect_publisher(server_addr: &str) -> TcpStream {
     info!("Connect the publisher");
 
-    let server_addr = "localhost:1883".to_string();
     let client_id = generate_client_id();
     let keep_alive = 30_000;
 
@@ -50,7 +49,6 @@ pub fn connect_publisher() -> /*( TcpStream, ConnectPacket, ConnackPacket)*/ Tcp
         );
     }
 
-    // (stream, conn, connack)
     stream
 }
 
@@ -69,14 +67,10 @@ pub fn publish(/*mut*/ stream : &mut TcpStream, topic: &str, message: &str ) {
     println!("Message : {}", message);
 
     for chan in &channels {
-        // let publish_packet = PublishPacket::new(chan.clone(), QoSWithPacketIdentifier::Level0, message.clone());
         let publish_packet = PublishPacketRef::new(chan, QoSWithPacketIdentifier::Level0, message.as_bytes());
         let mut buf = Vec::new();
         publish_packet.encode(&mut buf).unwrap();
         stream.write_all(&buf[..]).unwrap();
-
-        // let (mut new_stream, _s, _a) = connect_publisher();
-        // stream = &mut new_stream;
     }
 
 }
