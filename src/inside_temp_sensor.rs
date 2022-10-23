@@ -44,10 +44,9 @@ impl InsideTempSensorDevice {
                 info!("PROCESS inside_temp_sensor ({}): {}", topic, msg);
 
                 let mut lamp_rgb = locks.last_hall_lamp.clone();
-
+                locks.hall_lamp_locks += 1;
                 info!("🔥 Temperature: {}", message.temperature);
                 if message.temperature >= 22.0 {
-                    //locks.hall_lamp_locks += 1;
                     lamp_rgb.state = "ON".to_string();
                     let message = serde_json::to_string(&lamp_rgb).unwrap();
                     info!("➡ Prepare to be sent to the hall lamp, {:?} ", &message);
