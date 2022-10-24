@@ -51,7 +51,8 @@ impl DynDevice for InsideTempSensorDevice {
                 let message = match r_info {
                     Ok(lamp) => { lamp }
                     Err(e) => {
-                        panic!("💀 Cannot parse the message for inside_temp_sensor :  {e}");
+                        error!("💀 Cannot parse the message for inside_temp_sensor :  {e}");
+                        return;
                     }
                 };
 
