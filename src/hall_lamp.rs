@@ -117,9 +117,9 @@ impl DynDevice for HallLampDevice {
                         // let message = format!("{{\"state\":\"{}\"}}", &lamp_rgb.state);
                         // publish(&mut pub_stream, "zigbee2mqtt/hall_inter_switch/set", &message);
                     }
-                    locks.hall_lamp_lock.replace(lamp_rgb);
+                    //locks.hall_lamp_lock.replace(lamp_rgb);
                 }
-
+                locks.hall_lamp_lock.replace(lamp_rgb);
             }
             locks
         };

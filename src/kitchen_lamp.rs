@@ -56,6 +56,7 @@ impl KitchenLampDevice {
 
 }
 
+
 impl DynDevice for KitchenLampDevice {
 
     fn get_topic(&self) -> String {
@@ -101,27 +102,11 @@ impl DynDevice for KitchenLampDevice {
         }
     }
 
-    // TODO change it to return (bool bool)
+    //
     fn allowed_to_process(&self, locks : &mut Locks, object_message : &Box<dyn DeviceMessage>) -> (bool, bool) {
         let lamp_rgb = object_message.to_lamp_rgb();
-        let is_locked = if locks.kitchen_lamp_lock.count_locks > 0 {
-            info!("⛔ LAMP Here we are, {:?} ", &lamp_rgb);
-            info!("LAMP IS LOCKED BY THE DIMMER");
-            locks.kitchen_lamp_lock.dec();
-            true
-        } else {
-            false
-        };
-
-        info!("Last message  : {:?}", &locks.kitchen_lamp_lock.last_object_message);
-        let ok = *lamp_rgb == locks.kitchen_lamp_lock.last_object_message;
-        let is_same = if ok {
-            info!("⛔ LAMP [same message], {:?} ", &lamp_rgb);
-            true
-        } else {
-            false
-        };
-
+        let is_locked = locks.kitchen_lamp_lock.count_locks > 0;
+        let is_same = *lamp_rgb == locks.kitchen_lamp_lock.last_object_message;
         (is_locked, is_same)
     }
 
@@ -154,7 +139,7 @@ impl DynDevice for KitchenLampDevice {
         locks.kitchen_lamp_lock.replace(lamp_rgb.clone());
 
     }
-
+    
 
     fn execute(&self, topic : &str, msg : &str, mut pub_stream: &mut TcpStream, arc_locks: Arc<RefCell<Locks>>) {
         let locks = {
@@ -168,20 +153,22 @@ impl DynDevice for KitchenLampDevice {
                 let rgb = object_message.to_lamp_rgb().clone(); // TEST ONLY
                 match self.allowed_to_process(&mut locks, &object_message) {
                     (true, _) => {
-
+                        info!("⛔ Device {} is locked.", & self.get_topic().to_uppercase());
+                        info!("Incoming message : {:?}, last message : {:?}", &msg, &locks.kitchen_lamp_lock.last_object_message);
+                        locks.kitchen_lamp_lock.dec();
                     }
                     (false, true) => {
-                        info!("(same) REPLACE LAMP : {:?}", &rgb);
-                        locks.kitchen_lamp_lock.replace(rgb.clone()); // TEST ONLY
+                        info!("⛔ Device {}, same message.", & self.get_topic().to_uppercase());
+                        info!("Incoming message : {:?}, last message : {:?}", &msg, &locks.kitchen_lamp_lock.last_object_message);
                     }
                     (false, false) => {
-                        info!("🍺 LAMP Here we are, {:?} ", &rgb);
-                        info!("PROCESS LAMP ({}): {}", topic, msg);
+                        info!("🍺 Device {}, process the message.", & self.get_topic().to_uppercase());
+                        info!("Incoming message : {:?}, last message : {:?}", &msg, &locks.kitchen_lamp_lock.last_object_message);
                         self.forward_messages(&mut pub_stream, &mut locks, object_message);
-                        info!("(no lock , no same) REPLACE LAMP : {:?}", &rgb);
-                        locks.kitchen_lamp_lock.replace(rgb.clone()); // TEST ONLY
                     }
                 }
+                locks.kitchen_lamp_lock.replace(rgb.clone());
+                info!("Now last : {:?}", &locks.kitchen_lamp_lock.last_object_message);
 
             }
             locks
