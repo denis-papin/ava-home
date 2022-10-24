@@ -5,10 +5,7 @@ use serde_derive::*;
 use crate::{Locks};
 
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub (crate) struct InterSwitch {
-    pub state: String,
-}
+
 
 pub (crate) const HALL_INTER_SWITCH : &str = "hall_inter_switch";
 

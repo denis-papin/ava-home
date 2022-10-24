@@ -8,6 +8,7 @@ mod inside_temp_sensor;
 mod kitchen_loop;
 mod too_hot_loop;
 mod stream;
+mod messages;
 
 extern crate mqtt;
 #[macro_use]
@@ -22,13 +23,10 @@ use std::{env};
 
 use std::io::Write;
 use std::net::TcpStream;
+use std::ops::Deref;
 
 use std::str;
 use std::sync::Arc;
-
-
-
-
 
 use uuid::Uuid;
 
@@ -38,13 +36,13 @@ use mqtt::TopicFilter;
 use mqtt::{Decodable, Encodable, QualityOfService};
 
 
-use crate::hall_inter_switch::{InterSwitch};
 use crate::hall_lamp::HallLampDevice;
 use crate::inside_temp_sensor::InsideTempSensorDevice;
 
-use crate::kitchen_inter_dim::{InterDim, KitchenInterDimDevice};
-use crate::kitchen_lamp::{DeviceMessage, KitchenLampDevice, LampColor, LampRGB};
+use crate::kitchen_inter_dim::{KitchenInterDimDevice};
+use crate::kitchen_lamp::{KitchenLampDevice};
 use crate::kitchen_loop::KitchenLoop;
+use crate::messages::{DeviceMessage, InterDim, InterSwitch, LampColor, LampRGB};
 use crate::too_hot_loop::TooHotLoop;
 use crate::publish::{connect_publisher, publish};
 use crate::stream::{ping_broker, wait_subpack};
@@ -79,14 +77,6 @@ fn parse_params() -> Params {
         channel_filters.push((TopicFilter::new(topic).unwrap(), QualityOfService::Level0));
     }
 
-    // let channel_filters: Vec<(TopicFilter, QualityOfService)> = vec![
-    //     (TopicFilter::new(format!("zigbee2mqtt/{KITCHEN_INTER_DIM}")).unwrap(), QualityOfService::Level0),
-    //     (TopicFilter::new(format!("zigbee2mqtt/{}", KitchenLampDevice::get_name())).unwrap(), QualityOfService::Level0),
-    //     (TopicFilter::new(format!("zigbee2mqtt/{HALL_INTER_SWITCH}")).unwrap(), QualityOfService::Level0),
-    //     (TopicFilter::new(format!("zigbee2mqtt/{HALL_LAMP}")).unwrap(), QualityOfService::Level0),
-    //     (TopicFilter::new(format!("zigbee2mqtt/{INSIDE_TEMP_SENSOR}")).unwrap(), QualityOfService::Level0),
-    // ];
-
     Params {
         server_addr : "raspberrypi:1883".to_string(),
         client_id,
@@ -99,15 +89,52 @@ pub (crate) trait DynDevice {
     fn get_topic(&self) -> String;
     fn is_init(&self) -> bool;
     fn init(&mut self, topic : &str, msg : &str, arc_locks: Arc<RefCell<Locks>>);
-    fn execute(&self, topic : &str, msg : &str, pub_stream: &mut TcpStream, arc_locks: Arc<RefCell<Locks>>);
 
     /// Send the message on the right end point (/get) to trigger the device properties on the bus
     fn trigger_info(&self, pub_stream: &mut TcpStream);
 
     ///
+    fn replace( &self, locks : &mut Locks, object_message : &Box<dyn DeviceMessage> );
+    fn get_last_object_message(&self, locks : &mut Locks) -> String;
+    fn unlock(&self, locks : &mut Locks);
     fn read_object_message(&self, msg: &str) -> Box<dyn DeviceMessage>;
     fn allowed_to_process(&self, locks : &mut Locks, object_message : &Box<dyn DeviceMessage>) -> (bool,bool);
-    fn forward_messages(&self,  pub_stream: &mut TcpStream, locks : &mut Locks, object_message : Box<dyn DeviceMessage>);
+    fn forward_messages(&self,  pub_stream: &mut TcpStream, locks : &mut Locks, object_message : &Box<dyn DeviceMessage>);
+
+
+    fn execute(&self, topic : &str, msg : &str, mut pub_stream: &mut TcpStream, arc_locks: Arc<RefCell<Locks>>) {
+        let locks = {
+            let borr = arc_locks.as_ref().borrow();
+            let mut locks = borr.deref().clone();
+
+            if topic == &self.get_topic() {
+                info!("Execute device {}", & self.get_topic().to_uppercase());
+                let object_message = self.read_object_message(msg);
+                match self.allowed_to_process(&mut locks, &object_message) {
+                    (true, _) => {
+                        info!("⛔ Device {} is locked.", & self.get_topic().to_uppercase());
+                        info!("Incoming message : {:?}, last message : {:?}", &msg, &self.get_last_object_message(&mut locks));
+                        // locks.kitchen_lamp_lock.dec();
+                        self.unlock(&mut locks);
+                    }
+                    (false, true) => {
+                        info!("⛔ Device {}, same message.", & self.get_topic().to_uppercase());
+                        info!("Incoming message : {:?}, last message : {:?}", &msg, &self.get_last_object_message(&mut locks));
+                    }
+                    (false, false) => {
+                        info!("🍺 Device {}, process the message.", & self.get_topic().to_uppercase());
+                        info!("Incoming message : {:?}, last message : {:?}", &msg, &self.get_last_object_message(&mut locks));
+                        self.forward_messages(&mut pub_stream, &mut locks, &object_message);
+                    }
+                }
+                self.replace(&mut locks, &object_message);
+                info!("Now last : {:?}", &locks.kitchen_lamp_lock.last_object_message);
+            }
+            locks
+        };
+        arc_locks.replace(locks.clone());
+    }
+
 }
 
 #[derive(Debug, Clone)]
@@ -141,7 +168,7 @@ pub (crate) trait DynLoop {
 }
 
 pub (crate) fn find_loops(_topic : &str) -> Vec<Box<dyn DynLoop>> {
-    vec![Box::new(KitchenLoop{})/*, Box::new(TooHotLoop{})*/]
+    vec![Box::new(KitchenLoop{}), Box::new(TooHotLoop{})]
 }
 
 // Devices we want to init before main processing

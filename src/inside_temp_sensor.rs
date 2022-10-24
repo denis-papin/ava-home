@@ -4,16 +4,9 @@ use std::net::TcpStream;
 use std::ops::Deref;
 use std::sync::Arc;
 use serde_derive::*;
-use crate::{DeviceMessage, DynDevice, HallLampDevice, LampRGB, Locks};
+use crate::{DynDevice, HallLampDevice, Locks};
+use crate::messages::{DeviceMessage, TempSensor};
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]
-pub (crate) struct TempSensor {
-    pub battery : u32,
-    pub humidity :f32,
-    pub linkquality : u32,
-    pub temperature: f32,
-    pub voltage: u32,
-}
 
 pub (crate) const INSIDE_TEMP_SENSOR : &str = "inside_temp_sensor";
 pub (crate) const OUTSIDE_TEMP_SENSOR : &str = "0x00124b002503888f";
@@ -84,6 +77,18 @@ impl DynDevice for InsideTempSensorDevice {
         todo!()
     }
 
+    fn replace(&self, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) {
+        todo!()
+    }
+
+    fn get_last_object_message(&self, locks: &mut Locks) -> String {
+        todo!()
+    }
+
+    fn unlock(&self, locks: &mut Locks) {
+        todo!()
+    }
+
     fn read_object_message(&self, msg: &str) -> Box<dyn DeviceMessage> {
         todo!()
     }
@@ -92,7 +97,7 @@ impl DynDevice for InsideTempSensorDevice {
         todo!()
     }
 
-    fn forward_messages(&self, pub_stream: &mut TcpStream, locks: &mut Locks, object_message: Box<dyn DeviceMessage>) {
+    fn forward_messages(&self, pub_stream: &mut TcpStream, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) {
         todo!()
     }
 }

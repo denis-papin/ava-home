@@ -3,15 +3,10 @@ use std::net::TcpStream;
 use std::ops::Deref;
 use std::sync::Arc;
 use serde_derive::*;
-use crate::kitchen_lamp::LampRGB;
-use crate::{DynDevice, Locks, publish, KitchenLampDevice, HallLampDevice, DeviceMessage};
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub (crate) struct InterDim {
-    pub brightness:u8,
-    // linkquality:u8,
-    pub state: String,
-}
+use crate::{DynDevice, Locks, publish, KitchenLampDevice, HallLampDevice};
+use crate::messages::{DeviceMessage, InterDim, LampRGB};
+
 
 pub (crate) const KITCHEN_INTER_DIM : &str = "kitchen_inter_dim";
 
@@ -26,9 +21,15 @@ impl KitchenInterDimDevice {
     }
 
     pub fn receive(mut pub_stream: &mut TcpStream, inter_dim : InterDim ) {
-        let message = serde_json::to_string(&inter_dim).unwrap(); // TODO VI
-        info!("➡ Prepare to be sent to the {}, {:?} ", Self::get_name(), &message);
-        publish(&mut pub_stream, &format!("zigbee2mqtt/{}/set", Self::get_name()), &message);
+        match serde_json::to_string(&inter_dim) {
+            Ok(message) => {
+                info!("➡ Prepare to be sent to the {}, {:?} ", Self::get_name(), &message);
+                publish(&mut pub_stream, &format!("zigbee2mqtt/{}/set", Self::get_name()), &message);
+            }
+            Err(_) => {
+                error!("💣 Impossible to parse the message :{:?}", &inter_dim);
+            }
+        }
     }
 
     pub fn get_name() -> &'static str {
@@ -51,9 +52,6 @@ impl DynDevice for KitchenInterDimDevice {
     }
 
 
-    // TODO handle the locks
-    //      Create a generic BasicDevice to make this routine general
-    //      Build closure to process the publish to other devices
     fn execute(&self, topic : &str, msg : &str, mut pub_stream: &mut TcpStream,  arc_locks : Arc<RefCell<Locks>>) {
         let locks = {
             // let mut locks = rc_locks.get_mut();
@@ -109,6 +107,18 @@ impl DynDevice for KitchenInterDimDevice {
         todo!()
     }
 
+    fn replace(&self, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) {
+        todo!()
+    }
+
+    fn get_last_object_message(&self, locks: &mut Locks) -> String {
+        todo!()
+    }
+
+    fn unlock(&self, locks: &mut Locks) {
+        todo!()
+    }
+
     fn read_object_message(&self, msg: &str) -> Box<dyn DeviceMessage> {
         todo!()
     }
@@ -117,7 +127,7 @@ impl DynDevice for KitchenInterDimDevice {
         todo!()
     }
 
-    fn forward_messages(&self, pub_stream: &mut TcpStream, locks: &mut Locks, object_message: Box<dyn DeviceMessage>) {
+    fn forward_messages(&self, pub_stream: &mut TcpStream, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) {
         todo!()
     }
 }

@@ -4,32 +4,9 @@ use std::net::TcpStream;
 use std::ops::Deref;
 use std::sync::Arc;
 use serde_derive::*;
-use crate::{DynDevice, HallLampDevice, InterDim, KitchenInterDimDevice, Locks, publish};
+use crate::{DynDevice, HallLampDevice, KitchenInterDimDevice, Locks, publish};
+use crate::messages::{DeviceMessage, InterDim, LampRGB};
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]
-pub (crate) struct LampColor {
-    pub hue: Option<u32>,
-    pub saturation: Option<u32>,
-    pub x:f32,
-    pub y:f32,
-}
-
-pub (crate) trait DeviceMessage {
-    fn to_lamp_rgb(&self) -> &'_ LampRGB;
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub (crate) struct LampRGB {
-    pub color : LampColor,
-    pub brightness:u8,
-    pub state: String,
-}
-
-impl DeviceMessage for LampRGB {
-    fn to_lamp_rgb(&self) -> &'_ LampRGB {
-        self
-    }
-}
 
 pub (crate) const KITCHEN_LAMP: &str = "kitchen_lamp";
 
@@ -44,9 +21,15 @@ impl KitchenLampDevice {
     }
 
     pub fn receive(mut pub_stream: &mut TcpStream, lamp_rgb : LampRGB ) {
-        let message = serde_json::to_string(&lamp_rgb).unwrap(); // TODO VI
-        info!("➡ Prepare to be sent to the {}, {:?} ", Self::get_name(), &message);
-        publish(&mut pub_stream, &format!("zigbee2mqtt/{}/set", Self::get_name()), &message);
+        match serde_json::to_string(&lamp_rgb) {
+            Ok(message) => {
+                info!("➡ Prepare to be sent to the {}, {:?} ", Self::get_name(), &message);
+                publish(&mut pub_stream, &format!("zigbee2mqtt/{}/set", Self::get_name()), &message);
+            }
+            Err(_) => {
+                error!("💣 Impossible to parse the message :{:?}", &lamp_rgb);
+            }
+        }
     }
 
     pub fn get_name() -> &'static str {
@@ -67,13 +50,14 @@ impl DynDevice for KitchenLampDevice {
         self.setup
     }
 
+    // TODO Generalize it
     fn init(&mut self, topic : &str, msg : &str, arc_locks: Arc<RefCell<Locks>>) {
         let locks = {
             let borr = arc_locks.as_ref().borrow();
             let mut locks = borr.deref().clone();
 
             if topic == &self.get_topic() {
-                info!("✨ Init LAMP");
+                info!("✨ Init device {} :",  &self.get_topic().to_uppercase());
                 let r_info: Result<LampRGB, _> = serde_json::from_str(msg);
                 match r_info {
                     Ok(lamp) => {
@@ -81,7 +65,7 @@ impl DynDevice for KitchenLampDevice {
                         locks.kitchen_lamp_lock.replace(lamp);
                     }
                     Err(e) => {
-                        panic!("💀 Cannot parse the message for the LAMP :  {e}");
+                        panic!("💀 Cannot parse the message for the device {}, {} :",  &self.get_topic().to_uppercase(), e);
                     }
                 }
             }
@@ -96,8 +80,8 @@ impl DynDevice for KitchenLampDevice {
         match r_info {
             Ok(lamp) => { Box::new(lamp) }
             Err(e) => {
-                // TODO Don't break
-                panic!("💀 Cannot parse the message for the LAMP :  {e}");
+                error!("💀 Cannot parse the message for device {}, e={}", &self.get_topic().to_uppercase(),  e);
+                Box::new(LampRGB::new())
             }
         }
     }
@@ -110,7 +94,7 @@ impl DynDevice for KitchenLampDevice {
         (is_locked, is_same)
     }
 
-    fn forward_messages(&self, mut pub_stream: &mut TcpStream, locks : &mut Locks, object_message : Box<dyn DeviceMessage>) {
+    fn forward_messages(&self, mut pub_stream: &mut TcpStream, locks : &mut Locks, object_message : &Box<dyn DeviceMessage>) {
 
         let lamp_rgb = object_message.to_lamp_rgb();
 
@@ -130,50 +114,19 @@ impl DynDevice for KitchenLampDevice {
         };
 
         HallLampDevice::receive(&mut pub_stream,  lamp_rgb_hall);
-
-        // locks.switch_locks += 1;
-        // let message = format!("{{\"state\":\"{}\"}}", &lamp_rgb.state);
-        // publish(&mut pub_stream, "zigbee2mqtt/hall_inter_switch/set", &message);
-
-        // TODO : This is not at the correct place
-        locks.kitchen_lamp_lock.replace(lamp_rgb.clone());
-
     }
-    
 
-    fn execute(&self, topic : &str, msg : &str, mut pub_stream: &mut TcpStream, arc_locks: Arc<RefCell<Locks>>) {
-        let locks = {
-            let borr = arc_locks.as_ref().borrow();
-            let mut locks = borr.deref().clone();
+    fn replace( &self, locks : &mut Locks, object_message : &Box<dyn DeviceMessage> ) {
+        let rgb = object_message.to_lamp_rgb().clone();
+        locks.kitchen_lamp_lock.replace(rgb );
+    }
 
-            if topic == &self.get_topic() {
-                info!("Execute device LAMP");
+    fn get_last_object_message(&self, locks : &mut Locks) -> String {
+        format!( "{:?}", locks.kitchen_lamp_lock.last_object_message )
+    }
 
-                let object_message = self.read_object_message(msg);
-                let rgb = object_message.to_lamp_rgb().clone(); // TEST ONLY
-                match self.allowed_to_process(&mut locks, &object_message) {
-                    (true, _) => {
-                        info!("⛔ Device {} is locked.", & self.get_topic().to_uppercase());
-                        info!("Incoming message : {:?}, last message : {:?}", &msg, &locks.kitchen_lamp_lock.last_object_message);
-                        locks.kitchen_lamp_lock.dec();
-                    }
-                    (false, true) => {
-                        info!("⛔ Device {}, same message.", & self.get_topic().to_uppercase());
-                        info!("Incoming message : {:?}, last message : {:?}", &msg, &locks.kitchen_lamp_lock.last_object_message);
-                    }
-                    (false, false) => {
-                        info!("🍺 Device {}, process the message.", & self.get_topic().to_uppercase());
-                        info!("Incoming message : {:?}, last message : {:?}", &msg, &locks.kitchen_lamp_lock.last_object_message);
-                        self.forward_messages(&mut pub_stream, &mut locks, object_message);
-                    }
-                }
-                locks.kitchen_lamp_lock.replace(rgb.clone());
-                info!("Now last : {:?}", &locks.kitchen_lamp_lock.last_object_message);
-
-            }
-            locks
-        };
-        arc_locks.replace(locks.clone());
+    fn unlock(&self, locks : &mut Locks) {
+        locks.kitchen_lamp_lock.dec();;
     }
 
     fn trigger_info(&self, mut pub_stream: &mut TcpStream) {
