@@ -1,12 +1,12 @@
 // #[macro_use]
 // extern crate log;
 
-use std::env;
+
 use std::io::{Write};
 use std::net::TcpStream;
 
 
-use clap::{App, Arg};
+
 
 use uuid::Uuid;
 
@@ -14,7 +14,7 @@ use mqtt::control::variable_header::ConnectReturnCode;
 use mqtt::packet::*;
 use mqtt::{Decodable, Encodable, QualityOfService};
 use mqtt::{TopicFilter, TopicName};
-use crate::Params;
+
 
 fn generate_client_id() -> String {
     format!("/MQTT/rust/{}", Uuid::new_v4())
