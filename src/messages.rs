@@ -10,6 +10,7 @@ pub (crate) struct LampColor {
 
 pub (crate) trait DeviceMessage {
     fn to_lamp_rgb(&self) -> &'_ LampRGB;
+    fn to_inter_switch(&self) -> &'_ InterSwitch;
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -29,7 +30,7 @@ impl LampRGB {
                 x: 0.0,
                 y: 0.0
             },
-            brightness: 0,
+            brightness: 40,
             state: "".to_string()
         }
     }
@@ -39,11 +40,33 @@ impl DeviceMessage for LampRGB {
     fn to_lamp_rgb(&self) -> &'_ LampRGB {
         self
     }
+
+    fn to_inter_switch(&self) -> &'_ InterSwitch {
+        todo!()
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub (crate) struct InterSwitch {
     pub state: String,
+}
+
+impl InterSwitch {
+    pub fn new() -> Self {
+        Self {
+            state: "OFF".to_string()
+        }
+    }
+}
+
+impl DeviceMessage for InterSwitch {
+    fn to_lamp_rgb(&self) -> &'_ LampRGB {
+        todo!()
+    }
+
+    fn to_inter_switch(&self) -> &'_ InterSwitch {
+       self
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]

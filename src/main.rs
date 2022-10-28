@@ -2,7 +2,6 @@
 mod publish;
 mod kitchen_lamp;
 mod kitchen_inter_dim;
-mod hall_inter_switch;
 mod hall_lamp;
 mod inside_temp_sensor;
 mod kitchen_loop;
@@ -10,6 +9,7 @@ mod too_hot_loop;
 mod stream;
 mod messages;
 mod outdoor_temp_sensor;
+mod kitchen_switch;
 
 extern crate mqtt;
 #[macro_use]
@@ -43,6 +43,7 @@ use crate::inside_temp_sensor::InsideTempSensorDevice;
 use crate::kitchen_inter_dim::{KitchenInterDimDevice};
 use crate::kitchen_lamp::{KitchenLampDevice};
 use crate::kitchen_loop::KitchenLoop;
+use crate::kitchen_switch::KitchenSwitchDevice;
 use crate::messages::{DeviceMessage, InterDim, InterSwitch, LampColor, LampRGB};
 use crate::outdoor_temp_sensor::OutdoorTempSensorDevice;
 use crate::too_hot_loop::TooHotLoop;
@@ -68,7 +69,7 @@ fn device_to_listen() -> Vec<Box<dyn DynDevice>> {
          Box::new(HallLampDevice::new()),
          Box::new(InsideTempSensorDevice::new()),
          Box::new(OutdoorTempSensorDevice::new()),
-         // Box::new(HallInterSwitchDevice::new()),
+         Box::new(KitchenSwitchDevice::new()),
     ]
 }
 
@@ -184,8 +185,8 @@ impl <T> DeviceLock<T> {
 #[derive(Debug, Clone)]
 struct Locks {
     pub kitchen_inter_dim_lock : DeviceLock<InterDim>,
+    pub kitchen_switch_lock : DeviceLock<InterSwitch>,
     pub kitchen_lamp_lock : DeviceLock<LampRGB>,
-    pub hall_inter_switch : DeviceLock<InterSwitch>,
     pub hall_lamp_lock : DeviceLock<LampRGB>,
 }
 
@@ -213,7 +214,7 @@ fn process_initialization_message(mut stream : &mut TcpStream, mut pub_stream: &
         kitchen_inter_dim_lock: DeviceLock {
             count_locks: 0,
             last_object_message: InterDim {
-                brightness: 0,
+                brightness: 40,
                 state: "".to_string()
             }
         },
@@ -230,7 +231,7 @@ fn process_initialization_message(mut stream : &mut TcpStream, mut pub_stream: &
                 state: "".to_string()
             }
         },
-        hall_inter_switch: DeviceLock {
+        kitchen_switch_lock: DeviceLock {
             count_locks: 0,
             last_object_message: InterSwitch {
                 state: "".to_string()
@@ -245,7 +246,7 @@ fn process_initialization_message(mut stream : &mut TcpStream, mut pub_stream: &
                     x: 0.0,
                     y: 0.0
                 },
-                brightness: 0,
+                brightness: 40,
                 state: "".to_string()
             }
         }
