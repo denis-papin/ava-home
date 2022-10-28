@@ -38,7 +38,7 @@ impl DynDevice for OutdoorTempSensorDevice {
         todo!()
     }
 
-    fn execute(&self, topic : &str, msg : &str, mut pub_stream: &mut TcpStream, arc_locks: Arc<RefCell<Locks>>) {
+    fn execute(&self, topic : &str, msg : &str, pub_stream: &mut TcpStream, arc_locks: Arc<RefCell<Locks>>) {
         // nothing to do
     }
 

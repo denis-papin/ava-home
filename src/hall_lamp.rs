@@ -120,7 +120,7 @@ impl DynDevice for HallLampDevice {
     }
 
     fn unlock(&self, locks: &mut Locks) {
-        locks.hall_lamp_lock.dec();;
+        locks.hall_lamp_lock.dec();
     }
 
     fn trigger_info(&self, mut pub_stream: &mut TcpStream) {
