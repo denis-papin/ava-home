@@ -3,6 +3,7 @@ use std::cell::{RefCell};
 use std::net::TcpStream;
 use std::ops::Deref;
 use std::sync::Arc;
+use std::time::Duration;
 use serde_derive::*;
 use crate::{DynDevice, HallLampDevice, Locks};
 use crate::messages::{DeviceMessage, TempSensor};
@@ -59,15 +60,41 @@ impl DynDevice for InsideTempSensorDevice {
                 info!("🍺 inside_temp_sensor message, {:?} ", &message);
                 info!("PROCESS inside_temp_sensor ({}): {}", topic, msg);
 
-                let mut lamp_rgb = locks.hall_lamp_lock.last_object_message.clone();
+                // Green :"x":0.3,"y":0.6
+                // Red : "x":0.640625,"y":0.328125
+
                 locks.hall_lamp_lock.inc();
                 info!("🔥 Temperature: {}", message.temperature);
-                if message.temperature >= 22.0 {
-                    lamp_rgb.state = "ON".to_string();
+                let lamp_rgb = if message.temperature >= 22.0 {
+                    let mut lamp_red = locks.hall_lamp_lock.last_object_message.clone();
+                    lamp_red.state = "ON".to_string();
+                    lamp_red.color.x = 0.640625;
+                    lamp_red.color.y = 0.328125;
+                    lamp_red
                 } else {
-                    lamp_rgb.state = "OFF".to_string();
+                    let mut lamp_green = locks.hall_lamp_lock.last_object_message.clone();
+                    lamp_green.state = "OFF".to_string();
+                    lamp_green.color.x = 0.3;
+                    lamp_green.color.y = 0.6;
+                    lamp_green
+                };
+
+                let mut lamp_off =  locks.hall_lamp_lock.last_object_message.clone();
+                lamp_off.state = "OFF".to_string();
+
+                for _ in 1..=3 {
+                    HallLampDevice::receive(&mut pub_stream, lamp_off.clone());
+                    std::thread::sleep(Duration::from_millis(200));
+
+                    HallLampDevice::receive(&mut pub_stream, lamp_rgb.clone());
+                    std::thread::sleep(Duration::from_millis(500));
                 }
-                HallLampDevice::receive(&mut pub_stream, lamp_rgb);
+
+                HallLampDevice::receive(&mut pub_stream, lamp_off.clone());
+                std::thread::sleep(Duration::from_millis(200));
+
+                // Back to origin
+                HallLampDevice::receive(&mut pub_stream,  locks.hall_lamp_lock.last_object_message.clone());
             }
             locks
         };
