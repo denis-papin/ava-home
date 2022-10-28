@@ -9,6 +9,7 @@ mod kitchen_loop;
 mod too_hot_loop;
 mod stream;
 mod messages;
+mod outdoor_temp_sensor;
 
 extern crate mqtt;
 #[macro_use]
@@ -43,6 +44,7 @@ use crate::kitchen_inter_dim::{KitchenInterDimDevice};
 use crate::kitchen_lamp::{KitchenLampDevice};
 use crate::kitchen_loop::KitchenLoop;
 use crate::messages::{DeviceMessage, InterDim, InterSwitch, LampColor, LampRGB};
+use crate::outdoor_temp_sensor::OutdoorTempSensorDevice;
 use crate::too_hot_loop::TooHotLoop;
 use crate::publish::{connect_publisher, publish};
 use crate::stream::{ping_broker, wait_subpack};
@@ -60,12 +62,36 @@ pub struct Params {
 }
 
 fn device_to_listen() -> Vec<Box<dyn DynDevice>> {
+    // TO BE UPDATED IF NEW DEVICE
     vec![Box::new(KitchenInterDimDevice::new()),
          Box::new(KitchenLampDevice::new()),
          Box::new(HallLampDevice::new()),
          Box::new(InsideTempSensorDevice::new()),
+         Box::new(OutdoorTempSensorDevice::new()),
          // Box::new(HallInterSwitchDevice::new()),
     ]
+}
+
+pub (crate) fn find_loops(topic: &str) -> Vec<Box<dyn DynLoop>> {
+    // TO BE UPDATED IF NEW LOOP
+    let all_loops : Vec<Box<dyn DynLoop>> =  vec![Box::new(KitchenLoop{}),
+                                                  Box::new(TooHotLoop{})];
+    let mut eligible_loops : Vec<Box<dyn DynLoop>> = vec![];
+
+    for lp in all_loops {
+        if lp.has_topic(topic) {
+            info!("Found topic in [{}] loop, topic=[{}]", & lp.get_name(), topic);
+            eligible_loops.push(lp);
+        }
+    }
+
+    eligible_loops
+}
+
+// Devices we want to init before main processing
+pub (crate) fn init_loop() -> Vec<Box<dyn DynDevice>> {
+    vec![Box::new(KitchenLampDevice::new()),
+         Box::new(HallLampDevice::new())]
 }
 
 fn parse_params() -> Params {
@@ -164,18 +190,19 @@ struct Locks {
 }
 
 pub (crate) trait DynLoop {
+    fn get_name(&self) -> &'static str;
     fn get_devices(&self) -> Vec<Box<dyn DynDevice>>;
+    fn has_topic(&self, topic: &str) -> bool {
+        for dev in self.get_devices() {
+            if dev.get_topic() == topic {
+                return true;
+            }
+        }
+        false
+    }
 }
 
-pub (crate) fn find_loops(_topic : &str) -> Vec<Box<dyn DynLoop>> {
-    vec![Box::new(KitchenLoop{}), Box::new(TooHotLoop{})]
-}
 
-// Devices we want to init before main processing
-pub (crate) fn init_loop() -> Vec<Box<dyn DynDevice>> {
-    vec![Box::new(KitchenLampDevice::new()),
-         Box::new(HallLampDevice::new())]
-}
 
 ///
 ///  Process incoming messages for initialization of devices

@@ -5,12 +5,11 @@ use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
 use serde_derive::*;
-use crate::{DynDevice, HallLampDevice, Locks};
+use outdoor_temp_sensor::OutdoorTempSensorDevice;
+use crate::{DynDevice, HallLampDevice, Locks, outdoor_temp_sensor};
 use crate::messages::{DeviceMessage, TempSensor};
 
-
 pub (crate) const INSIDE_TEMP_SENSOR : &str = "inside_temp_sensor";
-pub (crate) const OUTSIDE_TEMP_SENSOR : &str = "0x00124b002503888f";
 
 #[derive(Debug)]
 pub (crate) struct InsideTempSensorDevice {
@@ -47,7 +46,7 @@ impl DynDevice for InsideTempSensorDevice {
             let borr = arc_locks.as_ref().borrow();
             let mut locks = borr.deref().clone();
 
-            if topic == &self.get_topic() || topic == format!("zigbee2mqtt/{}", OUTSIDE_TEMP_SENSOR ) {
+            if topic == &self.get_topic() || topic == OutdoorTempSensorDevice::new().get_topic() /*format!("zigbee2mqtt/{}", OUTSIDE_TEMP_SENSOR )*/ {
                 let r_info: Result<TempSensor, _> = serde_json::from_str(msg);
                 let message = match r_info {
                     Ok(lamp) => { lamp }
@@ -60,10 +59,6 @@ impl DynDevice for InsideTempSensorDevice {
                 info!("🍺 inside_temp_sensor message, {:?} ", &message);
                 info!("PROCESS inside_temp_sensor ({}): {}", topic, msg);
 
-                // Green :"x":0.3,"y":0.6
-                // Red : "x":0.640625,"y":0.328125
-
-                locks.hall_lamp_lock.inc();
                 info!("🔥 Temperature: {}", message.temperature);
                 let lamp_rgb = if message.temperature >= 22.0 {
                     let mut lamp_red = locks.hall_lamp_lock.last_object_message.clone();
@@ -83,17 +78,21 @@ impl DynDevice for InsideTempSensorDevice {
                 lamp_off.state = "OFF".to_string();
 
                 for _ in 1..=3 {
+                    locks.hall_lamp_lock.inc();
                     HallLampDevice::receive(&mut pub_stream, lamp_off.clone());
                     std::thread::sleep(Duration::from_millis(200));
 
+                    locks.hall_lamp_lock.inc();
                     HallLampDevice::receive(&mut pub_stream, lamp_rgb.clone());
                     std::thread::sleep(Duration::from_millis(500));
                 }
 
+                locks.hall_lamp_lock.inc();
                 HallLampDevice::receive(&mut pub_stream, lamp_off.clone());
                 std::thread::sleep(Duration::from_millis(200));
 
                 // Back to origin
+                locks.hall_lamp_lock.inc();
                 HallLampDevice::receive(&mut pub_stream,  locks.hall_lamp_lock.last_object_message.clone());
             }
             locks
