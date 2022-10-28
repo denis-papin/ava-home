@@ -4,7 +4,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 use serde_derive::*;
 
-use crate::{DynDevice, Locks, publish, KitchenLampDevice, HallLampDevice};
+use crate::{DynDevice, Locks, publish, KitchenLampDevice, HallLampDevice, InterSwitch, KitchenSwitchDevice};
 use crate::messages::{DeviceMessage, InterDim, LampRGB};
 
 
@@ -91,9 +91,11 @@ impl DynDevice for KitchenInterDimDevice {
 
                         HallLampDevice::receive(&mut pub_stream, lamp_basic);
 
-                        // locks.switch_locks += 1;
-                        // let message = format!("{{\"state\":\"{}\"}}", &inter_dim.state);
-                        // publish(&mut pub_stream, "zigbee2mqtt/hall_inter_switch/set", &message);
+                        locks.kitchen_switch_lock.inc();
+                        let inter_switch = InterSwitch {
+                            state: inter_dim.state.clone(),
+                        };
+                        KitchenSwitchDevice::receive(&mut pub_stream, inter_switch);
                     }
                 }
                 locks.kitchen_inter_dim_lock.replace(inter_dim);

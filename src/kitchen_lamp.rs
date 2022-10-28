@@ -4,7 +4,7 @@ use std::net::TcpStream;
 use std::ops::Deref;
 use std::sync::Arc;
 use serde_derive::*;
-use crate::{DynDevice, HallLampDevice, KitchenInterDimDevice, Locks, publish};
+use crate::{DynDevice, HallLampDevice, InterSwitch, KitchenInterDimDevice, KitchenSwitchDevice, Locks, publish};
 use crate::messages::{DeviceMessage, InterDim, LampRGB};
 
 
@@ -96,12 +96,19 @@ impl DynDevice for KitchenLampDevice {
 
     fn forward_messages(&self, mut pub_stream: &mut TcpStream, locks : &mut Locks, object_message : &Box<dyn DeviceMessage>) {
 
-        let lamp_rgb = object_message.to_lamp_rgb();
+        let message = object_message.to_lamp_rgb();
 
+        locks.kitchen_switch_lock.inc();
+        let inter_switch = InterSwitch {
+            state: message.state.clone(),
+        };
+        KitchenSwitchDevice::receive(&mut pub_stream, inter_switch);
+
+        //
         locks.kitchen_inter_dim_lock.inc();
         let inter_dim = InterDim {
-            brightness: lamp_rgb.brightness,
-            state: lamp_rgb.state.clone(),
+            brightness: message.brightness,
+            state: message.state.clone(),
         };
         KitchenInterDimDevice::receive(&mut pub_stream, inter_dim);
 
@@ -109,10 +116,9 @@ impl DynDevice for KitchenLampDevice {
         locks.hall_lamp_lock.inc();
         let lamp_rgb_hall = LampRGB {
             color: locks.hall_lamp_lock.last_object_message.color.clone(),
-            brightness: lamp_rgb.brightness,
-            state: lamp_rgb.state.clone(),
+            brightness: message.brightness,
+            state: message.state.clone(),
         };
-
         HallLampDevice::receive(&mut pub_stream,  lamp_rgb_hall);
     }
 

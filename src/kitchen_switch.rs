@@ -19,14 +19,14 @@ impl KitchenSwitchDevice {
         Self {setup: false}
     }
 
-    pub fn receive(mut pub_stream: &mut TcpStream, inter_dim : InterDim ) {
-        match serde_json::to_string(&inter_dim) {
+    pub fn receive(mut pub_stream: &mut TcpStream, object_message: InterSwitch ) {
+        match serde_json::to_string(&object_message) {
             Ok(message) => {
                 info!("➡ Prepare to be sent to the {}, {:?} ", Self::get_name(), &message);
                 publish(&mut pub_stream, &format!("zigbee2mqtt/{}/set", Self::get_name()), &message);
             }
             Err(_) => {
-                error!("💣 Impossible to parse the message :{:?}", &inter_dim);
+                error!("💣 Impossible to parse the message :{:?}", &object_message);
             }
         }
     }
@@ -69,57 +69,6 @@ impl DynDevice for KitchenSwitchDevice {
         arc_locks.replace(locks.clone());
     }
 
-
-    //fn execute(&self, topic : &str, msg : &str, mut pub_stream: &mut TcpStream,  arc_locks : Arc<RefCell<Locks>>) {
-        // let locks = {
-        //     // let mut locks = rc_locks.get_mut();
-        //     let borr = arc_locks.as_ref().borrow();
-        //     let mut locks = borr.deref().clone();
-        //
-        //     if topic == &self.get_topic() {
-        //         info!("Execute device {}", self.get_topic());
-        //         let r_info: Result<InterDim, _> = serde_json::from_str(msg);
-        //         let inter_dim = r_info.unwrap();
-        //
-        //         if locks.kitchen_inter_dim_lock.count_locks > 0 {
-        //             info!("⛔ DIMMER MESSAGE Here we are, {:?} ", &inter_dim);
-        //             info!("DIMMER IS LOCKED BY THE DIMMER ({}): {}", topic, msg);
-        //             locks.kitchen_inter_dim_lock.dec();
-        //         } else {
-        //             if inter_dim == locks.kitchen_inter_dim_lock.last_object_message {
-        //                 info!("⛔ DIMMER [same message], {:?} ", &inter_dim);
-        //             } else {
-        //                 info!("🍺 DIMMER MESSAGE Here we are, {:?} ", &inter_dim);
-        //
-        //                 locks.kitchen_lamp_lock.inc();
-        //                 let lamp_rgb = LampRGB {
-        //                     color: locks.kitchen_lamp_lock.last_object_message.color.clone(),
-        //                     brightness: inter_dim.brightness,
-        //                     state: inter_dim.state.clone(),
-        //                 };
-        //
-        //                 KitchenLampDevice::receive(&mut pub_stream, lamp_rgb);
-        //
-        //                 locks.hall_lamp_lock.inc();
-        //                 let lamp_basic = LampRGB {
-        //                     color: locks.hall_lamp_lock.last_object_message.color.clone(),
-        //                     brightness: inter_dim.brightness,
-        //                     state: inter_dim.state.clone(),
-        //                 };
-        //
-        //                 HallLampDevice::receive(&mut pub_stream, lamp_basic);
-        //
-        //                 // locks.switch_locks += 1;
-        //                 // let message = format!("{{\"state\":\"{}\"}}", &inter_dim.state);
-        //                 // publish(&mut pub_stream, "zigbee2mqtt/hall_inter_switch/set", &message);
-        //             }
-        //         }
-        //         locks.kitchen_inter_dim_lock.replace(inter_dim);
-        //     }
-        //     locks
-        // };
-        // arc_locks.replace(locks.clone());
-   // }
 
     fn read_object_message(&self, msg: &str) -> Box<dyn DeviceMessage> {
         let r_info: Result<InterSwitch, _> = serde_json::from_str(msg);
