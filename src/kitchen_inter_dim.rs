@@ -20,17 +20,17 @@ impl KitchenInterDimDevice {
         Self {}
     }
 
-    pub fn receive(mut pub_stream: &mut TcpStream, inter_dim : InterDim ) {
-        match serde_json::to_string(&inter_dim) {
-            Ok(message) => {
-                info!("➡ Prepare to be sent to the {}, {:?} ", Self::get_name(), &message);
-                publish(&mut pub_stream, &format!("zigbee2mqtt/{}/set", Self::get_name()), &message);
-            }
-            Err(_) => {
-                error!("💣 Impossible to parse the message :{:?}", &inter_dim);
-            }
-        }
-    }
+    // pub fn receive(mut pub_stream: &mut TcpStream, inter_dim : InterDim ) {
+    //     match serde_json::to_string(&inter_dim) {
+    //         Ok(message) => {
+    //             info!("➡ Prepare to be sent to the {}, {:?} ", Self::get_name(), &message);
+    //             publish(&mut pub_stream, &format!("zigbee2mqtt/{}/set", Self::get_name()), &message);
+    //         }
+    //         Err(_) => {
+    //             error!("💣 Impossible to parse the message :{:?}", &inter_dim);
+    //         }
+    //     }
+    // }
 
     pub fn get_name() -> &'static str {
         KITCHEN_INTER_DIM
@@ -80,7 +80,7 @@ impl DynDevice for KitchenInterDimDevice {
                             state: inter_dim.state.clone(),
                         };
 
-                        KitchenLampDevice::receive(&mut pub_stream, lamp_rgb);
+                        KitchenLampDevice::new().receive(&mut pub_stream, Box::new(lamp_rgb));
 
                         locks.hall_lamp_lock.inc();
                         let lamp_basic = LampRGB {
@@ -89,13 +89,13 @@ impl DynDevice for KitchenInterDimDevice {
                             state: inter_dim.state.clone(),
                         };
 
-                        HallLampDevice::receive(&mut pub_stream, lamp_basic);
+                        HallLampDevice::new().receive(&mut pub_stream, Box::new(lamp_basic));
 
                         locks.kitchen_switch_lock.inc();
                         let inter_switch = InterSwitch {
                             state: inter_dim.state.clone(),
                         };
-                        KitchenSwitchDevice::receive(&mut pub_stream, inter_switch);
+                        KitchenSwitchDevice::new().receive(&mut pub_stream, Box::new(inter_switch));
                     }
                 }
                 locks.kitchen_inter_dim_lock.replace(inter_dim);
@@ -131,5 +131,9 @@ impl DynDevice for KitchenInterDimDevice {
 
     fn forward_messages(&self, pub_stream: &mut TcpStream, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) {
         todo!()
+    }
+
+    fn to_local(&self, origin_message : &Box<dyn DeviceMessage>, last_message: &Box<dyn DeviceMessage>) -> Box<dyn DeviceMessage> {
+        origin_message.to_inter_dim()
     }
 }

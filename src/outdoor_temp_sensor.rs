@@ -69,4 +69,8 @@ impl DynDevice for OutdoorTempSensorDevice {
     fn forward_messages(&self, pub_stream: &mut TcpStream, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) {
         todo!()
     }
+
+    fn to_local(&self, origin_message: &Box<dyn DeviceMessage>, last_message: &Box<dyn DeviceMessage>) -> Box<dyn DeviceMessage> {
+        todo!()
+    }
 }

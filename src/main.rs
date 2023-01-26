@@ -21,6 +21,7 @@ extern crate uuid;
 use std::cell::{RefCell};
 
 use std::{env};
+use std::fmt::Debug;
 
 use std::io::Write;
 use std::net::TcpStream;
@@ -162,6 +163,26 @@ pub (crate) trait DynDevice {
         arc_locks.replace(locks.clone());
     }
 
+    // Could be a method of a receiver trait
+    fn receive(&self, mut pub_stream: &mut TcpStream, object_message : Box<dyn DeviceMessage>) {
+        match object_message.to_json() {
+            Ok(message) => {
+                info!("➡ Prepare to be sent to the {}, {:?} ", &self.get_topic().to_uppercase(), &message);
+                publish(&mut pub_stream, &format!("{}/set", &self.get_topic()), &message);
+            }
+            Err(e) => {
+                error!("💣 Impossible to parse the message : e={:?}", e);
+            }
+        }
+    }
+
+    fn convert_and_receive(&self, mut pub_stream: &mut TcpStream, origin_message : &Box<dyn DeviceMessage>,  last_message : &Box<dyn DeviceMessage>) {
+        let target_message = self.to_local(&origin_message, &last_message);
+        self.receive(&mut pub_stream, target_message);
+    }
+
+    // Convert any message (origin_message) into a local message type needed by the device
+    fn to_local(&self, origin_message : &Box<dyn DeviceMessage>, last_message: &Box<dyn DeviceMessage>) -> Box<dyn DeviceMessage>;
 }
 
 #[derive(Debug, Clone)]
@@ -339,7 +360,6 @@ fn process_incomming_message(mut stream : &mut TcpStream, mut pub_stream: &mut T
                 };
                 info!("PUBLISH ({}): {}", publ.topic_name(), msg);
 
-                // TODO find the loop for the given topic
                 let loops = find_loops(&publ.topic_name());
 
                 for lp in loops {

@@ -20,23 +20,9 @@ impl KitchenLampDevice {
         Self { setup : false }
     }
 
-    pub fn receive(mut pub_stream: &mut TcpStream, lamp_rgb : LampRGB ) {
-        match serde_json::to_string(&lamp_rgb) {
-            Ok(message) => {
-                info!("➡ Prepare to be sent to the {}, {:?} ", Self::get_name(), &message);
-                publish(&mut pub_stream, &format!("zigbee2mqtt/{}/set", Self::get_name()), &message);
-            }
-            Err(_) => {
-                error!("💣 Impossible to parse the message :{:?}", &lamp_rgb);
-            }
-        }
-    }
-
     pub fn get_name() -> &'static str {
         KITCHEN_LAMP
     }
-
-
 }
 
 
@@ -88,7 +74,7 @@ impl DynDevice for KitchenLampDevice {
 
     //
     fn allowed_to_process(&self, locks : &mut Locks, object_message : &Box<dyn DeviceMessage>) -> (bool, bool) {
-        let lamp_rgb = object_message.to_lamp_rgb();
+        let lamp_rgb = object_message.as_lamp_rgb();
         let is_locked = locks.kitchen_lamp_lock.count_locks > 0;
         let is_same = *lamp_rgb == locks.kitchen_lamp_lock.last_object_message;
         (is_locked, is_same)
@@ -96,34 +82,31 @@ impl DynDevice for KitchenLampDevice {
 
     fn forward_messages(&self, mut pub_stream: &mut TcpStream, locks : &mut Locks, object_message : &Box<dyn DeviceMessage>) {
 
-        let message = object_message.to_lamp_rgb();
-
         locks.kitchen_switch_lock.inc();
-        let inter_switch = InterSwitch {
-            state: message.state.clone(),
-        };
-        KitchenSwitchDevice::receive(&mut pub_stream, inter_switch);
+
+        // LampRGB -> InterSwitch
+        // TODO pass the Locks instead ...
+        let last_message = Box::new(locks.kitchen_switch_lock.last_object_message.clone()) as Box<dyn DeviceMessage>;
+        KitchenSwitchDevice::new().convert_and_receive(&mut pub_stream, &object_message, &last_message);
 
         //
         locks.kitchen_inter_dim_lock.inc();
-        let inter_dim = InterDim {
-            brightness: message.brightness,
-            state: message.state.clone(),
-        };
-        KitchenInterDimDevice::receive(&mut pub_stream, inter_dim);
-
+        // let inter_dim= object_message.to_inter_dim();
+        // KitchenInterDimDevice::new().receive(&mut pub_stream, inter_dim);
+        KitchenInterDimDevice::new().convert_and_receive(&mut pub_stream, &object_message, &last_message);
         //
         locks.hall_lamp_lock.inc();
-        let lamp_rgb_hall = LampRGB {
-            color: locks.hall_lamp_lock.last_object_message.color.clone(),
-            brightness: message.brightness,
-            state: message.state.clone(),
-        };
-        HallLampDevice::receive(&mut pub_stream,  lamp_rgb_hall);
+        // let lamp_rgb_hall = LampRGB {
+        //     color: locks.hall_lamp_lock.last_object_message.color.clone(),
+        //     brightness: message.brightness,
+        //     state: message.state.clone(),
+        // };
+        // HallLampDevice::new().receive(&mut pub_stream,  Box::new(lamp_rgb_hall));
+        HallLampDevice::new().convert_and_receive(&mut pub_stream,  &object_message, &last_message);
     }
 
     fn replace( &self, locks : &mut Locks, object_message : &Box<dyn DeviceMessage> ) {
-        let rgb = object_message.to_lamp_rgb().clone();
+        let rgb = object_message.as_lamp_rgb().clone();
         locks.kitchen_lamp_lock.replace(rgb );
     }
 
@@ -139,5 +122,8 @@ impl DynDevice for KitchenLampDevice {
         publish(&mut pub_stream, &format!("{}/get", &self.get_topic()), r#"{"color":{"x":"","y":""}}"#);
     }
 
+    fn to_local(&self, origin_message : &Box<dyn DeviceMessage>, last_message: &Box<dyn DeviceMessage>) -> Box<dyn DeviceMessage> {
+        origin_message.to_lamp_rgb(&last_message)
+    }
 }
 

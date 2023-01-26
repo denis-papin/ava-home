@@ -79,21 +79,21 @@ impl DynDevice for InsideTempSensorDevice {
 
                 for _ in 1..=3 {
                     locks.hall_lamp_lock.inc();
-                    HallLampDevice::receive(&mut pub_stream, lamp_off.clone());
+                    HallLampDevice::new().receive(&mut pub_stream, Box::new(lamp_off.clone()));
                     std::thread::sleep(Duration::from_millis(200));
 
                     locks.hall_lamp_lock.inc();
-                    HallLampDevice::receive(&mut pub_stream, lamp_rgb.clone());
+                    HallLampDevice::new().receive(&mut pub_stream, Box::new(lamp_rgb.clone()));
                     std::thread::sleep(Duration::from_millis(500));
                 }
 
                 locks.hall_lamp_lock.inc();
-                HallLampDevice::receive(&mut pub_stream, lamp_off.clone());
+                HallLampDevice::new().receive(&mut pub_stream, Box::new(lamp_off.clone()));
                 std::thread::sleep(Duration::from_millis(200));
 
                 // Back to origin
                 locks.hall_lamp_lock.inc();
-                HallLampDevice::receive(&mut pub_stream,  locks.hall_lamp_lock.last_object_message.clone());
+                HallLampDevice::new().receive(&mut pub_stream,  Box::new(locks.hall_lamp_lock.last_object_message.clone()));
             }
             locks
         };
@@ -125,6 +125,10 @@ impl DynDevice for InsideTempSensorDevice {
     }
 
     fn forward_messages(&self, pub_stream: &mut TcpStream, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) {
+        todo!()
+    }
+
+    fn to_local(&self, origin_message : &Box<dyn DeviceMessage>, last_message: &Box<dyn DeviceMessage>) -> Box<dyn DeviceMessage> {
         todo!()
     }
 }

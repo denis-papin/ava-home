@@ -19,17 +19,17 @@ impl HallLampDevice {
         Self {setup : false}
     }
 
-    pub fn receive(mut pub_stream: &mut TcpStream, lamp_rgb : LampRGB ) {
-        match serde_json::to_string(&lamp_rgb) {
-            Ok(message) => {
-                info!("➡ Prepare to be sent to the {}, {:?} ", Self::get_name(), &message);
-                publish(&mut pub_stream, &format!("zigbee2mqtt/{}/set", Self::get_name()), &message);
-            }
-            Err(_) => {
-                error!("💣 Impossible to parse the message :{:?}", &lamp_rgb);
-            }
-        }
-    }
+    // pub fn receive(mut pub_stream: &mut TcpStream, lamp_rgb : LampRGB ) {
+    //     match serde_json::to_string(&lamp_rgb) {
+    //         Ok(message) => {
+    //             info!("➡ Prepare to be sent to the {}, {:?} ", Self::get_name(), &message);
+    //             publish(&mut pub_stream, &format!("zigbee2mqtt/{}/set", Self::get_name()), &message);
+    //         }
+    //         Err(_) => {
+    //             error!("💣 Impossible to parse the message :{:?}", &lamp_rgb);
+    //         }
+    //     }
+    // }
 
     pub fn get_name() -> &'static str {
         HALL_LAMP
@@ -82,7 +82,7 @@ impl DynDevice for HallLampDevice {
     }
 
     fn allowed_to_process(&self, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) -> (bool,bool) {
-        let lamp_rgb = object_message.to_lamp_rgb();
+        let lamp_rgb = object_message.as_lamp_rgb();
         let is_locked = locks.hall_lamp_lock.count_locks > 0;
         let is_same = *lamp_rgb == locks.hall_lamp_lock.last_object_message;
         (is_locked, is_same)
@@ -90,13 +90,13 @@ impl DynDevice for HallLampDevice {
 
     fn forward_messages(&self, mut pub_stream: &mut TcpStream, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) {
 
-        let message = object_message.to_lamp_rgb();
+        let message = object_message.as_lamp_rgb();
 
         locks.kitchen_switch_lock.inc();
         let inter_switch = InterSwitch {
             state: message.state.clone(),
         };
-        KitchenSwitchDevice::receive(&mut pub_stream, inter_switch);
+        KitchenSwitchDevice::new().receive(&mut pub_stream, Box::new(inter_switch));
 
         //
         locks.kitchen_inter_dim_lock.inc();
@@ -104,7 +104,7 @@ impl DynDevice for HallLampDevice {
             brightness: message.brightness,
             state: message.state.clone(),
         };
-        KitchenInterDimDevice::receive(&mut pub_stream, inter_dim);
+        KitchenInterDimDevice::new().receive(&mut pub_stream, Box::new(inter_dim));
 
         //
         locks.kitchen_lamp_lock.inc();
@@ -114,11 +114,11 @@ impl DynDevice for HallLampDevice {
             state: message.state.clone(),
         };
 
-        KitchenLampDevice::receive(&mut pub_stream, lamp_rgb);
+        KitchenLampDevice::new().receive(&mut pub_stream, Box::new(lamp_rgb));
     }
 
     fn replace(&self, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) {
-        let rgb = object_message.to_lamp_rgb().clone();
+        let rgb = object_message.as_lamp_rgb().clone();
         locks.hall_lamp_lock.replace(rgb );
     }
 
@@ -132,5 +132,9 @@ impl DynDevice for HallLampDevice {
 
     fn trigger_info(&self, mut pub_stream: &mut TcpStream) {
         publish(&mut pub_stream, &format!("{}/get", &self.get_topic()), r#"{"color":{"x":"","y":""}}"#);
+    }
+
+    fn to_local(&self, origin_message : &Box<dyn DeviceMessage>, last_message: &Box<dyn DeviceMessage>) -> Box<dyn DeviceMessage> {
+        origin_message.to_lamp_rgb(last_message)
     }
 }

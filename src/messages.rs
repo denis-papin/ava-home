@@ -1,3 +1,4 @@
+use std::slice::RSplit;
 use serde_derive::*;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]
@@ -9,8 +10,22 @@ pub (crate) struct LampColor {
 }
 
 pub (crate) trait DeviceMessage {
-    fn to_lamp_rgb(&self) -> &'_ LampRGB;
-    fn to_inter_switch(&self) -> &'_ InterSwitch;
+    fn as_lamp_rgb(&self) -> &'_ LampRGB;
+    fn as_inter_switch(&self) -> &'_ InterSwitch;
+
+    fn to_json(&self) -> serde_json::error::Result<String>;
+
+    fn to_inter_switch(&self) -> /*InterSwitch*/ Box<dyn DeviceMessage> {
+        todo!()
+    }
+
+    fn to_inter_dim(&self) -> /*InterDim*/ Box<dyn DeviceMessage>  {
+        todo!()
+    }
+
+    fn to_lamp_rgb(&self, last_message : &Box<dyn DeviceMessage>) -> Box<dyn DeviceMessage> {
+        todo!()
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -37,13 +52,40 @@ impl LampRGB {
 }
 
 impl DeviceMessage for LampRGB {
-    fn to_lamp_rgb(&self) -> &'_ LampRGB {
+    fn as_lamp_rgb(&self) -> &'_ LampRGB {
         self
     }
 
-    fn to_inter_switch(&self) -> &'_ InterSwitch {
+    fn as_inter_switch(&self) -> &'_ InterSwitch {
         todo!()
     }
+
+    fn to_json(&self) -> serde_json::error::Result<String> {
+        serde_json::to_string(self)
+    }
+
+    fn to_inter_switch(&self) -> Box<dyn DeviceMessage>  {
+        Box::new(InterSwitch {
+            state: self.state.clone(),
+        })
+    }
+
+    fn to_inter_dim(&self) -> Box<dyn DeviceMessage>  {
+        Box::new(InterDim {
+            brightness: self.brightness,
+            state: self.state.clone(),
+        })
+    }
+
+    fn to_lamp_rgb(&self, last_message : &Box<dyn DeviceMessage>) -> Box<dyn DeviceMessage> {
+        let rgb = last_message.as_lamp_rgb();
+        Box::new(LampRGB {
+            color: rgb.color.clone(),
+            brightness: self.brightness,
+            state: self.state.clone(),
+        })
+    }
+
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -60,12 +102,16 @@ impl InterSwitch {
 }
 
 impl DeviceMessage for InterSwitch {
-    fn to_lamp_rgb(&self) -> &'_ LampRGB {
+    fn as_lamp_rgb(&self) -> &'_ LampRGB {
         todo!()
     }
 
-    fn to_inter_switch(&self) -> &'_ InterSwitch {
+    fn as_inter_switch(&self) -> &'_ InterSwitch {
        self
+    }
+
+    fn to_json(&self) -> serde_json::error::Result<String> {
+        serde_json::to_string(self)
     }
 }
 
@@ -83,4 +129,18 @@ pub (crate) struct InterDim {
     pub brightness:u8,
     // linkquality:u8,
     pub state: String,
+}
+
+impl DeviceMessage for InterDim {
+    fn as_lamp_rgb(&self) -> &'_ LampRGB {
+        todo!()
+    }
+
+    fn as_inter_switch(&self) -> &'_ InterSwitch {
+        todo!()
+    }
+
+    fn to_json(&self) -> serde_json::error::Result<String> {
+        serde_json::to_string(self)
+    }
 }
