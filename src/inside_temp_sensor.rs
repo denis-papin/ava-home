@@ -3,20 +3,13 @@ use std::cell::{RefCell};
 use std::net::TcpStream;
 use std::ops::Deref;
 use std::sync::Arc;
+use std::time::Duration;
 use serde_derive::*;
-use crate::{DeviceMessage, DynDevice, HallLampDevice, LampRGB, Locks};
-
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]
-pub (crate) struct TempSensor {
-    pub battery : u32,
-    pub humidity :f32,
-    pub linkquality : u32,
-    pub temperature: f32,
-    pub voltage: u32,
-}
+use outdoor_temp_sensor::OutdoorTempSensorDevice;
+use crate::{DynDevice, HallLampDevice, Locks, outdoor_temp_sensor};
+use crate::messages::{DeviceMessage, TempSensor};
 
 pub (crate) const INSIDE_TEMP_SENSOR : &str = "inside_temp_sensor";
-pub (crate) const OUTSIDE_TEMP_SENSOR : &str = "0x00124b002503888f";
 
 #[derive(Debug)]
 pub (crate) struct InsideTempSensorDevice {
@@ -53,27 +46,54 @@ impl DynDevice for InsideTempSensorDevice {
             let borr = arc_locks.as_ref().borrow();
             let mut locks = borr.deref().clone();
 
-            if topic == &self.get_topic() || topic == format!("zigbee2mqtt/{}", OUTSIDE_TEMP_SENSOR ) {
+            if topic == &self.get_topic() || topic == OutdoorTempSensorDevice::new().get_topic() /*format!("zigbee2mqtt/{}", OUTSIDE_TEMP_SENSOR )*/ {
                 let r_info: Result<TempSensor, _> = serde_json::from_str(msg);
                 let message = match r_info {
                     Ok(lamp) => { lamp }
                     Err(e) => {
-                        panic!("💀 Cannot parse the message for inside_temp_sensor :  {e}");
+                        error!("💀 Cannot parse the message for inside_temp_sensor :  {e}");
+                        return;
                     }
                 };
 
                 info!("🍺 inside_temp_sensor message, {:?} ", &message);
                 info!("PROCESS inside_temp_sensor ({}): {}", topic, msg);
 
-                let mut lamp_rgb = locks.hall_lamp_lock.last_object_message.clone();
-                locks.hall_lamp_lock.inc();
                 info!("🔥 Temperature: {}", message.temperature);
-                if message.temperature >= 22.0 {
-                    lamp_rgb.state = "ON".to_string();
+                let lamp_rgb = if message.temperature >= 22.0 {
+                    let mut lamp_red = locks.hall_lamp_lock.last_object_message.clone();
+                    lamp_red.state = "ON".to_string();
+                    lamp_red.color.x = 0.640625;
+                    lamp_red.color.y = 0.328125;
+                    lamp_red
                 } else {
-                    lamp_rgb.state = "OFF".to_string();
+                    let mut lamp_green = locks.hall_lamp_lock.last_object_message.clone();
+                    lamp_green.state = "OFF".to_string();
+                    lamp_green.color.x = 0.3;
+                    lamp_green.color.y = 0.6;
+                    lamp_green
+                };
+
+                let mut lamp_off =  locks.hall_lamp_lock.last_object_message.clone();
+                lamp_off.state = "OFF".to_string();
+
+                for _ in 1..=3 {
+                    locks.hall_lamp_lock.inc();
+                    HallLampDevice::new().receive(&mut pub_stream, Box::new(lamp_off.clone()));
+                    std::thread::sleep(Duration::from_millis(200));
+
+                    locks.hall_lamp_lock.inc();
+                    HallLampDevice::new().receive(&mut pub_stream, Box::new(lamp_rgb.clone()));
+                    std::thread::sleep(Duration::from_millis(500));
                 }
-                HallLampDevice::receive(&mut pub_stream, lamp_rgb);
+
+                locks.hall_lamp_lock.inc();
+                HallLampDevice::new().receive(&mut pub_stream, Box::new(lamp_off.clone()));
+                std::thread::sleep(Duration::from_millis(200));
+
+                // Back to origin
+                locks.hall_lamp_lock.inc();
+                HallLampDevice::new().receive(&mut pub_stream,  Box::new(locks.hall_lamp_lock.last_object_message.clone()));
             }
             locks
         };
@@ -81,6 +101,18 @@ impl DynDevice for InsideTempSensorDevice {
     }
 
     fn trigger_info(&self, _pub_stream: &mut TcpStream) {
+        todo!()
+    }
+
+    fn replace(&self, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) {
+        todo!()
+    }
+
+    fn get_last_object_message(&self, locks: &mut Locks) -> String {
+        todo!()
+    }
+
+    fn unlock(&self, locks: &mut Locks) {
         todo!()
     }
 
@@ -92,7 +124,11 @@ impl DynDevice for InsideTempSensorDevice {
         todo!()
     }
 
-    fn forward_messages(&self, pub_stream: &mut TcpStream, locks: &mut Locks, object_message: Box<dyn DeviceMessage>) {
+    fn forward_messages(&self, pub_stream: &mut TcpStream, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) {
+        todo!()
+    }
+
+    fn to_local(&self, origin_message : &Box<dyn DeviceMessage>, last_message: &Box<dyn DeviceMessage>) -> Box<dyn DeviceMessage> {
         todo!()
     }
 }
