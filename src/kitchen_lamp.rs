@@ -139,7 +139,7 @@ impl DynDevice for KitchenLampDevice {
         locks.kitchen_lamp_lock.replace(lamp_rgb.clone());
 
     }
-    
+
 
     fn execute(&self, topic : &str, msg : &str, mut pub_stream: &mut TcpStream, arc_locks: Arc<RefCell<Locks>>) {
         let locks = {
