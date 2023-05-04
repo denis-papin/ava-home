@@ -4,7 +4,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 use serde_derive::*;
 
-use crate::{DynDevice, Locks, publish, KitchenLampDevice, HallLampDevice, InterSwitch, KitchenSwitchDevice};
+use crate::{DynDevice, Locks, publish, KitchenLampDevice, HallLampDevice, InterSwitch, KitchenSwitchDevice, DeviceLock};
 use crate::messages::{DeviceMessage, InterDim, LampRGB};
 
 
@@ -12,32 +12,31 @@ pub (crate) const KITCHEN_INTER_DIM : &str = "kitchen_inter_dim";
 
 #[derive(Debug)]
 pub (crate) struct KitchenInterDimDevice {
-    // pub locks : RefCell<Locks>,
+    pub lock : Arc<RefCell<DeviceLock<String>>>
 }
 
 impl KitchenInterDimDevice {
     pub(crate) fn new() -> Self {
-        Self {}
+        info!("🌟🌟🌟🌟🌟 NEW KitchenInterDimDevice");
+        let dl = DeviceLock::new( String::new());
+        Self {
+            lock : Arc::new(RefCell::new( dl ))
+        }
     }
-
-    // pub fn receive(mut pub_stream: &mut TcpStream, inter_dim : InterDim ) {
-    //     match serde_json::to_string(&inter_dim) {
-    //         Ok(message) => {
-    //             info!("➡ Prepare to be sent to the {}, {:?} ", Self::get_name(), &message);
-    //             publish(&mut pub_stream, &format!("zigbee2mqtt/{}/set", Self::get_name()), &message);
-    //         }
-    //         Err(_) => {
-    //             error!("💣 Impossible to parse the message :{:?}", &inter_dim);
-    //         }
-    //     }
-    // }
-
     pub fn get_name() -> &'static str {
         KITCHEN_INTER_DIM
     }
 }
 
 impl DynDevice for KitchenInterDimDevice {
+
+    fn get_lock(&self) -> Arc<RefCell<DeviceLock<String>>> {
+        self.lock.clone()
+    }
+
+    fn setup(&mut self, setup: bool) {
+        // Nothing to do
+    }
 
     fn get_topic(&self) -> String {
         format!("zigbee2mqtt/{}", Self::get_name())
@@ -51,58 +50,8 @@ impl DynDevice for KitchenInterDimDevice {
         todo!()
     }
 
-
-    fn execute(&self, topic : &str, msg : &str, mut pub_stream: &mut TcpStream,  arc_locks : Arc<RefCell<Locks>>) {
-        let locks = {
-            // let mut locks = rc_locks.get_mut();
-            let borr = arc_locks.as_ref().borrow();
-            let mut locks = borr.deref().clone();
-
-            if topic == &self.get_topic() {
-                info!("Execute device {}", self.get_topic());
-                let r_info: Result<InterDim, _> = serde_json::from_str(msg);
-                let inter_dim = r_info.unwrap();
-
-                if locks.kitchen_inter_dim_lock.count_locks > 0 {
-                    info!("⛔ DIMMER MESSAGE Here we are, {:?} ", &inter_dim);
-                    info!("DIMMER IS LOCKED BY THE DIMMER ({}): {}", topic, msg);
-                    locks.kitchen_inter_dim_lock.dec();
-                } else {
-                    if inter_dim == locks.kitchen_inter_dim_lock.last_object_message {
-                        info!("⛔ DIMMER [same message], {:?} ", &inter_dim);
-                    } else {
-                        info!("🍺 DIMMER MESSAGE Here we are, {:?} ", &inter_dim);
-
-                        locks.kitchen_lamp_lock.inc();
-                        let lamp_rgb = LampRGB {
-                            color: locks.kitchen_lamp_lock.last_object_message.color.clone(),
-                            brightness: inter_dim.brightness,
-                            state: inter_dim.state.clone(),
-                        };
-
-                        KitchenLampDevice::new().receive(&mut pub_stream, Box::new(lamp_rgb));
-
-                        locks.hall_lamp_lock.inc();
-                        let lamp_basic = LampRGB {
-                            color: locks.hall_lamp_lock.last_object_message.color.clone(),
-                            brightness: inter_dim.brightness,
-                            state: inter_dim.state.clone(),
-                        };
-
-                        HallLampDevice::new().receive(&mut pub_stream, Box::new(lamp_basic));
-
-                        locks.kitchen_switch_lock.inc();
-                        let inter_switch = InterSwitch {
-                            state: inter_dim.state.clone(),
-                        };
-                        KitchenSwitchDevice::new().receive(&mut pub_stream, Box::new(inter_switch));
-                    }
-                }
-                locks.kitchen_inter_dim_lock.replace(inter_dim);
-            }
-            locks
-        };
-        arc_locks.replace(locks.clone());
+    fn from_json_to_local(&self, msg: &str) -> Box<dyn DeviceMessage> {
+        InterDim::from_json(msg)
     }
 
     fn trigger_info(&self, _pub_stream: &mut TcpStream) {
@@ -110,27 +59,52 @@ impl DynDevice for KitchenInterDimDevice {
     }
 
     fn replace(&self, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) {
-        todo!()
+        let inter_dim = object_message.as_inter_dim().clone();
+        locks.kitchen_inter_dim_lock.replace(inter_dim);
     }
 
-    fn get_last_object_message(&self, locks: &mut Locks) -> String {
-        todo!()
+    fn get_last_object_message_as_string(&self, locks: &mut Locks) -> String {
+        format!( "{:?}", locks.kitchen_inter_dim_lock.last_object_message )
+    }
+
+    fn lock(&self, locks: &mut Locks) {
+        locks.kitchen_inter_dim_lock.inc();
     }
 
     fn unlock(&self, locks: &mut Locks) {
-        todo!()
+        locks.kitchen_inter_dim_lock.dec();
     }
 
     fn read_object_message(&self, msg: &str) -> Box<dyn DeviceMessage> {
-        todo!()
+        let r_info: Result<InterDim, _> = serde_json::from_str(msg);
+
+        match r_info {
+            Ok(obj) => { Box::new(obj) }
+            Err(e) => {
+                error!("💀 Cannot parse the message for device {}, e={}", &self.get_topic().to_uppercase(),  e);
+                Box::new(InterDim::new())
+            }
+        }
     }
 
     fn allowed_to_process(&self, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) -> (bool,bool) {
-        todo!()
+        let local_message = object_message.as_inter_dim();
+        let is_locked = locks.kitchen_inter_dim_lock.count_locks > 0;
+
+        let old = &locks.kitchen_inter_dim_lock.last_object_message;
+        dbg!(old);
+        dbg!(&local_message);
+        let is_same = *local_message == locks.kitchen_inter_dim_lock.last_object_message;
+        dbg!(is_same);
+        (is_locked, is_same)
     }
 
-    fn forward_messages(&self, pub_stream: &mut TcpStream, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) {
-        todo!()
+    // fn forward_messages(&self, pub_stream: &mut TcpStream, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) {
+    //     todo!()
+    // }
+
+    fn get_last_object_message(&self, locks : &mut Locks) -> Box<dyn DeviceMessage> {
+        Box::new ( locks.kitchen_inter_dim_lock.last_object_message.clone() )
     }
 
     fn to_local(&self, origin_message : &Box<dyn DeviceMessage>, last_message: &Box<dyn DeviceMessage>) -> Box<dyn DeviceMessage> {

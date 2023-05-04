@@ -8,7 +8,7 @@ use serde_derive::*;
 use crate::{DynDevice, HallLampDevice, Locks};
 use crate::messages::{DeviceMessage, TempSensor};
 
-pub (crate) const OUTSIDE_TEMP_SENSOR : &str = "outdoor_temp_sensor";
+pub (crate) const TEMP_MEUBLE_TV: &str = "temp_meuble_tv";
 
 #[derive(Debug)]
 pub (crate) struct OutdoorTempSensorDevice {
@@ -20,7 +20,7 @@ impl OutdoorTempSensorDevice {
     }
 
     pub fn get_name() -> &'static str {
-        OUTSIDE_TEMP_SENSOR
+        TEMP_MEUBLE_TV
     }
 }
 
@@ -38,8 +38,8 @@ impl DynDevice for OutdoorTempSensorDevice {
         todo!()
     }
 
-    fn execute(&self, topic : &str, msg : &str, pub_stream: &mut TcpStream, arc_locks: Arc<RefCell<Locks>>) {
-        // nothing to do
+    fn from_json_to_local(&self, msg: &str) -> Box<dyn DeviceMessage> {
+        TempSensor::from_json(msg)
     }
 
     fn trigger_info(&self, _pub_stream: &mut TcpStream) {
@@ -50,12 +50,16 @@ impl DynDevice for OutdoorTempSensorDevice {
         todo!()
     }
 
-    fn get_last_object_message(&self, locks: &mut Locks) -> String {
+    fn get_last_object_message_as_string(&self, locks: &mut Locks) -> String {
         todo!()
     }
 
+    fn lock(&self, locks : &mut Locks) {
+        //
+    }
+
     fn unlock(&self, locks: &mut Locks) {
-        todo!()
+        //
     }
 
     fn read_object_message(&self, msg: &str) -> Box<dyn DeviceMessage> {
@@ -66,11 +70,17 @@ impl DynDevice for OutdoorTempSensorDevice {
         todo!()
     }
 
-    fn forward_messages(&self, pub_stream: &mut TcpStream, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) {
+    // fn forward_messages(&self, pub_stream: &mut TcpStream, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) {
+    //     todo!()
+    // }
+
+    fn to_local(&self, origin_message: &Box<dyn DeviceMessage>, last_message: &Box<dyn DeviceMessage>) -> Box<dyn DeviceMessage> {
         todo!()
     }
 
-    fn to_local(&self, origin_message: &Box<dyn DeviceMessage>, last_message: &Box<dyn DeviceMessage>) -> Box<dyn DeviceMessage> {
+    // No last message for the device
+    fn get_last_object_message(&self, locks : &mut Locks) -> Box<dyn DeviceMessage> {
+        // Box::new ( locks.hall_lamp_lock.last_object_message.clone() )
         todo!()
     }
 }

@@ -9,10 +9,66 @@ use outdoor_temp_sensor::OutdoorTempSensorDevice;
 use crate::{DynDevice, HallLampDevice, Locks, outdoor_temp_sensor};
 use crate::messages::{DeviceMessage, TempSensor};
 
-pub (crate) const INSIDE_TEMP_SENSOR : &str = "inside_temp_sensor";
+pub const TEMP_BAIE_VITREE : &str = "temp_baie_vitrée";
+
+//// TEST
+
+pub struct Dev1 {}
+pub struct Dev2 {}
+
+trait Device {
+    fn process(&self) -> u16 {
+        0
+    }
+}
+
+trait Sensor: Device {
+    fn process(&self) -> u16 {
+        10
+    }
+}
+
+
+impl Device for Dev1 {
+
+}
+
+impl Sensor for Dev1 {
+}
+
+impl Device for Dev2 {
+    fn process(&self) -> u16 {
+        0
+    }
+}
+
+// TODO Maintenant il faut regarder comment et ou
+//      les objets Devices sont utilisés pour avoir de vrais
+//      singletons avec un vrai état unique et un lock.
+
+// Boucle <- Liste de Device => "send message"
+
+#[cfg(test)]
+mod tests {
+    use crate::inside_temp_sensor::{Dev1, Dev2, Device};
+
+    #[test]
+    fn test_traits() {
+        let grid: Vec<Box<Device>> = vec![
+            Box::new(Dev1 {}),
+            Box::new(Dev2 {}),
+        ];
+
+        for d in grid {
+            println!("{}", d.process());
+        }
+    }
+}
+
+///
 
 #[derive(Debug)]
-pub (crate) struct InsideTempSensorDevice {
+pub struct InsideTempSensorDevice {
 }
 
 impl InsideTempSensorDevice {
@@ -21,8 +77,21 @@ impl InsideTempSensorDevice {
     }
 
     pub fn get_name() -> &'static str {
-        INSIDE_TEMP_SENSOR
+        TEMP_BAIE_VITREE
     }
+}
+
+trait TempSensorDevice : DynDevice {
+    fn process(&self, original_message : &Box<dyn DeviceMessage>) {
+        // let last_message: Box<dyn DeviceMessage> = Box::new(TempSensor::new());
+        // let object_message = self.to_local(&original_message, &last_message);
+        info!("Process the message for the device: [{}]", self.get_topic());
+        let temp_sensor_message = original_message.as_temp_sensor();
+        dbg!(temp_sensor_message);
+    }
+}
+
+impl TempSensorDevice for InsideTempSensorDevice {
 }
 
 impl DynDevice for InsideTempSensorDevice {
@@ -30,7 +99,6 @@ impl DynDevice for InsideTempSensorDevice {
     fn get_topic(&self) -> String {
         format!("zigbee2mqtt/{}", Self::get_name())
     }
-
 
     fn is_init(&self) -> bool {
         todo!()
@@ -40,64 +108,8 @@ impl DynDevice for InsideTempSensorDevice {
         todo!()
     }
 
-    fn execute(&self, topic : &str, msg : &str, mut pub_stream: &mut TcpStream, arc_locks: Arc<RefCell<Locks>>) {
-
-        let locks = {
-            let borr = arc_locks.as_ref().borrow();
-            let mut locks = borr.deref().clone();
-
-            if topic == &self.get_topic() || topic == OutdoorTempSensorDevice::new().get_topic() /*format!("zigbee2mqtt/{}", OUTSIDE_TEMP_SENSOR )*/ {
-                let r_info: Result<TempSensor, _> = serde_json::from_str(msg);
-                let message = match r_info {
-                    Ok(lamp) => { lamp }
-                    Err(e) => {
-                        error!("💀 Cannot parse the message for inside_temp_sensor :  {e}");
-                        return;
-                    }
-                };
-
-                info!("🍺 inside_temp_sensor message, {:?} ", &message);
-                info!("PROCESS inside_temp_sensor ({}): {}", topic, msg);
-
-                info!("🔥 Temperature: {}", message.temperature);
-                let lamp_rgb = if message.temperature >= 22.0 {
-                    let mut lamp_red = locks.hall_lamp_lock.last_object_message.clone();
-                    lamp_red.state = "ON".to_string();
-                    lamp_red.color.x = 0.640625;
-                    lamp_red.color.y = 0.328125;
-                    lamp_red
-                } else {
-                    let mut lamp_green = locks.hall_lamp_lock.last_object_message.clone();
-                    lamp_green.state = "OFF".to_string();
-                    lamp_green.color.x = 0.3;
-                    lamp_green.color.y = 0.6;
-                    lamp_green
-                };
-
-                let mut lamp_off =  locks.hall_lamp_lock.last_object_message.clone();
-                lamp_off.state = "OFF".to_string();
-
-                for _ in 1..=3 {
-                    locks.hall_lamp_lock.inc();
-                    HallLampDevice::new().receive(&mut pub_stream, Box::new(lamp_off.clone()));
-                    std::thread::sleep(Duration::from_millis(200));
-
-                    locks.hall_lamp_lock.inc();
-                    HallLampDevice::new().receive(&mut pub_stream, Box::new(lamp_rgb.clone()));
-                    std::thread::sleep(Duration::from_millis(500));
-                }
-
-                locks.hall_lamp_lock.inc();
-                HallLampDevice::new().receive(&mut pub_stream, Box::new(lamp_off.clone()));
-                std::thread::sleep(Duration::from_millis(200));
-
-                // Back to origin
-                locks.hall_lamp_lock.inc();
-                HallLampDevice::new().receive(&mut pub_stream,  Box::new(locks.hall_lamp_lock.last_object_message.clone()));
-            }
-            locks
-        };
-        arc_locks.replace(locks.clone());
+    fn from_json_to_local(&self, msg: &str) -> Box<dyn DeviceMessage> {
+        TempSensor::from_json(msg)
     }
 
     fn trigger_info(&self, _pub_stream: &mut TcpStream) {
@@ -105,30 +117,49 @@ impl DynDevice for InsideTempSensorDevice {
     }
 
     fn replace(&self, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) {
-        todo!()
+        // Nothing to do, no lock for sensors
     }
 
-    fn get_last_object_message(&self, locks: &mut Locks) -> String {
-        todo!()
+    fn get_last_object_message_as_string(&self, locks: &mut Locks) -> String {
+        // Nothing to do, no last message
+        "".to_string()
+    }
+
+    fn lock(&self, locks: &mut Locks) {
+       // Nothing to do
     }
 
     fn unlock(&self, locks: &mut Locks) {
-        todo!()
+        // Nothing to do
     }
 
     fn read_object_message(&self, msg: &str) -> Box<dyn DeviceMessage> {
-        todo!()
+        let r_info: Result<TempSensor, _> = serde_json::from_str(msg);
+
+        match r_info {
+            Ok(temp_sensor_message) => {
+                dbg!(&temp_sensor_message);
+                Box::new(temp_sensor_message)
+            }
+            Err(e) => {
+                error!("💀 Cannot parse the message for device {}, e={}", &self.get_topic().to_uppercase(),  e);
+                Box::new(TempSensor::new())
+            }
+        }
     }
 
     fn allowed_to_process(&self, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) -> (bool,bool) {
-        todo!()
-    }
-
-    fn forward_messages(&self, pub_stream: &mut TcpStream, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) {
-        todo!()
+        (false, false)
     }
 
     fn to_local(&self, origin_message : &Box<dyn DeviceMessage>, last_message: &Box<dyn DeviceMessage>) -> Box<dyn DeviceMessage> {
+        origin_message.to_temp_sensor(last_message)
+    }
+
+    // No last message for the device
+    fn get_last_object_message(&self, locks : &mut Locks) -> Box<dyn DeviceMessage> {
+        // Box::new ( locks.hall_lamp_lock.last_object_message.clone() )
         todo!()
     }
+
 }

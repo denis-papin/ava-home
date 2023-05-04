@@ -10,8 +10,18 @@ pub (crate) struct LampColor {
 }
 
 pub (crate) trait DeviceMessage {
-    fn as_lamp_rgb(&self) -> &'_ LampRGB;
-    fn as_inter_switch(&self) -> &'_ InterSwitch;
+    fn as_lamp_rgb(&self) -> &'_ LampRGB {
+        todo!()
+    }
+    fn as_inter_switch(&self) -> &'_ InterSwitch{
+        todo!()
+    }
+    fn as_inter_dim(&self) -> &'_ InterDim{
+        todo!()
+    }
+    fn as_temp_sensor(&self) -> &'_ TempSensor{
+        todo!()
+    }
 
     fn to_json(&self) -> serde_json::error::Result<String>;
 
@@ -24,6 +34,10 @@ pub (crate) trait DeviceMessage {
     }
 
     fn to_lamp_rgb(&self, last_message : &Box<dyn DeviceMessage>) -> Box<dyn DeviceMessage> {
+        todo!()
+    }
+
+    fn to_temp_sensor(&self, last_message : &Box<dyn DeviceMessage>) -> Box<dyn DeviceMessage> {
         todo!()
     }
 }
@@ -49,6 +63,18 @@ impl LampRGB {
             state: "".to_string()
         }
     }
+
+    pub (crate) fn from_json(msg: &str) -> Box<dyn DeviceMessage> {
+        let r_local: Result<LampRGB, _> = serde_json::from_str(msg);
+        match r_local {
+            Ok(local_message) => {
+                Box::new(local_message)
+            }
+            Err(e) => {
+                panic!("💀 Cannot parse the message for the device {} : {}",  &msg, e);
+            }
+        }
+    }
 }
 
 impl DeviceMessage for LampRGB {
@@ -63,6 +89,7 @@ impl DeviceMessage for LampRGB {
     fn to_json(&self) -> serde_json::error::Result<String> {
         serde_json::to_string(self)
     }
+
 
     fn to_inter_switch(&self) -> Box<dyn DeviceMessage>  {
         Box::new(InterSwitch {
@@ -99,6 +126,18 @@ impl InterSwitch {
             state: "OFF".to_string()
         }
     }
+
+    pub (crate) fn from_json(msg: &str) -> Box<dyn DeviceMessage> {
+        let r_local: Result<InterSwitch, _> = serde_json::from_str(msg);
+        match r_local {
+            Ok(local_message) => {
+                Box::new(local_message)
+            }
+            Err(e) => {
+                panic!("💀 Cannot parse the message for the device {} : {}",  &msg, e);
+            }
+        }
+    }
 }
 
 impl DeviceMessage for InterSwitch {
@@ -110,9 +149,15 @@ impl DeviceMessage for InterSwitch {
        self
     }
 
+    fn as_inter_dim(&self) -> &'_ InterDim {
+        todo!()
+    }
+
     fn to_json(&self) -> serde_json::error::Result<String> {
         serde_json::to_string(self)
     }
+
+
 }
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]
@@ -124,6 +169,42 @@ pub (crate) struct TempSensor {
     pub voltage: u32,
 }
 
+impl TempSensor {
+    pub (crate) fn new() -> Self {
+        Self {
+            battery: 0,
+            humidity: 0.0,
+            linkquality: 0,
+            temperature: 0.0,
+            voltage: 0,
+        }
+    }
+
+    pub (crate) fn from_json(msg: &str) -> Box<dyn DeviceMessage> {
+        let r_local: Result<TempSensor, _> = serde_json::from_str(msg);
+        match r_local {
+            Ok(local_message) => {
+                Box::new(local_message)
+            }
+            Err(e) => {
+                panic!("💀 Cannot parse the message for the device {} : {}",  &msg, e);
+            }
+        }
+    }
+}
+
+impl DeviceMessage for TempSensor {
+
+    fn as_temp_sensor(&self) -> &'_ TempSensor{
+        self
+    }
+
+    fn to_json(&self) -> serde_json::Result<String> {
+        serde_json::to_string(self)
+    }
+
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub (crate) struct InterDim {
     pub brightness:u8,
@@ -131,7 +212,29 @@ pub (crate) struct InterDim {
     pub state: String,
 }
 
+impl InterDim {
+    pub fn new() -> Self {
+        Self {
+            brightness: 0,
+            state: "OFF".to_string()
+        }
+    }
+
+    pub (crate) fn from_json(msg: &str) -> Box<dyn DeviceMessage> {
+        let r_local: Result<InterDim, _> = serde_json::from_str(msg);
+        match r_local {
+            Ok(local_message) => {
+                Box::new(local_message)
+            }
+            Err(e) => {
+                panic!("💀 Cannot parse the message for the device, message=<{}> : {}",  &msg, e);
+            }
+        }
+    }
+}
+
 impl DeviceMessage for InterDim {
+
     fn as_lamp_rgb(&self) -> &'_ LampRGB {
         todo!()
     }
@@ -140,7 +243,23 @@ impl DeviceMessage for InterDim {
         todo!()
     }
 
+    fn as_inter_dim(&self) -> &'_ InterDim {
+        self
+    }
+
+    fn to_lamp_rgb(&self, last_message : &Box<dyn DeviceMessage>) -> Box<dyn DeviceMessage> {
+        info!("InterDim message conversion to Rgb : {}", &last_message.to_json().unwrap());
+        let rgb = last_message.as_lamp_rgb();
+        dbg!(rgb);
+        Box::new(LampRGB {
+            color: rgb.color.clone(),
+            brightness: self.brightness,
+            state: self.state.clone(),
+        })
+    }
+
     fn to_json(&self) -> serde_json::error::Result<String> {
         serde_json::to_string(self)
     }
+
 }
