@@ -40,18 +40,22 @@ impl InsideTempSensorDevice {
     }
 }
 
-trait TempSensorDevice : DynDevice {
-    fn process(&self, original_message : &Box<dyn DeviceMessage>) {
-        info!("Process the message for the device: [{}]", self.get_topic());
-        let temp_sensor_message = original_message.as_temp_sensor();
-        dbg!(temp_sensor_message);
-    }
-}
-
-impl TempSensorDevice for InsideTempSensorDevice {
-}
+// trait TempSensorDevice : DynDevice {
+//     fn process(&self, original_message : &Box<dyn DeviceMessage>) {
+//         info!("Process the message for the device: [{}]", self.get_topic());
+//         let temp_sensor_message = original_message.as_temp_sensor();
+//         dbg!(temp_sensor_message);
+//     }
+// }
+//
+// impl TempSensorDevice for InsideTempSensorDevice {
+// }
 
 impl DynDevice for InsideTempSensorDevice {
+
+    fn get_lock(&self) -> Arc<RefCell<DeviceLock<String>>> {
+        self.lock.clone()
+    }
 
     fn get_topic(&self) -> String {
         format!("zigbee2mqtt/{}", Self::get_name())
@@ -61,30 +65,13 @@ impl DynDevice for InsideTempSensorDevice {
         todo!()
     }
 
-    fn from_json_to_local(&self, msg: &str) -> Box<dyn DeviceMessage> {
-        TempSensor::from_json(msg)
+    fn from_json_to_local(&self, msg: &str) -> Result<Box<dyn DeviceMessage>, String> {
+        Ok(Box::new( TempSensor::from_json(msg)? ))
     }
 
     fn trigger_info(&self, _pub_stream: &mut TcpStream) {
         todo!()
     }
-
-
-    fn read_object_message(&self, msg: &str) -> Box<dyn DeviceMessage> {
-        let r_info: Result<TempSensor, _> = serde_json::from_str(msg);
-
-        match r_info {
-            Ok(temp_sensor_message) => {
-                dbg!(&temp_sensor_message);
-                Box::new(temp_sensor_message)
-            }
-            Err(e) => {
-                error!("💀 Cannot parse the message for device {}, e={}", &self.get_topic().to_uppercase(),  e);
-                Box::new(TempSensor::new())
-            }
-        }
-    }
-
 
     fn to_local(&self, origin_message : &Box<dyn DeviceMessage>, last_message: &Box<dyn DeviceMessage>) -> Box<dyn DeviceMessage> {
         origin_message.to_temp_sensor(last_message)

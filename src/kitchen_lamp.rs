@@ -50,22 +50,9 @@ impl DynDevice for KitchenLampDevice {
         self.setup
     }
 
-    fn from_json_to_local(&self, msg: &str) -> Box<dyn DeviceMessage> {
-        LampRGB::from_json(msg)
+    fn from_json_to_local(&self, msg: &str) -> Result<Box<dyn DeviceMessage>, String> {
+        Ok(Box::new( LampRGB::from_json(msg)? ))
     }
-
-    fn read_object_message(&self, msg: &str) -> Box<dyn DeviceMessage> {
-        let r_info: Result<LampRGB, _> = serde_json::from_str(msg);
-
-        match r_info {
-            Ok(lamp) => { Box::new(lamp) }
-            Err(e) => {
-                error!("💀 Cannot parse the message for device {}, e={}", &self.get_topic().to_uppercase(),  e);
-                Box::new(LampRGB::new())
-            }
-        }
-    }
-
 
     fn trigger_info(&self, mut pub_stream: &mut TcpStream) {
         publish(&mut pub_stream, &format!("{}/get", &self.get_topic()), r#"{"color":{"x":"","y":""}}"#);

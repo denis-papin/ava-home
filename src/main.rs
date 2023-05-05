@@ -45,12 +45,14 @@ use crate::kitchen_inter_dim::{KITCHEN_INTER_DIM, KitchenInterDimDevice};
 use crate::kitchen_lamp::{KITCHEN_LAMP, KitchenLampDevice};
 
 use crate::messages::{DeviceMessage, InterSwitch};
+use crate::outdoor_temp_sensor::{OutdoorTempSensorDevice, TEMP_MEUBLE_TV};
 
 use crate::publish::{connect_publisher, publish};
 use crate::stream::{ping_broker, wait_subpack};
 
 pub (crate) const KITCHEN_LOOP : &str = "KITCHEN_LOOP";
 pub (crate) const TOO_HOT_LOOP : &str = "TOO_HOT_LOOP";
+pub (crate) const SENSOR_LOOP : &str = "SENSOR_LOOP";
 
 fn generate_client_id() -> String {
     format!("/MQTT/rust/{}", Uuid::new_v4())
@@ -70,13 +72,13 @@ fn device_to_listen(device_repo: &HashMap<String, Arc<RefCell<dyn DynDevice>>>) 
         device_repo.get(KITCHEN_LAMP).unwrap().clone(),
         device_repo.get(HALL_LAMP).unwrap().clone(),
         device_repo.get(TEMP_BAIE_VITREE).unwrap().clone(),
-         // device_repo.get(TEMP_MEUBLE_TV).unwrap().clone()
+        device_repo.get(TEMP_MEUBLE_TV).unwrap().clone()
         // device_repo.get(KITCHEN_SWITCH).unwrap().clone(),
     ]
 }
 
 
-pub (crate) fn find_loops2(topic: &str, all_loops: &mut Vec<HardLoop>) -> (Vec<HardLoop>, Option<Arc<RefCell<dyn DynDevice>>>)  {
+pub (crate) fn find_loops(topic: &str, all_loops: &mut Vec<HardLoop>) -> (Vec<HardLoop>, Option<Arc<RefCell<dyn DynDevice>>>)  {
     let mut eligible_loops : Vec<HardLoop> = vec![];
     let mut output_dev : Option<Arc<RefCell<dyn DynDevice>>> = None;
 
@@ -125,19 +127,17 @@ pub (crate) trait DynDevice {
 
     fn get_topic(&self) -> String;
     fn is_init(&self) -> bool;
-    // fn init(&mut self, topic : &str, msg : &str, arc_locks: Arc<RefCell<Locks>>);
 
     fn init(&mut self, topic : &str, msg : &str) {
-        // TODO we will init the lock of the device, through methods
-        info!("init 2");
         let new_lock = {
             let lk = self.get_lock();
             let borr = lk.as_ref().borrow();
             let mut dev_lock = borr.deref().clone();
             if topic == &self.get_topic() {
-                info!("✨ Init device {} :",  &self.get_topic().to_uppercase());
+                info!("✨ Init device [{}], with message <{}>",  &self.get_topic().to_uppercase(), &msg);
                 self.setup(true);
                 dev_lock.replace(msg.to_string()); // TODO we could use a checksum of the message !
+                info!("Init done");
             }
             dev_lock
         };
@@ -147,9 +147,9 @@ pub (crate) trait DynDevice {
     /// Send the message on the right end point (/get) to trigger the device properties on the bus
     fn trigger_info(&self, pub_stream: &mut TcpStream);
 
-    fn from_json_to_local(&self, msg: &str) -> Box<dyn DeviceMessage>;
+    fn from_json_to_local(&self, msg: &str) -> Result<Box<dyn DeviceMessage>, String>;
 
-    fn read_object_message(&self, msg: &str) -> Box<dyn DeviceMessage>;
+    // fn read_object_message(&self, msg: &str) -> Box<dyn DeviceMessage>;
     // fn allowed_to_process(&self, locks : &mut Locks, object_message : &Box<dyn DeviceMessage>) -> (bool,bool);
 
     fn allowed_to_process(&self, object_message : &Box<dyn DeviceMessage>) -> (bool, bool) {
@@ -168,6 +168,7 @@ pub (crate) trait DynDevice {
     ///
     fn process(&self,  _original_message : &Box<dyn DeviceMessage>) {
         // Nothing by defaut
+        info!("Default empty process for device {}.", & self.get_topic());
     }
 
     ///
@@ -175,7 +176,7 @@ pub (crate) trait DynDevice {
     ///
     fn process_and_continue(&self, original_message : &Box<dyn DeviceMessage>) -> bool {
 
-        info!("process_and_continue2");
+        info!("process_and_continue");
         let (new_lock, allowed) = {
             let lk = self.get_lock();
             let borr = lk.as_ref().borrow();
@@ -219,7 +220,13 @@ pub (crate) trait DynDevice {
 
             // Convert the incoming message to the format the device needs. Last message est du même format que le message du device. Il permet de récupérer certaines informations.
             // Ex : Incoming inter dim message + last (LampRGB) ---> hall_lamp message (LampRGB)
-            let last_message = self.from_json_to_local(&dev_lock.last_object_message);
+            let last_message = match self.from_json_to_local(&dev_lock.last_object_message)  {
+                Err(e) => {
+                    error!("💀 Cannot parse the message for device {}, e={}", &self.get_topic().to_uppercase(),  e);
+                    return;
+                }
+                Ok(lm) => lm
+            };
             let object_message = self.to_local(&original_message, &last_message);
 
             dbg!(&object_message.to_json());
@@ -391,6 +398,7 @@ fn build_device_repo() -> HashMap<String, Arc<RefCell<dyn DynDevice>>> {
     device_repo.insert(KITCHEN_LAMP.to_owned(), Arc::new(RefCell::new(KitchenLampDevice::new())));
     device_repo.insert(HALL_LAMP.to_owned(), Arc::new(RefCell::new(HallLampDevice::new())));
     device_repo.insert(TEMP_BAIE_VITREE.to_owned(), Arc::new(RefCell::new(InsideTempSensorDevice::new())));
+    device_repo.insert(TEMP_MEUBLE_TV.to_owned(), Arc::new(RefCell::new(OutdoorTempSensorDevice::new())));
     device_repo
 }
 
@@ -409,7 +417,12 @@ fn build_loops(device_repo: &HashMap<String, Arc<RefCell<dyn DynDevice>>>) -> Ve
         device_repo.get(TEMP_BAIE_VITREE).unwrap().clone(),
     ]);
 
-    vec![kitchen_loop, too_hot_loop]
+    let sensor_loop = HardLoop::new( SENSOR_LOOP.to_string(),
+                                      vec![
+                                          device_repo.get(TEMP_MEUBLE_TV).unwrap().clone(),
+                                      ]);
+
+    vec![kitchen_loop, too_hot_loop, sensor_loop]
 }
 
 /// Build the list of devices to be initialized
@@ -420,6 +433,10 @@ fn build_init_list(device_repo : &HashMap<String, Arc<RefCell<dyn DynDevice>>>) 
     ]
 }
 
+///
+/// Send an information message for all the device we want to init
+/// Read the responses from mosquitto and run the init routine for the devices.
+///
 fn process_initialization_message(mut stream : &mut TcpStream, mut pub_stream: &mut TcpStream, device_to_init: &Vec<Arc<RefCell<dyn DynDevice>>>) -> Result<(), String> {
 
     info!("Init devices");
@@ -516,7 +533,7 @@ fn process_incoming_message(mut stream: &mut TcpStream, mut pub_stream: &mut Tcp
                 };
                 info!("PUBLISH ({}): {}", publ.topic_name(), msg);
 
-                let (loops, opt_device) = find_loops2(&publ.topic_name(), &mut all_loops);
+                let (loops, opt_device) = find_loops(&publ.topic_name(), &mut all_loops);
 
                 match opt_device {
                     None => {
@@ -529,7 +546,16 @@ fn process_incoming_message(mut stream: &mut TcpStream, mut pub_stream: &mut Tcp
                         for lp in loops {
                             info!("Before Looping");
                             // Change the msg into the DeviceMessage box of the ad hoc device (the original device)
-                            let original_message = dd.read_object_message(msg);
+
+                            //let original_message = dd.read_object_message(msg);
+                            let original_message = match dd.from_json_to_local(msg) {
+                                Ok(om) => {om}
+                                Err(e) => {
+                                    error!("💀 Cannot parse the message for device {}, msg=<{}>, e={}", &dd.get_topic().to_uppercase(), msg, e);
+                                    continue
+                                }
+                            };
+
                             if dd.process_and_continue(&original_message) {
                                 lp.loop_devices(&publ.topic_name(), &original_message, &mut pub_stream);
                             }
@@ -595,7 +621,7 @@ fn main() {
 
     match process_initialization_message(&mut stream, &mut pub_stream, &mut init_list) {
         Ok(_) => {
-            info!("Process incoming messages 2");
+            info!("Process incoming messages");
             let _ = process_incoming_message(&mut stream, &mut pub_stream, &mut all_loops);
         }
         Err(e) => {

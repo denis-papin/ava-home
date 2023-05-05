@@ -42,25 +42,12 @@ impl DynDevice for KitchenInterDimDevice {
         todo!()
     }
 
-    fn from_json_to_local(&self, msg: &str) -> Box<dyn DeviceMessage> {
-        InterDim::from_json(msg)
+    fn from_json_to_local(&self, msg: &str) -> Result<Box<dyn DeviceMessage>, String> {
+        Ok(Box::new( InterDim::from_json(msg)? ))
     }
 
     fn trigger_info(&self, _pub_stream: &mut TcpStream) {
         todo!()
-    }
-
-
-    fn read_object_message(&self, msg: &str) -> Box<dyn DeviceMessage> {
-        let r_info: Result<InterDim, _> = serde_json::from_str(msg);
-
-        match r_info {
-            Ok(obj) => { Box::new(obj) }
-            Err(e) => {
-                error!("💀 Cannot parse the message for device {}, e={}", &self.get_topic().to_uppercase(),  e);
-                Box::new(InterDim::new())
-            }
-        }
     }
 
     fn to_local(&self, origin_message : &Box<dyn DeviceMessage>, _last_message: &Box<dyn DeviceMessage>) -> Box<dyn DeviceMessage> {

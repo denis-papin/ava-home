@@ -48,24 +48,8 @@ impl DynDevice for HallLampDevice {
         self.setup
     }
 
-
-    fn from_json_to_local(&self, msg: &str) -> Box<dyn DeviceMessage> {
-        LampRGB::from_json(msg)
-    }
-
-
-
-    // TODO same as from_json_to_local ?
-    fn read_object_message(&self, msg: &str) -> Box<dyn DeviceMessage> {
-        let r_info: Result<LampRGB, _> = serde_json::from_str(msg);
-
-        match r_info {
-            Ok(lamp) => { Box::new(lamp) }
-            Err(e) => {
-                error!("💀 Cannot parse the message for device {}, e={}", &self.get_topic().to_uppercase(),  e);
-                Box::new(LampRGB::new())
-            }
-        }
+    fn from_json_to_local(&self, msg: &str) -> Result<Box<dyn DeviceMessage>, String> {
+        Ok(Box::new( LampRGB::from_json(msg)? ))
     }
 
     fn trigger_info(&self, mut pub_stream: &mut TcpStream) {
