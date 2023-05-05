@@ -1,78 +1,38 @@
-
+use std::cell::RefCell;
 use std::net::TcpStream;
-
-
-
-
-
-use crate::{DynDevice};
+use std::sync::Arc;
+use crate::{DeviceLock, DynDevice};
 use crate::messages::{DeviceMessage, TempSensor};
 
 pub const TEMP_BAIE_VITREE : &str = "temp_baie_vitrée";
 
-//// TEST
-
-pub struct Dev1 {}
-pub struct Dev2 {}
-
-trait Device {
-    fn process(&self) -> u16 {
-        0
-    }
-}
-
-trait Sensor: Device {
-    fn process(&self) -> u16 {
-        10
-    }
-}
-
-
-impl Device for Dev1 {
-
-}
-
-impl Sensor for Dev1 {
-}
-
-impl Device for Dev2 {
-    fn process(&self) -> u16 {
-        0
-    }
-}
-
-// TODO Maintenant il faut regarder comment et ou
-//      les objets Devices sont utilisés pour avoir de vrais
-//      singletons avec un vrai état unique et un lock.
-
-// Boucle <- Liste de Device => "send message"
-
-#[cfg(test)]
-mod tests {
-    use crate::inside_temp_sensor::{Dev1, Dev2, Device};
-
-    #[test]
-    fn test_traits() {
-        let grid: Vec<Box<Device>> = vec![
-            Box::new(Dev1 {}),
-            Box::new(Dev2 {}),
-        ];
-
-        for d in grid {
-            println!("{}", d.process());
-        }
-    }
-}
-
-///
+// #[derive(Debug)]
+// pub struct TSensorDevice {
+//     pub name: String
+// }
+//
+// impl TSensorDevice {
+//     pub fn new(name: &str) -> Self {
+//         Self {name: name.to_string()}
+//     }
+//
+//     pub fn get_name() -> String {
+//         self.name
+//     }
+// }
 
 #[derive(Debug)]
-pub struct InsideTempSensorDevice {
+pub(crate) struct InsideTempSensorDevice {
+    pub lock : Arc<RefCell<DeviceLock<String>>>,
 }
 
 impl InsideTempSensorDevice {
-    pub fn _new() -> Self {
-        Self {}
+    pub fn new() -> Self {
+        info!("🌟🌟🌟🌟🌟 NEW InsideTempSensorDevice");
+        let dl = DeviceLock::new( String::new());
+        Self {
+            lock : Arc::new(RefCell::new( dl ))
+        }
     }
 
     pub fn get_name() -> &'static str {
@@ -82,8 +42,6 @@ impl InsideTempSensorDevice {
 
 trait TempSensorDevice : DynDevice {
     fn process(&self, original_message : &Box<dyn DeviceMessage>) {
-        // let last_message: Box<dyn DeviceMessage> = Box::new(TempSensor::new());
-        // let object_message = self.to_local(&original_message, &last_message);
         info!("Process the message for the device: [{}]", self.get_topic());
         let temp_sensor_message = original_message.as_temp_sensor();
         dbg!(temp_sensor_message);
@@ -103,10 +61,6 @@ impl DynDevice for InsideTempSensorDevice {
         todo!()
     }
 
-    // fn init(&mut self, _topic: &str, _msg: &str, _arc_locks: Arc<RefCell<Locks>>) {
-    //     todo!()
-    // }
-
     fn from_json_to_local(&self, msg: &str) -> Box<dyn DeviceMessage> {
         TempSensor::from_json(msg)
     }
@@ -115,22 +69,6 @@ impl DynDevice for InsideTempSensorDevice {
         todo!()
     }
 
-    // fn replace(&self, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) {
-    //     // Nothing to do, no lock for sensors
-    // }
-
-    // fn get_last_object_message_as_string(&self, locks: &mut Locks) -> String {
-    //     // Nothing to do, no last message
-    //     "".to_string()
-    // }
-    //
-    // fn lock(&self, locks: &mut Locks) {
-    //    // Nothing to do
-    // }
-    //
-    // fn unlock(&self, locks: &mut Locks) {
-    //     // Nothing to do
-    // }
 
     fn read_object_message(&self, msg: &str) -> Box<dyn DeviceMessage> {
         let r_info: Result<TempSensor, _> = serde_json::from_str(msg);
@@ -147,18 +85,9 @@ impl DynDevice for InsideTempSensorDevice {
         }
     }
 
-    // fn allowed_to_process(&self, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) -> (bool,bool) {
-    //     (false, false)
-    // }
 
     fn to_local(&self, origin_message : &Box<dyn DeviceMessage>, last_message: &Box<dyn DeviceMessage>) -> Box<dyn DeviceMessage> {
         origin_message.to_temp_sensor(last_message)
     }
-
-    // // No last message for the device
-    // fn get_last_object_message(&self, locks : &mut Locks) -> Box<dyn DeviceMessage> {
-    //     // Box::new ( locks.hall_lamp_lock.last_object_message.clone() )
-    //     todo!()
-    // }
 
 }

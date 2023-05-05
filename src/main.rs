@@ -3,8 +3,6 @@ mod publish;
 mod kitchen_lamp;
 mod kitchen_inter_dim;
 mod devices {}
-mod kitchen_loop;
-mod too_hot_loop;
 mod stream;
 mod messages;
 mod outdoor_temp_sensor;
@@ -40,17 +38,19 @@ use mqtt::TopicFilter;
 use mqtt::{Decodable, Encodable, QualityOfService};
 
 use crate::hall_lamp::{HALL_LAMP, HallLampDevice};
+use crate::inside_temp_sensor::{InsideTempSensorDevice, TEMP_BAIE_VITREE};
 
 
 use crate::kitchen_inter_dim::{KITCHEN_INTER_DIM, KitchenInterDimDevice};
 use crate::kitchen_lamp::{KITCHEN_LAMP, KitchenLampDevice};
-use crate::kitchen_loop::{KITCHEN_LOOP};
 
 use crate::messages::{DeviceMessage, InterSwitch};
 
-use crate::too_hot_loop::{TOO_HOT_LOOP};
 use crate::publish::{connect_publisher, publish};
 use crate::stream::{ping_broker, wait_subpack};
+
+pub (crate) const KITCHEN_LOOP : &str = "KITCHEN_LOOP";
+pub (crate) const TOO_HOT_LOOP : &str = "TOO_HOT_LOOP";
 
 fn generate_client_id() -> String {
     format!("/MQTT/rust/{}", Uuid::new_v4())
@@ -69,29 +69,12 @@ fn device_to_listen(device_repo: &HashMap<String, Arc<RefCell<dyn DynDevice>>>) 
         device_repo.get(KITCHEN_INTER_DIM).unwrap().clone(),
         device_repo.get(KITCHEN_LAMP).unwrap().clone(),
         device_repo.get(HALL_LAMP).unwrap().clone(),
-        // device_repo.get(TEMP_BAIE_VITREE).unwrap().clone(),
+        device_repo.get(TEMP_BAIE_VITREE).unwrap().clone(),
          // device_repo.get(TEMP_MEUBLE_TV).unwrap().clone()
         // device_repo.get(KITCHEN_SWITCH).unwrap().clone(),
     ]
 }
 
-// pub (crate) fn find_loops(topic: &str) -> Vec<Box<dyn DynLoop>> {
-//     // TO BE UPDATED IF NEW LOOP
-//     let all_loops : Vec<Box<dyn DynLoop>> =  vec![
-//                                                   Box::new(KitchenLoop{}),
-//                                                   Box::new(TooHotLoop{})
-//                                                 ];
-//     let mut eligible_loops : Vec<Box<dyn DynLoop>> = vec![];
-//
-//     for lp in all_loops {
-//         if lp.has_topic(topic) {
-//             info!("Found topic in [{}] loop, topic=[{}]", & lp.get_name(), topic);
-//             eligible_loops.push(lp);
-//         }
-//     }
-//
-//     eligible_loops
-// }
 
 pub (crate) fn find_loops2(topic: &str, all_loops: &mut Vec<HardLoop>) -> (Vec<HardLoop>, Option<Arc<RefCell<dyn DynDevice>>>)  {
     let mut eligible_loops : Vec<HardLoop> = vec![];
@@ -110,14 +93,6 @@ pub (crate) fn find_loops2(topic: &str, all_loops: &mut Vec<HardLoop>) -> (Vec<H
     }
     (eligible_loops, output_dev)
 }
-
-// Devices we want to init before main processing
-// pub (crate) fn init_loop() -> Vec<Box<dyn DynDevice>> {
-//     vec![
-//          Box::new(KitchenLampDevice::new()),
-//          Box::new(HallLampDevice::new())
-//     ]
-// }
 
 // TODO Don't listen to the devices here !
 fn parse_params(device_repo: &HashMap<String, Arc<RefCell<dyn DynDevice>>>) -> Params {
@@ -172,20 +147,7 @@ pub (crate) trait DynDevice {
     /// Send the message on the right end point (/get) to trigger the device properties on the bus
     fn trigger_info(&self, pub_stream: &mut TcpStream);
 
-    ///
-    //fn replace( &self, locks : &mut Locks, object_message : &Box<dyn DeviceMessage> );
-
-    // fn get_last_object_message_as_string(&self, locks : &mut Locks) -> String;
-    // fn get_last_object_message(&self, locks : &mut Locks) -> Box<dyn DeviceMessage>;
-
     fn from_json_to_local(&self, msg: &str) -> Box<dyn DeviceMessage>;
-
-    // fn lock(&self, locks: &mut Locks);
-    // fn unlock(&self, locks : &mut Locks);
-
-    // fn unlock2(&self) {
-    //     self.get_lock().
-    // }
 
     fn read_object_message(&self, msg: &str) -> Box<dyn DeviceMessage>;
     // fn allowed_to_process(&self, locks : &mut Locks, object_message : &Box<dyn DeviceMessage>) -> (bool,bool);
@@ -243,37 +205,6 @@ pub (crate) trait DynDevice {
         self.get_lock().replace(new_lock);
         allowed
     }
-
-    ///
-    /// Run the local specific processing if allowed.
-    ///
-    // fn process_and_continue(&self, original_message : &Box<dyn DeviceMessage>, arc_locks: Arc<RefCell<Locks>>) -> bool {
-    //     let (locks, allowed) = {
-    //         let borr = arc_locks.as_ref().borrow();
-    //         let mut locks = borr.deref().clone();
-    //         let allowed: bool;
-    //         match self.allowed_to_process(&mut locks, &original_message) {
-    //             (true, _) => {
-    //                 info!("❌ Device {} is locked.", & self.get_topic().to_uppercase());
-    //                 self.unlock(&mut locks);
-    //                 allowed = false;
-    //             }
-    //             (false, true) => {
-    //                 info!("❌ Device {}, same message.", & self.get_topic().to_uppercase());
-    //                 allowed = false;
-    //             }
-    //             (false, false) => {
-    //                 info!("👍 Device {}, allowed to process the message.", & self.get_topic().to_uppercase());
-    //                 self.process(&original_message);
-    //                 allowed = true;
-    //             }
-    //         }
-    //         self.replace(&mut locks, &original_message);
-    //         (locks, allowed)
-    //     };
-    //     arc_locks.replace(locks.clone());
-    //     allowed
-    // }
 
     ///
     /// Make the device consume the current message
@@ -350,11 +281,6 @@ pub (crate) trait DynDevice {
         }
     }
 
-    // fn convert_and_receive(&self, mut pub_stream: &mut TcpStream, origin_message : &Box<dyn DeviceMessage>,  last_message : &Box<dyn DeviceMessage>) {
-    //     let target_message = self.to_local(&origin_message, &last_message);
-    //     self.receive(&mut pub_stream, target_message);
-    // }
-
     // Convert any message (origin_message) into a local message type needed by the device
     fn to_local(&self, origin_message : &Box<dyn DeviceMessage>, last_message: &Box<dyn DeviceMessage>) -> Box<dyn DeviceMessage>;
 }
@@ -388,14 +314,6 @@ impl <T> DeviceLock<T> {
 
 }
 
-// #[derive(Debug, Clone)]
-// struct Locks {
-//     pub kitchen_inter_dim_lock : DeviceLock<InterDim>,
-//     pub kitchen_switch_lock : DeviceLock<InterSwitch>,
-//     pub kitchen_lamp_lock : DeviceLock<LampRGB>,
-//     pub hall_lamp_lock : DeviceLock<LampRGB>,
-// }
-
 #[derive(Clone)]
 pub (crate) struct HardLoop {
     pub name : String,
@@ -417,16 +335,6 @@ impl HardLoop {
     fn get_devices(&self) -> Vec<Arc<RefCell<dyn DynDevice>>> {
         self.devices.clone()
     }
-
-    // fn has_topic(&self, topic: &str) -> bool {
-    //     for dev in self.get_devices() {
-    //         let dd = dev.as_ref().borrow();
-    //         if dd.get_topic() == topic {
-    //             return true;
-    //         }
-    //     }
-    //     false
-    // }
 
     fn find_device_by_topic(&self, topic: &str) -> Option<Arc<RefCell<dyn DynDevice>>> {
         for dev in self.get_devices() {
@@ -474,16 +382,6 @@ pub (crate) trait DynLoop {
         None
     }
 
-    // fn loop_devices(&self, topic: &str, original_message: &Box<dyn DeviceMessage>, mut pub_stream: &mut TcpStream, arc_locks: Arc<RefCell<Locks>>) {
-    //     for dev in self.get_devices() {
-    //         if &dev.get_topic() != topic {
-    //             info!("🚀 Device Topic of the loop: [{:?}]", &dev.get_topic());
-    //             dev.consume_message(&original_message, &mut pub_stream, arc_locks.clone());
-    //             info!("🚩 End Device Topic of the loop: [{:?}]", &dev.get_topic());
-    //         }
-    //     }
-    // }
-
 }
 
 fn build_device_repo() -> HashMap<String, Arc<RefCell<dyn DynDevice>>> {
@@ -492,6 +390,7 @@ fn build_device_repo() -> HashMap<String, Arc<RefCell<dyn DynDevice>>> {
     device_repo.insert(KITCHEN_INTER_DIM.to_owned(), Arc::new(RefCell::new(KitchenInterDimDevice::new())));
     device_repo.insert(KITCHEN_LAMP.to_owned(), Arc::new(RefCell::new(KitchenLampDevice::new())));
     device_repo.insert(HALL_LAMP.to_owned(), Arc::new(RefCell::new(HallLampDevice::new())));
+    device_repo.insert(TEMP_BAIE_VITREE.to_owned(), Arc::new(RefCell::new(InsideTempSensorDevice::new())));
     device_repo
 }
 
@@ -507,7 +406,7 @@ fn build_loops(device_repo: &HashMap<String, Arc<RefCell<dyn DynDevice>>>) -> Ve
 
     let too_hot_loop = HardLoop::new( TOO_HOT_LOOP.to_string(),
     vec![
-        //device_repo.get(TEMP_BAIE_VITREE).unwrap().clone(),
+        device_repo.get(TEMP_BAIE_VITREE).unwrap().clone(),
     ]);
 
     vec![kitchen_loop, too_hot_loop]
@@ -523,10 +422,7 @@ fn build_init_list(device_repo : &HashMap<String, Arc<RefCell<dyn DynDevice>>>) 
 
 fn process_initialization_message(mut stream : &mut TcpStream, mut pub_stream: &mut TcpStream, device_to_init: &Vec<Arc<RefCell<dyn DynDevice>>>) -> Result<(), String> {
 
-    info!("Init devices 2");
-
-    // TODO put all the devices in there !!!
-    // let mut device_to_init = init_loop2(&device_repo);
+    info!("Init devices");
 
     if !device_to_init.is_empty() {
         for dev in device_to_init {
@@ -592,118 +488,6 @@ fn process_initialization_message(mut stream : &mut TcpStream, mut pub_stream: &
     Ok(())
 }
 
-
-///
-///  Process incoming messages for initialization of devices
-///
-// fn process_initialization_message(mut stream : &mut TcpStream, mut pub_stream: &mut TcpStream) -> Result<Locks, String> {
-//
-//     info!("Init devices");
-//
-//     let locks = Locks {
-//         kitchen_inter_dim_lock: DeviceLock {
-//             count_locks: 0,
-//             last_object_message: InterDim {
-//                 brightness: 40,
-//                 state: "".to_string()
-//             }
-//         },
-//         kitchen_lamp_lock: DeviceLock {
-//             count_locks: 0,
-//             last_object_message: LampRGB {
-//                 color: LampColor {
-//                     hue: None,
-//                     saturation: None,
-//                     x: 0.0,
-//                     y: 0.0
-//                 },
-//                 brightness: 0,
-//                 state: "".to_string()
-//             }
-//         },
-//         kitchen_switch_lock: DeviceLock {
-//             count_locks: 0,
-//             last_object_message: InterSwitch {
-//                 state: "".to_string()
-//             }
-//         },
-//         hall_lamp_lock: DeviceLock {
-//             count_locks: 0,
-//             last_object_message: LampRGB {
-//                 color: LampColor {
-//                     hue: None,
-//                     saturation: None,
-//                     x: 0.0,
-//                     y: 0.0
-//                 },
-//                 brightness: 40,
-//                 state: "".to_string()
-//             }
-//         }
-//     };
-//
-//
-//     let arc_locks = Arc::new(RefCell::new(locks));
-//     let mut devices = init_loop();
-//
-//     if !devices.is_empty() {
-//         for dev in &devices {
-//             dev.trigger_info(&mut pub_stream);
-//         }
-//
-//         loop {
-//             let mut end_loop = true;
-//             let packet = match VariablePacket::decode(&mut stream) {
-//                 Ok(pk) => pk,
-//                 Err(err) => {
-//                     error!("Error in receiving packet {:?}", err);
-//                     continue;
-//                 }
-//             };
-//
-//             match packet {
-//                 VariablePacket::PingrespPacket(..) => {
-//                     info!("Receiving PINGRESP from broker ..");
-//                 }
-//                 VariablePacket::PublishPacket(ref publ) => {
-//                     let msg = match str::from_utf8(publ.payload()) {
-//                         Ok(msg) => msg,
-//                         Err(err) => {
-//                             error!("Failed to decode publish message {:?}", err);
-//                             continue;
-//                         }
-//                     };
-//                     info!("PUBLISH ({}): {}", publ.topic_name(), msg);
-//
-//                     for dev in &mut devices {
-//                         dev.init(publ.topic_name(), msg, arc_locks.clone());
-//                     }
-//
-//                     for dev in &devices {
-//                         info!("Devices before check ----------");
-//
-//                         if !dev.is_init() {
-//                             end_loop = false;
-//                         }
-//                     }
-//                 }
-//                 _ => {}
-//             }
-//
-//             if end_loop {
-//                 break;
-//             }
-//         } // end while
-//     } // device is empty
-//
-//     info!("Initialisation stage finished");
-//
-//     let borr = arc_locks.as_ref().borrow();
-//     let locks = borr.to_owned();
-//
-//     Ok(locks)
-// }
-
 ///
 ///
 ///
@@ -758,55 +542,6 @@ fn process_incoming_message(mut stream: &mut TcpStream, mut pub_stream: &mut Tcp
     }
 }
 
-
-// fn process_incoming_message(mut stream : &mut TcpStream, mut pub_stream: &mut TcpStream, locks : Locks)  {
-//     let arc_locks = Arc::new(RefCell::new(locks));
-//     loop {
-//         let packet = match VariablePacket::decode(&mut stream) {
-//             Ok(pk) => pk,
-//             Err(err) => {
-//                 error!("Error in receiving packet {:?}", err);
-//                 continue;
-//             }
-//         };
-//         trace!("PACKET {:?}", packet);
-//
-//         match packet {
-//             VariablePacket::PingrespPacket(..) => {
-//                 info!("Receiving PINGRESP from broker ..");
-//             }
-//             VariablePacket::PublishPacket(ref publ) => {
-//                 let msg = match str::from_utf8(publ.payload()) {
-//                     Ok(msg) => msg,
-//                     Err(err) => {
-//                         error!("Failed to decode publish message {:?}", err);
-//                         continue;
-//                     }
-//                 };
-//                 info!("PUBLISH ({}): {}", publ.topic_name(), msg);
-//
-//                 let loops = find_loops(&publ.topic_name());
-//
-//                 for lp in loops {
-//                     info!("Before Looping");
-//                     let opt_device = lp.find_device_by_topic(&publ.topic_name());
-//                     match opt_device {
-//                         None => {}
-//                         Some(dev) => {
-//                             info!("Receiver device found !");
-//                             // Change the msg into the DeviceMessage box of the ad hoc device (the original device)
-//                             let original_message = dev.read_object_message(msg);
-//                             if dev.process_and_continue(&original_message, arc_locks.clone()) {
-//                                 lp.loop_devices(&publ.topic_name(), &original_message, &mut pub_stream, arc_locks.clone());
-//                             }
-//                         }
-//                     }
-//                 }
-//             }
-//             _ => {}
-//         }
-//     }
-// }
 
 
 fn main() {
@@ -867,14 +602,4 @@ fn main() {
             panic!("{}", e);
         }
     }
-
-    // match process_initialization_message(&mut stream, &mut pub_stream) {
-    //     Ok(locks) => {
-    //         info!("Process incoming messages");
-    //         let _ = process_incoming_message(&mut stream, &mut pub_stream, locks);
-    //     }
-    //     Err(e) => {
-    //         panic!("{}", e);
-    //     }
-    // }
 }
