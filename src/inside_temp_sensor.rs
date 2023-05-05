@@ -1,12 +1,11 @@
 
-use std::cell::{RefCell};
 use std::net::TcpStream;
-use std::ops::Deref;
-use std::sync::Arc;
-use std::time::Duration;
-use serde_derive::*;
-use outdoor_temp_sensor::OutdoorTempSensorDevice;
-use crate::{DynDevice, HallLampDevice, Locks, outdoor_temp_sensor};
+
+
+
+
+
+use crate::{DynDevice};
 use crate::messages::{DeviceMessage, TempSensor};
 
 pub const TEMP_BAIE_VITREE : &str = "temp_baie_vitrée";
@@ -72,7 +71,7 @@ pub struct InsideTempSensorDevice {
 }
 
 impl InsideTempSensorDevice {
-    pub fn new() -> Self {
+    pub fn _new() -> Self {
         Self {}
     }
 
@@ -104,9 +103,9 @@ impl DynDevice for InsideTempSensorDevice {
         todo!()
     }
 
-    fn init(&mut self, _topic: &str, _msg: &str, _arc_locks: Arc<RefCell<Locks>>) {
-        todo!()
-    }
+    // fn init(&mut self, _topic: &str, _msg: &str, _arc_locks: Arc<RefCell<Locks>>) {
+    //     todo!()
+    // }
 
     fn from_json_to_local(&self, msg: &str) -> Box<dyn DeviceMessage> {
         TempSensor::from_json(msg)
@@ -116,22 +115,22 @@ impl DynDevice for InsideTempSensorDevice {
         todo!()
     }
 
-    fn replace(&self, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) {
-        // Nothing to do, no lock for sensors
-    }
+    // fn replace(&self, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) {
+    //     // Nothing to do, no lock for sensors
+    // }
 
-    fn get_last_object_message_as_string(&self, locks: &mut Locks) -> String {
-        // Nothing to do, no last message
-        "".to_string()
-    }
-
-    fn lock(&self, locks: &mut Locks) {
-       // Nothing to do
-    }
-
-    fn unlock(&self, locks: &mut Locks) {
-        // Nothing to do
-    }
+    // fn get_last_object_message_as_string(&self, locks: &mut Locks) -> String {
+    //     // Nothing to do, no last message
+    //     "".to_string()
+    // }
+    //
+    // fn lock(&self, locks: &mut Locks) {
+    //    // Nothing to do
+    // }
+    //
+    // fn unlock(&self, locks: &mut Locks) {
+    //     // Nothing to do
+    // }
 
     fn read_object_message(&self, msg: &str) -> Box<dyn DeviceMessage> {
         let r_info: Result<TempSensor, _> = serde_json::from_str(msg);
@@ -148,18 +147,18 @@ impl DynDevice for InsideTempSensorDevice {
         }
     }
 
-    fn allowed_to_process(&self, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) -> (bool,bool) {
-        (false, false)
-    }
+    // fn allowed_to_process(&self, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) -> (bool,bool) {
+    //     (false, false)
+    // }
 
     fn to_local(&self, origin_message : &Box<dyn DeviceMessage>, last_message: &Box<dyn DeviceMessage>) -> Box<dyn DeviceMessage> {
         origin_message.to_temp_sensor(last_message)
     }
 
-    // No last message for the device
-    fn get_last_object_message(&self, locks : &mut Locks) -> Box<dyn DeviceMessage> {
-        // Box::new ( locks.hall_lamp_lock.last_object_message.clone() )
-        todo!()
-    }
+    // // No last message for the device
+    // fn get_last_object_message(&self, locks : &mut Locks) -> Box<dyn DeviceMessage> {
+    //     // Box::new ( locks.hall_lamp_lock.last_object_message.clone() )
+    //     todo!()
+    // }
 
 }

@@ -1,11 +1,11 @@
 
 use std::cell::{RefCell};
 use std::net::TcpStream;
-use std::ops::Deref;
+
 use std::sync::Arc;
 
-use crate::{DeviceLock, DynDevice, InterSwitch, KitchenInterDimDevice, KitchenLampDevice, KitchenSwitchDevice, Locks, publish};
-use crate::messages::{DeviceMessage, InterDim, LampRGB};
+use crate::{DeviceLock, DynDevice, publish};
+use crate::messages::{DeviceMessage, LampRGB};
 
 pub(crate) const HALL_LAMP : &str = "hall_lamp";
 
@@ -53,29 +53,29 @@ impl DynDevice for HallLampDevice {
         LampRGB::from_json(msg)
     }
 
-    // TODO Generalize it
-    fn init(&mut self, topic : &str, msg : &str, arc_locks: Arc<RefCell<Locks>>) {
-        let locks = {
-            let borr = arc_locks.as_ref().borrow();
-            let mut locks = borr.deref().clone();
-
-            if topic == &self.get_topic() {
-                info!("✨ Init device {} :",  &self.get_topic().to_uppercase());
-                let r_info: Result<LampRGB, _> = serde_json::from_str(msg);
-                match r_info {
-                    Ok(lamp) => {
-                        self.setup = true;
-                        locks.hall_lamp_lock.replace(lamp);
-                    }
-                    Err(e) => {
-                        panic!("💀 Cannot parse the message for the device {}, {} :",  &self.get_topic().to_uppercase(), e);
-                    }
-                }
-            }
-            locks
-        };
-        arc_locks.replace(locks.clone());
-    }
+    // // TODO Generalize it
+    // fn init(&mut self, topic : &str, msg : &str, arc_locks: Arc<RefCell<Locks>>) {
+    //     let locks = {
+    //         let borr = arc_locks.as_ref().borrow();
+    //         let mut locks = borr.deref().clone();
+    //
+    //         if topic == &self.get_topic() {
+    //             info!("✨ Init device {} :",  &self.get_topic().to_uppercase());
+    //             let r_info: Result<LampRGB, _> = serde_json::from_str(msg);
+    //             match r_info {
+    //                 Ok(lamp) => {
+    //                     self.setup = true;
+    //                     locks.hall_lamp_lock.replace(lamp);
+    //                 }
+    //                 Err(e) => {
+    //                     panic!("💀 Cannot parse the message for the device {}, {} :",  &self.get_topic().to_uppercase(), e);
+    //                 }
+    //             }
+    //         }
+    //         locks
+    //     };
+    //     arc_locks.replace(locks.clone());
+    // }
 
     // TODO same as from_json_to_local ?
     fn read_object_message(&self, msg: &str) -> Box<dyn DeviceMessage> {
@@ -90,39 +90,39 @@ impl DynDevice for HallLampDevice {
         }
     }
 
-    fn allowed_to_process(&self, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) -> (bool,bool) {
-        let lamp_rgb = object_message.as_lamp_rgb();
-        let is_locked = locks.hall_lamp_lock.count_locks > 0;
-        let is_same = *lamp_rgb == locks.hall_lamp_lock.last_object_message;
-        (is_locked, is_same)
-    }
+    // fn allowed_to_process(&self, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) -> (bool,bool) {
+    //     let lamp_rgb = object_message.as_lamp_rgb();
+    //     let is_locked = locks.hall_lamp_lock.count_locks > 0;
+    //     let is_same = *lamp_rgb == locks.hall_lamp_lock.last_object_message;
+    //     (is_locked, is_same)
+    // }
 
 
     // TODO check if still used ???
-    fn replace(&self, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) {
-        let rgb = object_message.as_lamp_rgb().clone();
-        locks.hall_lamp_lock.replace(rgb );
-    }
+    // fn replace(&self, locks: &mut Locks, object_message: &Box<dyn DeviceMessage>) {
+    //     let rgb = object_message.as_lamp_rgb().clone();
+    //     locks.hall_lamp_lock.replace(rgb );
+    // }
+
+    // // TODO check if still used ???
+    // fn get_last_object_message_as_string(&self, locks: &mut Locks) -> String {
+    //     format!( "{:?}", locks.hall_lamp_lock.last_object_message )
+    // }
+    //
+    // // TODO check if still used ???
+    // fn get_last_object_message(&self, locks : &mut Locks) -> Box<dyn DeviceMessage> {
+    //     Box::new ( locks.hall_lamp_lock.last_object_message.clone() )
+    // }
 
     // TODO check if still used ???
-    fn get_last_object_message_as_string(&self, locks: &mut Locks) -> String {
-        format!( "{:?}", locks.hall_lamp_lock.last_object_message )
-    }
-
-    // TODO check if still used ???
-    fn get_last_object_message(&self, locks : &mut Locks) -> Box<dyn DeviceMessage> {
-        Box::new ( locks.hall_lamp_lock.last_object_message.clone() )
-    }
-
-    // TODO check if still used ???
-    fn lock(&self, locks: &mut Locks) {
-        locks.hall_lamp_lock.inc();
-    }
-
-    // TODO check if still used ???
-    fn unlock(&self, locks: &mut Locks) {
-        locks.hall_lamp_lock.dec();
-    }
+    // fn lock(&self, locks: &mut Locks) {
+    //     locks.hall_lamp_lock.inc();
+    // }
+    //
+    // // TODO check if still used ???
+    // fn unlock(&self, locks: &mut Locks) {
+    //     locks.hall_lamp_lock.dec();
+    // }
 
     fn trigger_info(&self, mut pub_stream: &mut TcpStream) {
         publish(&mut pub_stream, &format!("{}/get", &self.get_topic()), r#"{"color":{"x":"","y":""}}"#);

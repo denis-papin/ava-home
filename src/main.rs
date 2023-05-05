@@ -40,14 +40,14 @@ use mqtt::TopicFilter;
 use mqtt::{Decodable, Encodable, QualityOfService};
 
 use crate::hall_lamp::{HALL_LAMP, HallLampDevice};
-use crate::inside_temp_sensor::{InsideTempSensorDevice, TEMP_BAIE_VITREE};
+
 
 use crate::kitchen_inter_dim::{KITCHEN_INTER_DIM, KitchenInterDimDevice};
 use crate::kitchen_lamp::{KITCHEN_LAMP, KitchenLampDevice};
 use crate::kitchen_loop::{KITCHEN_LOOP};
-use crate::kitchen_switch::{KITCHEN_SWITCH, KitchenSwitchDevice};
-use crate::messages::{DeviceMessage, InterDim, InterSwitch, LampColor, LampRGB};
-use crate::outdoor_temp_sensor::OutdoorTempSensorDevice;
+
+use crate::messages::{DeviceMessage, InterSwitch};
+
 use crate::too_hot_loop::{TOO_HOT_LOOP};
 use crate::publish::{connect_publisher, publish};
 use crate::stream::{ping_broker, wait_subpack};
@@ -144,15 +144,15 @@ pub (crate) trait DynDevice {
         todo!()
     }
 
-    fn setup(&mut self, setup: bool) {
+    fn setup(&mut self, _setup: bool) {
         todo!()
     }
 
     fn get_topic(&self) -> String;
     fn is_init(&self) -> bool;
-    fn init(&mut self, topic : &str, msg : &str, arc_locks: Arc<RefCell<Locks>>);
+    // fn init(&mut self, topic : &str, msg : &str, arc_locks: Arc<RefCell<Locks>>);
 
-    fn init2(&mut self, topic : &str, msg : &str) {
+    fn init(&mut self, topic : &str, msg : &str) {
         // TODO we will init the lock of the device, through methods
         info!("init 2");
         let new_lock = {
@@ -173,26 +173,27 @@ pub (crate) trait DynDevice {
     fn trigger_info(&self, pub_stream: &mut TcpStream);
 
     ///
-    fn replace( &self, locks : &mut Locks, object_message : &Box<dyn DeviceMessage> );
-    fn get_last_object_message_as_string(&self, locks : &mut Locks) -> String;
-    fn get_last_object_message(&self, locks : &mut Locks) -> Box<dyn DeviceMessage>;
+    //fn replace( &self, locks : &mut Locks, object_message : &Box<dyn DeviceMessage> );
+
+    // fn get_last_object_message_as_string(&self, locks : &mut Locks) -> String;
+    // fn get_last_object_message(&self, locks : &mut Locks) -> Box<dyn DeviceMessage>;
 
     fn from_json_to_local(&self, msg: &str) -> Box<dyn DeviceMessage>;
 
-    fn lock(&self, locks: &mut Locks);
-    fn unlock(&self, locks : &mut Locks);
+    // fn lock(&self, locks: &mut Locks);
+    // fn unlock(&self, locks : &mut Locks);
 
     // fn unlock2(&self) {
     //     self.get_lock().
     // }
 
     fn read_object_message(&self, msg: &str) -> Box<dyn DeviceMessage>;
-    fn allowed_to_process(&self, locks : &mut Locks, object_message : &Box<dyn DeviceMessage>) -> (bool,bool);
+    // fn allowed_to_process(&self, locks : &mut Locks, object_message : &Box<dyn DeviceMessage>) -> (bool,bool);
 
-    fn allowed_to_process2(&self, object_message : &Box<dyn DeviceMessage>) -> (bool,bool) {
+    fn allowed_to_process(&self, object_message : &Box<dyn DeviceMessage>) -> (bool, bool) {
         let lk = self.get_lock();
         let borr = lk.as_ref().borrow();
-        let mut dev_lock = borr.deref().clone();
+        let dev_lock = borr.deref().clone();
 
         let incoming_message = object_message.to_json().unwrap();
         let is_locked = dev_lock.count_locks > 0;
@@ -203,14 +204,14 @@ pub (crate) trait DynDevice {
     ///
     /// Specific processing for the device that emits the message
     ///
-    fn process(&self,  original_message : &Box<dyn DeviceMessage>) {
+    fn process(&self,  _original_message : &Box<dyn DeviceMessage>) {
         // Nothing by defaut
     }
 
     ///
     /// Run the local specific processing if allowed.
     ///
-    fn process_and_continue2(&self, original_message : &Box<dyn DeviceMessage>) -> bool {
+    fn process_and_continue(&self, original_message : &Box<dyn DeviceMessage>) -> bool {
 
         info!("process_and_continue2");
         let (new_lock, allowed) = {
@@ -218,7 +219,7 @@ pub (crate) trait DynDevice {
             let borr = lk.as_ref().borrow();
             let mut dev_lock = borr.deref().clone();
             let allowed: bool;
-            match self.allowed_to_process2(&original_message) {
+            match self.allowed_to_process(&original_message) {
                 (true, _) => {
                     info!("❌ Device {} is locked.", & self.get_topic().to_uppercase());
                     // self.unlock(&mut locks);
@@ -246,38 +247,38 @@ pub (crate) trait DynDevice {
     ///
     /// Run the local specific processing if allowed.
     ///
-    fn process_and_continue(&self, original_message : &Box<dyn DeviceMessage>, arc_locks: Arc<RefCell<Locks>>) -> bool {
-        let (locks, allowed) = {
-            let borr = arc_locks.as_ref().borrow();
-            let mut locks = borr.deref().clone();
-            let allowed: bool;
-            match self.allowed_to_process(&mut locks, &original_message) {
-                (true, _) => {
-                    info!("❌ Device {} is locked.", & self.get_topic().to_uppercase());
-                    self.unlock(&mut locks);
-                    allowed = false;
-                }
-                (false, true) => {
-                    info!("❌ Device {}, same message.", & self.get_topic().to_uppercase());
-                    allowed = false;
-                }
-                (false, false) => {
-                    info!("👍 Device {}, allowed to process the message.", & self.get_topic().to_uppercase());
-                    self.process(&original_message);
-                    allowed = true;
-                }
-            }
-            self.replace(&mut locks, &original_message);
-            (locks, allowed)
-        };
-        arc_locks.replace(locks.clone());
-        allowed
-    }
+    // fn process_and_continue(&self, original_message : &Box<dyn DeviceMessage>, arc_locks: Arc<RefCell<Locks>>) -> bool {
+    //     let (locks, allowed) = {
+    //         let borr = arc_locks.as_ref().borrow();
+    //         let mut locks = borr.deref().clone();
+    //         let allowed: bool;
+    //         match self.allowed_to_process(&mut locks, &original_message) {
+    //             (true, _) => {
+    //                 info!("❌ Device {} is locked.", & self.get_topic().to_uppercase());
+    //                 self.unlock(&mut locks);
+    //                 allowed = false;
+    //             }
+    //             (false, true) => {
+    //                 info!("❌ Device {}, same message.", & self.get_topic().to_uppercase());
+    //                 allowed = false;
+    //             }
+    //             (false, false) => {
+    //                 info!("👍 Device {}, allowed to process the message.", & self.get_topic().to_uppercase());
+    //                 self.process(&original_message);
+    //                 allowed = true;
+    //             }
+    //         }
+    //         self.replace(&mut locks, &original_message);
+    //         (locks, allowed)
+    //     };
+    //     arc_locks.replace(locks.clone());
+    //     allowed
+    // }
 
     ///
     /// Make the device consume the current message
     ///
-    fn consume_message2(&self, original_message : &Box<dyn DeviceMessage>, mut pub_stream: &mut TcpStream) {
+    fn consume_message(&self, original_message : &Box<dyn DeviceMessage>, mut pub_stream: &mut TcpStream) {
         let new_lock = {
             let lk = self.get_lock();
             let borr = lk.as_ref().borrow();
@@ -292,7 +293,7 @@ pub (crate) trait DynDevice {
 
             dbg!(&object_message.to_json());
 
-            match self.allowed_to_process2(&object_message) {
+            match self.allowed_to_process(&object_message) {
                 (true, _) => {
                     info!("⛔ Device {} is locked.", & self.get_topic().to_uppercase());
                     info!("Incoming message : {:?}, last message : {:?}", &object_message.to_json(), &dev_lock.last_object_message);
@@ -322,47 +323,6 @@ pub (crate) trait DynDevice {
         self.get_lock().replace(new_lock);
     }
 
-    ///
-    /// Make the device consume the current message
-    ///
-    // fn consume_message(&self, original_message : &Box<dyn DeviceMessage>, mut pub_stream: &mut TcpStream, arc_locks: Arc<RefCell<Locks>>) {
-    //     let locks = {
-    //         let borr = arc_locks.as_ref().borrow();
-    //         let mut locks = borr.deref().clone();
-    //
-    //         info!("Execute device {}", & self.get_topic().to_uppercase());
-    //
-    //         let last_message = self.get_last_object_message(&mut locks); // Box::new(self.get_last_object_message(&mut locks)) as Box<dyn DeviceMessage>;
-    //         let object_message = self.to_local(&original_message, &last_message);
-    //
-    //         dbg!(&object_message.to_json());
-    //
-    //         match self.allowed_to_process(&mut locks, &object_message) {
-    //             (true, _) => {
-    //                 info!("⛔ Device {} is locked.", & self.get_topic().to_uppercase());
-    //                 info!("Incoming message : {:?}, last message : {:?}", &object_message.to_json(), &self.get_last_object_message_as_string(&mut locks));
-    //                 // locks.kitchen_lamp_lock.dec();
-    //                 self.unlock(&mut locks);
-    //             }
-    //             (false, true) => {
-    //                 info!("⛔ Device {}, same message.", & self.get_topic().to_uppercase());
-    //                 info!("Incoming message : {:?}, last message : {:?}", &object_message.to_json(), &self.get_last_object_message_as_string(&mut locks));
-    //             }
-    //             (false, false) => {
-    //                 info!("🍺 Device {}, process the message.", & self.get_topic().to_uppercase());
-    //                 info!("Incoming message : {:?}, last message : {:?}", &object_message.to_json(), &self.get_last_object_message_as_string(&mut locks));
-    //                 // self.forward_messages(&mut pub_stream, &mut locks, &object_message);
-    //                 self.lock(&mut locks);
-    //                 self.publish_message(&mut pub_stream, &object_message);
-    //             }
-    //         }
-    //         self.replace(&mut locks, &object_message);
-    //         let message_locked = self.get_last_object_message_as_string(&mut locks);
-    //         info!("Now last : {:?}", &message_locked);
-    //         locks
-    //     };
-    //     arc_locks.replace(locks.clone());
-    // }
 
     fn publish_message(&self, mut pub_stream: &mut TcpStream, object_message : &Box<dyn DeviceMessage>) {
         match object_message.to_json() {
@@ -390,10 +350,10 @@ pub (crate) trait DynDevice {
         }
     }
 
-    fn convert_and_receive(&self, mut pub_stream: &mut TcpStream, origin_message : &Box<dyn DeviceMessage>,  last_message : &Box<dyn DeviceMessage>) {
-        let target_message = self.to_local(&origin_message, &last_message);
-        self.receive(&mut pub_stream, target_message);
-    }
+    // fn convert_and_receive(&self, mut pub_stream: &mut TcpStream, origin_message : &Box<dyn DeviceMessage>,  last_message : &Box<dyn DeviceMessage>) {
+    //     let target_message = self.to_local(&origin_message, &last_message);
+    //     self.receive(&mut pub_stream, target_message);
+    // }
 
     // Convert any message (origin_message) into a local message type needed by the device
     fn to_local(&self, origin_message : &Box<dyn DeviceMessage>, last_message: &Box<dyn DeviceMessage>) -> Box<dyn DeviceMessage>;
@@ -421,18 +381,20 @@ impl <T> DeviceLock<T> {
         self.count_locks -= 1;
         info!("⏬After down Locks:[{}]", self.count_locks);
     }
+
     pub (crate) fn replace(&mut self, o : T) {
         self.last_object_message = o;
     }
+
 }
 
-#[derive(Debug, Clone)]
-struct Locks {
-    pub kitchen_inter_dim_lock : DeviceLock<InterDim>,
-    pub kitchen_switch_lock : DeviceLock<InterSwitch>,
-    pub kitchen_lamp_lock : DeviceLock<LampRGB>,
-    pub hall_lamp_lock : DeviceLock<LampRGB>,
-}
+// #[derive(Debug, Clone)]
+// struct Locks {
+//     pub kitchen_inter_dim_lock : DeviceLock<InterDim>,
+//     pub kitchen_switch_lock : DeviceLock<InterSwitch>,
+//     pub kitchen_lamp_lock : DeviceLock<LampRGB>,
+//     pub hall_lamp_lock : DeviceLock<LampRGB>,
+// }
 
 #[derive(Clone)]
 pub (crate) struct HardLoop {
@@ -456,15 +418,15 @@ impl HardLoop {
         self.devices.clone()
     }
 
-    fn has_topic(&self, topic: &str) -> bool {
-        for dev in self.get_devices() {
-            let dd = dev.as_ref().borrow();
-            if dd.get_topic() == topic {
-                return true;
-            }
-        }
-        false
-    }
+    // fn has_topic(&self, topic: &str) -> bool {
+    //     for dev in self.get_devices() {
+    //         let dd = dev.as_ref().borrow();
+    //         if dd.get_topic() == topic {
+    //             return true;
+    //         }
+    //     }
+    //     false
+    // }
 
     fn find_device_by_topic(&self, topic: &str) -> Option<Arc<RefCell<dyn DynDevice>>> {
         for dev in self.get_devices() {
@@ -482,7 +444,7 @@ impl HardLoop {
             let dd = dd1.deref();
             if &dd.get_topic() != topic {
                 info!("🚀 Device Topic of the loop: [{:?}]", &dd.get_topic());
-                dd.consume_message2(&original_message, &mut pub_stream);
+                dd.consume_message(&original_message, &mut pub_stream);
                 info!("🚩 End Device Topic of the loop: [{:?}]", &dd.get_topic());
             }
         }
@@ -505,7 +467,7 @@ pub (crate) trait DynLoop {
     fn find_device_by_topic(&self, topic: &str) -> Option<Box<dyn DynDevice>> {
         for dev in self.get_devices() {
             if dev.get_topic() == topic {
-                let dd = dev.deref();
+                let _ = dev.deref();
                 return Some(dev);
             }
         }
@@ -559,7 +521,7 @@ fn build_init_list(device_repo : &HashMap<String, Arc<RefCell<dyn DynDevice>>>) 
     ]
 }
 
-fn process_initialization_message2(mut stream : &mut TcpStream, mut pub_stream: &mut TcpStream, mut device_to_init: &Vec<Arc<RefCell<dyn DynDevice>>>) -> Result<(), String> {
+fn process_initialization_message(mut stream : &mut TcpStream, mut pub_stream: &mut TcpStream, device_to_init: &Vec<Arc<RefCell<dyn DynDevice>>>) -> Result<(), String> {
 
     info!("Init devices 2");
 
@@ -599,10 +561,10 @@ fn process_initialization_message2(mut stream : &mut TcpStream, mut pub_stream: 
                     };
                     info!("PUBLISH ({}): {}", publ.topic_name(), msg);
 
-                    for mut dev in device_to_init {
+                    for dev in device_to_init {
                         let mut borr = dev.as_ref().borrow_mut();
-                        let mut dd = borr.deref_mut();
-                        dd.init2(publ.topic_name(), msg);
+                        let dd = borr.deref_mut();
+                        dd.init(publ.topic_name(), msg);
                     }
 
                     for dev in device_to_init {
@@ -745,7 +707,7 @@ fn process_initialization_message2(mut stream : &mut TcpStream, mut pub_stream: 
 ///
 ///
 ///
-fn process_incoming_message2(mut stream: &mut TcpStream, mut pub_stream: &mut TcpStream, mut all_loops: &mut Vec<HardLoop>)  {
+fn process_incoming_message(mut stream: &mut TcpStream, mut pub_stream: &mut TcpStream, mut all_loops: &mut Vec<HardLoop>)  {
     loop {
         let packet = match VariablePacket::decode(&mut stream) {
             Ok(pk) => pk,
@@ -784,7 +746,7 @@ fn process_incoming_message2(mut stream: &mut TcpStream, mut pub_stream: &mut Tc
                             info!("Before Looping");
                             // Change the msg into the DeviceMessage box of the ad hoc device (the original device)
                             let original_message = dd.read_object_message(msg);
-                            if dd.process_and_continue2(&original_message) {
+                            if dd.process_and_continue(&original_message) {
                                 lp.loop_devices(&publ.topic_name(), &original_message, &mut pub_stream);
                             }
                         }
@@ -896,10 +858,10 @@ fn main() {
     let mut init_list = build_init_list(&device_repo);
     let mut all_loops = build_loops(&device_repo);
 
-    match process_initialization_message2(&mut stream, &mut pub_stream, &mut init_list) {
-        Ok(device_repo) => {
+    match process_initialization_message(&mut stream, &mut pub_stream, &mut init_list) {
+        Ok(_) => {
             info!("Process incoming messages 2");
-            let _ = process_incoming_message2(&mut stream, &mut pub_stream, &mut all_loops);
+            let _ = process_incoming_message(&mut stream, &mut pub_stream, &mut all_loops);
         }
         Err(e) => {
             panic!("{}", e);

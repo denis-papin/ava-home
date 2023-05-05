@@ -1,4 +1,4 @@
-use std::slice::RSplit;
+
 use serde_derive::*;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]
@@ -33,11 +33,11 @@ pub (crate) trait DeviceMessage {
         todo!()
     }
 
-    fn to_lamp_rgb(&self, last_message : &Box<dyn DeviceMessage>) -> Box<dyn DeviceMessage> {
+    fn to_lamp_rgb(&self, _last_message : &Box<dyn DeviceMessage>) -> Box<dyn DeviceMessage> {
         todo!()
     }
 
-    fn to_temp_sensor(&self, last_message : &Box<dyn DeviceMessage>) -> Box<dyn DeviceMessage> {
+    fn to_temp_sensor(&self, _last_message : &Box<dyn DeviceMessage>) -> Box<dyn DeviceMessage> {
         todo!()
     }
 }
