@@ -1,65 +1,80 @@
-
-///-------------
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::net::TcpStream;
-use std::ops::Deref;
 use std::sync::Arc;
-use serde_derive::*;
-use crate::{INSIDE_TEMP_SENSOR, LampRGB, Locks, OUTSIDE_TEMP_SENSOR, publish};
+use crate::{DeviceLock, DynDevice};
+use crate::messages::{DeviceMessage, TempSensor};
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]
-pub (crate) struct TempSensor {
-    pub battery : u32,
-    pub humidity :f32,
-    pub linkquality : u32,
-    pub temperature: f32,
-    pub voltage: u32,
-}
+pub const TEMP_BAIE_VITREE : &str = "temp_baie_vitrée";
+
+// #[derive(Debug)]
+// pub struct TSensorDevice {
+//     pub name: String
+// }
+//
+// impl TSensorDevice {
+//     pub fn new(name: &str) -> Self {
+//         Self {name: name.to_string()}
+//     }
+//
+//     pub fn get_name() -> String {
+//         self.name
+//     }
+// }
 
 #[derive(Debug)]
-pub (crate) struct InsideTempSensorDevice {
+pub(crate) struct InsideTempSensorDevice {
+    pub lock : Arc<RefCell<DeviceLock<String>>>,
 }
 
 impl InsideTempSensorDevice {
     pub fn new() -> Self {
-        Self { }
+        info!("🌟🌟🌟🌟🌟 NEW InsideTempSensorDevice");
+        let dl = DeviceLock::new( String::new());
+        Self {
+            lock : Arc::new(RefCell::new( dl ))
+        }
     }
 
-    pub (crate) fn execute(&self, topic : &str, msg : &str, mut pub_stream: &mut TcpStream, arc_locks: Arc<RefCell<Locks>>) {
-
-        let locks = {
-            let borr = arc_locks.as_ref().borrow();
-            let mut locks = borr.deref().clone();
-
-            if topic == format!("zigbee2mqtt/{}", INSIDE_TEMP_SENSOR ) || topic == format!("zigbee2mqtt/{}", OUTSIDE_TEMP_SENSOR ) {
-                let r_info: Result<TempSensor, _> = serde_json::from_str(msg);
-                let message = match r_info {
-                    Ok(lamp) => { lamp }
-                    Err(e) => {
-                        panic!("💀 Cannot parse the message for inside_temp_sensor :  {e}");
-                    }
-                };
-
-                info!("🍺 inside_temp_sensor message, {:?} ", &message);
-                info!("PROCESS inside_temp_sensor ({}): {}", topic, msg);
-
-                let mut lamp_rgb = locks.last_hall_lamp.clone();
-                locks.hall_lamp_locks += 1;
-                info!("🔥 Temperature: {}", message.temperature);
-                if message.temperature >= 22.0 {
-                    lamp_rgb.state = "ON".to_string();
-                    let message = serde_json::to_string(&lamp_rgb).unwrap();
-                    info!("➡ Prepare to be sent to the hall lamp, {:?} ", &message);
-                    publish(&mut pub_stream, "zigbee2mqtt/hall_lamp/set", &message);
-                } else {
-                    lamp_rgb.state = "OFF".to_string();
-                    let message = serde_json::to_string(&lamp_rgb).unwrap();
-                    info!("➡ Prepare to be sent to the hall lamp, {:?} ", &message);
-                    publish(&mut pub_stream, "zigbee2mqtt/hall_lamp/set", &message);
-                }
-            }
-            locks
-        };
-        arc_locks.replace(locks.clone());
+    pub fn get_name() -> &'static str {
+        TEMP_BAIE_VITREE
     }
+}
+
+// trait TempSensorDevice : DynDevice {
+//     fn process(&self, original_message : &Box<dyn DeviceMessage>) {
+//         info!("Process the message for the device: [{}]", self.get_topic());
+//         let temp_sensor_message = original_message.as_temp_sensor();
+//         dbg!(temp_sensor_message);
+//     }
+// }
+//
+// impl TempSensorDevice for InsideTempSensorDevice {
+// }
+
+impl DynDevice for InsideTempSensorDevice {
+
+    fn get_lock(&self) -> Arc<RefCell<DeviceLock<String>>> {
+        self.lock.clone()
+    }
+
+    fn get_topic(&self) -> String {
+        format!("zigbee2mqtt/{}", Self::get_name())
+    }
+
+    fn is_init(&self) -> bool {
+        todo!()
+    }
+
+    fn from_json_to_local(&self, msg: &str) -> Result<Box<dyn DeviceMessage>, String> {
+        Ok(Box::new( TempSensor::from_json(msg)? ))
+    }
+
+    fn trigger_info(&self, _pub_stream: &mut TcpStream) {
+        todo!()
+    }
+
+    fn to_local(&self, origin_message : &Box<dyn DeviceMessage>, last_message: &Box<dyn DeviceMessage>) -> Box<dyn DeviceMessage> {
+        origin_message.to_temp_sensor(last_message)
+    }
+
 }
