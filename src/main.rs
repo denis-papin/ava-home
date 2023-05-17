@@ -19,7 +19,7 @@ extern crate uuid;
 
 use std::cell::{RefCell};
 
-use std::{env};
+use std::{env, thread, time};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -136,7 +136,7 @@ pub (crate) trait DynDevice {
             if topic == &self.get_topic() {
                 info!("✨ Init device [{}], with message <{}>",  &self.get_topic().to_uppercase(), &msg);
                 self.setup(true);
-                dev_lock.replace(msg.to_string()); // TODO we could use a checksum of the message !
+                dev_lock.replace(msg.to_string());
                 info!("Init done");
             }
             dev_lock
@@ -222,7 +222,7 @@ pub (crate) trait DynDevice {
             // Ex : Incoming inter dim message + last (LampRGB) ---> hall_lamp message (LampRGB)
             let last_message = match self.from_json_to_local(&dev_lock.last_object_message)  {
                 Err(e) => {
-                    error!("💀 Cannot parse the message for device {}, e={}", &self.get_topic().to_uppercase(),  e);
+                    error!("💀 Cannot parse the message for device {}, message=<{}>, \n e={}", &self.get_topic().to_uppercase(), &dev_lock.last_object_message, e);
                     return;
                 }
                 Ok(lm) => lm
@@ -250,8 +250,7 @@ pub (crate) trait DynDevice {
                     self.publish_message(&mut pub_stream, &object_message);
                 }
             }
-            // self.replace(&mut locks, &object_message);
-            let json_message = original_message.to_json().unwrap().clone();
+            let json_message = object_message.to_json().unwrap().clone();
             dev_lock.replace(json_message);
 
             let message_locked = &dev_lock.last_object_message; // self.get_last_object_message_as_string(&mut locks);
@@ -439,14 +438,14 @@ fn build_init_list(device_repo : &HashMap<String, Arc<RefCell<dyn DynDevice>>>) 
 ///
 fn process_initialization_message(mut stream : &mut TcpStream, mut pub_stream: &mut TcpStream, device_to_init: &Vec<Arc<RefCell<dyn DynDevice>>>) -> Result<(), String> {
 
-    info!("Init devices");
+    info!("Initialisation stage starts");
 
     if !device_to_init.is_empty() {
         for dev in device_to_init {
             let borr = dev.as_ref().borrow();
             let dd = borr.deref().clone();
 
-            dbg!("IN DEV2", &dd.get_topic());
+            dbg!("Topic", &dd.get_topic());
             dd.trigger_info(&mut pub_stream);
         }
 
@@ -509,7 +508,9 @@ fn process_initialization_message(mut stream : &mut TcpStream, mut pub_stream: &
 ///
 ///
 fn process_incoming_message(mut stream: &mut TcpStream, mut pub_stream: &mut TcpStream, mut all_loops: &mut Vec<HardLoop>)  {
+    let delay = time::Duration::from_millis(10);
     loop {
+        info!("** New Round **");
         let packet = match VariablePacket::decode(&mut stream) {
             Ok(pk) => pk,
             Err(err) => {
@@ -521,7 +522,7 @@ fn process_incoming_message(mut stream: &mut TcpStream, mut pub_stream: &mut Tcp
 
         match packet {
             VariablePacket::PingrespPacket(..) => {
-                info!("Receiving PINGRESP from broker ..");
+                info!("Receiving PINGRESP from broker ...");
             }
             VariablePacket::PublishPacket(ref publ) => {
                 let msg = match str::from_utf8(publ.payload()) {
@@ -531,7 +532,7 @@ fn process_incoming_message(mut stream: &mut TcpStream, mut pub_stream: &mut Tcp
                         continue;
                     }
                 };
-                info!("PUBLISH ({}): {}", publ.topic_name(), msg);
+                info!("🧶 Publish on topic: [{}], message: <{}>", publ.topic_name(), msg);
 
                 let (loops, opt_device) = find_loops(&publ.topic_name(), &mut all_loops);
 
@@ -545,13 +546,12 @@ fn process_incoming_message(mut stream: &mut TcpStream, mut pub_stream: &mut Tcp
                         let dd = dd1.deref();
                         for lp in loops {
                             info!("Before Looping");
-                            // Change the msg into the DeviceMessage box of the ad hoc device (the original device)
 
-                            //let original_message = dd.read_object_message(msg);
+                            // Change the msg into the DeviceMessage box of the ad hoc device (the original device)
                             let original_message = match dd.from_json_to_local(msg) {
                                 Ok(om) => {om}
                                 Err(e) => {
-                                    error!("💀 Cannot parse the message for device {}, msg=<{}>, e={}", &dd.get_topic().to_uppercase(), msg, e);
+                                    error!("💀 Cannot parse the message locally for device {}, msg=<{}>, \n e={}", &dd.get_topic().to_uppercase(), msg, e);
                                     continue
                                 }
                             };
@@ -565,9 +565,10 @@ fn process_incoming_message(mut stream: &mut TcpStream, mut pub_stream: &mut Tcp
             }
             _ => {}
         }
+        // thread::sleep(delay);
+        thread::yield_now();
     }
 }
-
 
 
 fn main() {
