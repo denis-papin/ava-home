@@ -12,6 +12,7 @@ pub (crate) struct OutdoorTempSensorDevice {
     pub lock : Arc<RefCell<DeviceLock<String>>>,
 }
 
+/// Temperature sensor
 impl OutdoorTempSensorDevice {
     pub fn new() -> Self {
         info!("🌟🌟🌟🌟🌟 NEW OutdoorTempSensorDevice");
