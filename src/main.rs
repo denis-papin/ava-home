@@ -438,14 +438,14 @@ fn build_init_list(device_repo : &HashMap<String, Arc<RefCell<dyn DynDevice>>>) 
 ///
 fn process_initialization_message(mut stream : &mut TcpStream, mut pub_stream: &mut TcpStream, device_to_init: &Vec<Arc<RefCell<dyn DynDevice>>>) -> Result<(), String> {
 
-    info!("Init devices");
+    info!("Initialisation stage starts");
 
     if !device_to_init.is_empty() {
         for dev in device_to_init {
             let borr = dev.as_ref().borrow();
             let dd = borr.deref().clone();
 
-            dbg!("IN DEV2", &dd.get_topic());
+            dbg!("Topic", &dd.get_topic());
             dd.trigger_info(&mut pub_stream);
         }
 
@@ -508,7 +508,7 @@ fn process_initialization_message(mut stream : &mut TcpStream, mut pub_stream: &
 ///
 ///
 fn process_incoming_message(mut stream: &mut TcpStream, mut pub_stream: &mut TcpStream, mut all_loops: &mut Vec<HardLoop>)  {
-    let ten_millis = time::Duration::from_millis(10);
+    let delay = time::Duration::from_millis(10);
     loop {
         info!("** New Round **");
         let packet = match VariablePacket::decode(&mut stream) {
@@ -522,7 +522,7 @@ fn process_incoming_message(mut stream: &mut TcpStream, mut pub_stream: &mut Tcp
 
         match packet {
             VariablePacket::PingrespPacket(..) => {
-                info!("Receiving PINGRESP from broker ..");
+                info!("Receiving PINGRESP from broker ...");
             }
             VariablePacket::PublishPacket(ref publ) => {
                 let msg = match str::from_utf8(publ.payload()) {
@@ -532,7 +532,7 @@ fn process_incoming_message(mut stream: &mut TcpStream, mut pub_stream: &mut Tcp
                         continue;
                     }
                 };
-                info!("PUBLISH ({}): {}", publ.topic_name(), msg);
+                info!("🧶 Publish on topic: [{}], message: <{}>", publ.topic_name(), msg);
 
                 let (loops, opt_device) = find_loops(&publ.topic_name(), &mut all_loops);
 
@@ -546,8 +546,8 @@ fn process_incoming_message(mut stream: &mut TcpStream, mut pub_stream: &mut Tcp
                         let dd = dd1.deref();
                         for lp in loops {
                             info!("Before Looping");
-                            // Change the msg into the DeviceMessage box of the ad hoc device (the original device)
 
+                            // Change the msg into the DeviceMessage box of the ad hoc device (the original device)
                             let original_message = match dd.from_json_to_local(msg) {
                                 Ok(om) => {om}
                                 Err(e) => {
@@ -565,7 +565,8 @@ fn process_incoming_message(mut stream: &mut TcpStream, mut pub_stream: &mut Tcp
             }
             _ => {}
         }
-        thread::sleep(ten_millis);
+        // thread::sleep(delay);
+        thread::yield_now();
     }
 }
 
