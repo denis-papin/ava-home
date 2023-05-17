@@ -19,7 +19,7 @@ extern crate uuid;
 
 use std::cell::{RefCell};
 
-use std::{env};
+use std::{env, thread, time};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -509,6 +509,7 @@ fn process_initialization_message(mut stream : &mut TcpStream, mut pub_stream: &
 ///
 ///
 fn process_incoming_message(mut stream: &mut TcpStream, mut pub_stream: &mut TcpStream, mut all_loops: &mut Vec<HardLoop>)  {
+    let ten_millis = time::Duration::from_millis(10);
     loop {
         let packet = match VariablePacket::decode(&mut stream) {
             Ok(pk) => pk,
@@ -565,9 +566,9 @@ fn process_incoming_message(mut stream: &mut TcpStream, mut pub_stream: &mut Tcp
             }
             _ => {}
         }
+        thread::sleep(ten_millis);
     }
 }
-
 
 
 fn main() {
