@@ -3,8 +3,8 @@ use serde_derive::*;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]
 pub (crate) struct LampColor {
-    pub hue: Option<u32>,
-    pub saturation: Option<u32>,
+    // pub hue: Option<u32>,
+    // pub saturation: Option<u32>,
     pub x:f32,
     pub y:f32,
 }
@@ -44,8 +44,10 @@ pub (crate) trait DeviceMessage {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub (crate) struct LampRGB {
-    pub color : LampColor,
-    pub brightness:u8,
+    // There are 2 different modes : color xy for RGB and color temp for white lamps
+    // pub color : LampColor,
+    pub color_temp:u16,
+    pub brightness:u16,
     pub state: String,
 }
 
@@ -53,12 +55,14 @@ pub (crate) struct LampRGB {
 impl LampRGB {
     pub (crate) fn new() -> Self {
         Self {
-            color: LampColor {
-                hue: None,
-                saturation: None,
-                x: 0.0,
-                y: 0.0
-            },
+            // There are 2 different modes : color xy for RGB and color temp for white lamps
+            // color: LampColor {
+            //     // hue: None,
+            //     // saturation: None,
+            //     x: 0.0,
+            //     y: 0.0
+            // },
+            color_temp: 270,
             brightness: 40,
             state: "".to_string()
         }
@@ -99,7 +103,8 @@ impl DeviceMessage for LampRGB {
     fn to_lamp_rgb(&self, last_message : &Box<dyn DeviceMessage>) -> Box<dyn DeviceMessage> {
         let rgb = last_message.as_lamp_rgb();
         Box::new(LampRGB {
-            color: rgb.color.clone(),
+            //color: rgb.color.clone(),
+            color_temp: self.color_temp,
             brightness: self.brightness,
             state: self.state.clone(),
         })
@@ -182,7 +187,7 @@ impl DeviceMessage for TempSensor {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub (crate) struct InterDim {
-    pub brightness:u8,
+    pub brightness:u16,
     // linkquality:u8,
     pub state: String,
 }
@@ -219,7 +224,8 @@ impl DeviceMessage for InterDim {
         let rgb = last_message.as_lamp_rgb();
         dbg!(rgb);
         Box::new(LampRGB {
-            color: rgb.color.clone(),
+            //color: rgb.color.clone(),
+            color_temp: rgb.color_temp,
             brightness: self.brightness,
             state: self.state.clone(),
         })
