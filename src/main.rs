@@ -108,7 +108,7 @@ fn parse_params(device_repo: &HashMap<String, Arc<RefCell<dyn DynDevice>>>) -> P
     }
 
     Params {
-        server_addr : "raspberrypi:1883".to_string(),
+        server_addr : "raspberrypi.local:1883".to_string(),
         client_id,
         channel_filters,
         keep_alive : 30_000,
@@ -510,7 +510,7 @@ fn process_initialization_message(mut stream : &mut TcpStream, mut pub_stream: &
 fn process_incoming_message(mut stream: &mut TcpStream, mut pub_stream: &mut TcpStream, mut all_loops: &mut Vec<HardLoop>)  {
     let delay = time::Duration::from_millis(10);
     loop {
-        info!("** New Round **");
+        info!("🔁 New Round");
         let packet = match VariablePacket::decode(&mut stream) {
             Ok(pk) => pk,
             Err(err) => {
@@ -518,7 +518,7 @@ fn process_incoming_message(mut stream: &mut TcpStream, mut pub_stream: &mut Tcp
                 continue;
             }
         };
-        trace!("PACKET {:?}", packet);
+        info!("PACKET {:?}", packet);
 
         match packet {
             VariablePacket::PingrespPacket(..) => {
@@ -588,6 +588,8 @@ fn main() {
 
     info!("Client identifier {:?}", &params.client_id);
     let mut conn = ConnectPacket::new(&params.client_id);
+    conn.set_user_name(Some("ava".to_string()));
+    conn.set_password(Some("avatece3.X".to_string()));
     conn.set_clean_session(true);
     conn.set_keep_alive(params.keep_alive);
     let mut buf = Vec::new();

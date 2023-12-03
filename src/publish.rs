@@ -32,6 +32,8 @@ pub fn connect_publisher(server_addr: &str) -> TcpStream {
 
     info!("Client identifier {:?}", client_id);
     let mut conn = ConnectPacket::new(client_id);
+    conn.set_user_name(Some("ava".to_string()));
+    conn.set_password(Some("avatece3.X".to_string()));
     conn.set_clean_session(true);
     conn.set_keep_alive(keep_alive);
     let mut buf = Vec::new();
