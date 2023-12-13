@@ -1,26 +1,18 @@
-[package]
-name = "ava"
-version = "0.3.1"
-edition = "2021"
+[workspace]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+members = [
+    "mqtt5-r",
+    "move-light",
+]
 
-[dependencies]
-# rumqttc = "0.13.0"
-serde = "^1.0"
-serde_json = "^1.0"
-serde_derive = "^1.0"
-mqtt-protocol = "^0.11.2"
-byteorder = "^1.5"
-log = "^0.4"
-tokio = { version = "^1.34", optional = true }
-tokio-util = { version = "^0.7", features = ["codec"], optional = true }
-bytes = { version = "^1.5", optional = true }
-thiserror = "^1.0"
-clap = "^4.4"
-env_logger = "^0.10"
-uuid = { version = "^1.6", features = ["v4"] }
+[workspace.dependencies]
 
-[dev-dependencies]
-tokio = { version = "^1.34", features = ["macros", "rt-multi-thread", "net", "time", "io-util"] }
-futures = { version = "^0.3" }
+
+[profile.release]
+opt-level = 3
+debug = false
+debug-assertions = false
+incremental = true
+
+[profile.dev]
+incremental = true

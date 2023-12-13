@@ -43,4 +43,7 @@ Exemple de boucle :
     fabrication du message pour la lampe2 -> envoi
 
 
-
+Generics 
+Enums
+Config files
+No locks
