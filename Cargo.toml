@@ -1,12 +1,19 @@
 [workspace]
 
 members = [
+    "commons-error",
+    "event-storage",
     "mqtt5-r",
     "move-light",
 ]
 
 [workspace.dependencies]
-
+log = "^0.4"
+log4rs = "^1.2"
+chrono = { version = "^0.4", features = ["serde"] }
+anyhow = "^1.0"
+lazy_static = "^1.4"
+mut_static = "^5.0"
 
 [profile.release]
 opt-level = 3
