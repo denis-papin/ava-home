@@ -3,6 +3,7 @@
 members = [
     "commons-error",
     "event-storage",
+    "regulator",
     "mqtt5-r",
     "move-light",
 ]

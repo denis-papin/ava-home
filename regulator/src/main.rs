@@ -89,6 +89,12 @@ async fn main() {
     env::set_var("RUST_LOG", env::var_os("RUST_LOG").unwrap_or_else(|| "info".into()));
     env_logger::init();
 
+    let args: Vec<String> = env::args().collect();
+    let heatzy_pass = args.get(1).unwrap();
+    let heatzy_application_id= args.get(2).unwrap();
+    dbg!(heatzy_pass);
+    dbg!(heatzy_application_id);
+
     info!("Starting AVA event-storage 0.5.0");
 
     // Database
@@ -131,7 +137,7 @@ async fn main() {
     match process_initialization_message(&mut client, &mut eventloop, &mut init_list).await {
         Ok(_) => {
             info!("Process incoming messages");
-            let _ = process_incoming_message(&mut client, &mut eventloop, &mut all_loops).await;
+            let _ = process_incoming_message(&mut client, &mut eventloop, &mut all_loops, &args).await;
         }
         Err(e) => {
             panic!("{}", e);

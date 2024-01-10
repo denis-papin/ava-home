@@ -95,15 +95,15 @@ impl GenericDevice {
     ///
     /// Specific processing for the device that emits the message
     ///
-    async fn process(&self,  original_message : &MessageEnum) {
+    async fn process(&self,  original_message : &MessageEnum, args: &[String]) {
         info!("Default empty process for device {}.", & self.get_topic());
-        original_message.process(& self.get_topic()).await;
+        original_message.process(& self.get_topic(), &args).await;
     }
 
     ///
     /// Run the local specific processing if allowed.
     ///
-    pub(crate) async fn process_and_continue(&self, original_message : &MessageEnum) -> bool {
+    pub(crate) async fn process_and_continue(&self, original_message : &MessageEnum, args: &[String]) -> bool {
 
         info!("process_and_continue");
         let (new_lock, allowed) = {
@@ -119,12 +119,12 @@ impl GenericDevice {
                 }
                 (false, true) => {
                     info!("❌ Device {}, same message.", & self.get_topic().to_uppercase());
-                    self.process(&original_message).await; // In this case, we process the message even if it's the same as before
+                    self.process(&original_message, &args).await; // In this case, we process the message even if it's the same as before
                     allowed = false;
                 }
                 (false, false) => {
                     info!("👍 Device {}, allowed to process the message.", & self.get_topic().to_uppercase());
-                    self.process(&original_message).await;
+                    self.process(&original_message, &args).await;
                     allowed = true;
                 }
             }

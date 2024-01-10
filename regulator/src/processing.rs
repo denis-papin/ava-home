@@ -6,7 +6,7 @@ use crate::loops::{find_loops, HardLoop};
 ///
 ///
 ///
-pub async fn process_incoming_message(mut client: &mut AsyncClient, mut eventloop: &mut EventLoop, mut all_loops: &mut Vec<HardLoop>)  {
+pub async fn process_incoming_message(mut client: &mut AsyncClient, mut eventloop: &mut EventLoop, mut all_loops: &mut Vec<HardLoop>, args: &[String])  {
 
     while let Ok(notification) = eventloop.poll().await {
         info!("New notification");
@@ -37,7 +37,7 @@ pub async fn process_incoming_message(mut client: &mut AsyncClient, mut eventloo
                                 }
                             };
 
-                            if dd.process_and_continue(&original_message).await {
+                            if dd.process_and_continue(&original_message, &args).await {
                                 lp.loop_devices(&topic, &original_message, &mut client).await;
                             }
                         }

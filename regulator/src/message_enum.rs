@@ -58,18 +58,19 @@ impl MessageEnum {
     }
 
     /// Default process for the message
-    pub (crate) async fn process(&self, topic: &str) {
+    pub (crate) async fn process(&self, topic: &str, args: &[String]) {
         match self {
             REGULATION_MAP(rm) => {
                 info!("Default process for RegulationMap, message=[{:?}]", rm);
-                regulate_radiators(&topic, &rm).await;
+                regulate_radiators(&topic, &rm, &args).await;
             }
         }
     }
 
 }
 
-pub (crate) async fn regulate_radiators(topic: &str, regulation_map: &RegulationMap) {
+pub (crate) async fn regulate_radiators(topic: &str, regulation_map: &RegulationMap, args: &[String]) {
+
     // URL de la base de données PostgreSQL
     let db_url = "postgresql://denis:dentece3.X@192.168.0.149/avahome";
 
@@ -98,7 +99,7 @@ pub (crate) async fn regulate_radiators(topic: &str, regulation_map: &Regulation
         let dt: DateTime<Utc> = ts_create.clone().into();
 
         if device_name == "zigbee2mqtt/ts_bureau" {
-            regule(&device_name, temperature, regulation_map.tc_bureau).await;
+            regule(&device_name, temperature, regulation_map.tc_bureau, &args).await;
         }
 
         // Faites quelque chose avec les données lues, par exemple, imprimez-les
@@ -110,7 +111,11 @@ pub (crate) async fn regulate_radiators(topic: &str, regulation_map: &Regulation
 
 const APPLICATION_ID: &str = ""; // FIXEME DON'T
 
-async fn regule(device_name: &str, temperature: f64, tc: f32 ) {
+async fn regule(device_name: &str, temperature: f64, tc: f32, args: &[String] ) {
+
+    let heatzy_pass = args.get(1).unwrap();
+    let heatzy_application_id= args.get(2).unwrap();
+
     if temperature < tc as f64 - 0.5f64 {
         // Set the radiator on "CONFORT"
         println!("Set Bureau to CONFORT");
@@ -118,7 +123,7 @@ async fn regule(device_name: &str, temperature: f64, tc: f32 ) {
         // FIXME : DON'T
         let data = serde_json::json!({
             "username": "denis.1@crespe.fr",
-            "password": ""
+            "password": heatzy_pass.clone(),
         });
 
         // URL de destination
@@ -128,7 +133,7 @@ async fn regule(device_name: &str, temperature: f64, tc: f32 ) {
         let mut custom_header = header::HeaderMap::new();
         custom_header.insert(header::USER_AGENT, header::HeaderValue::from_static("reqwest"));
         custom_header.insert(header::CONTENT_TYPE, header::HeaderValue::from_static("application/json"));
-        custom_header.insert("X-Gizwits-Application-Id", header::HeaderValue::from_static(APPLICATION_ID));
+        custom_header.insert("X-Gizwits-Application-Id", heatzy_application_id.parse().unwrap());
 
         // Effectuer la requête POST
         match post_data(url, data, custom_header).await {
