@@ -13,6 +13,7 @@ use crate::generic_device::GenericDevice;
 use crate::init_loop::{build_init_list, process_initialization_message};
 use crate::loops::build_loops;
 use crate::processing::process_incoming_message;
+use crate::properties::set_prop_value;
 
 mod device_lock;
 mod device_message;
@@ -22,6 +23,7 @@ mod init_loop;
 mod processing;
 mod message_enum;
 mod generic_device;
+mod properties;
 
 const CLIENT_ID: &str = "ava-regulator-0.5.0";
 
@@ -45,7 +47,7 @@ fn parse_params(device_repo: &HashMap<String, Arc<RefCell<GenericDevice>>>) -> P
     }
 
     Params {
-        server_addr : "raspberrypi.local".to_string(),
+        server_addr : "192.168.0.149".to_string(),
         client_id,
         channel_filters,
         keep_alive : 30_000,
@@ -86,6 +88,8 @@ async fn test_db() {
 #[tokio::main]
 async fn main() {
 
+    // run --package regulator --bin regulator -- <heatzy_pass>   <heatzy_key>
+
     env::set_var("RUST_LOG", env::var_os("RUST_LOG").unwrap_or_else(|| "info".into()));
     env_logger::init();
 
@@ -95,7 +99,7 @@ async fn main() {
     dbg!(heatzy_pass);
     dbg!(heatzy_application_id);
 
-    info!("Starting AVA event-storage 0.5.0");
+    info!("Starting AVA regulator 0.5.0");
 
     // Database
     let db_hostname = "192.168.0.149";
@@ -105,11 +109,13 @@ async fn main() {
     let db_password = "dentece3.X";
     let db_pool_size = 5;
     let connect_string = format!("host={} port={} dbname={} user={} password={}", db_hostname, db_port, db_name, db_user,db_password);
-    // Init DB pool
 
+    // Current mode for the radiators : <radiator_name, mode>
 
-    // Test DB
-    // let r = test_db().await;
+    set_prop_value("salon", "???");
+    set_prop_value("couloir", "???");
+    set_prop_value("chambre_1", "???");
+    set_prop_value("bureau", "???");
 
     // Devices
 
@@ -117,7 +123,7 @@ async fn main() {
     let device_repo = build_device_repo();
     let params = parse_params(&device_repo);
 
-    // Mosquittp
+    // Mosquitto
 
     let mut mqttoptions = MqttOptions::new(&params.client_id, &params.server_addr, 1883);
     mqttoptions.set_keep_alive(Duration::from_secs(params.keep_alive as u64));

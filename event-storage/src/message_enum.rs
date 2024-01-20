@@ -1,4 +1,5 @@
 use log::info;
+use rumqttc::v5::mqttbytes::QoS;
 use tokio_postgres::{NoTls, types::ToSql};
 
 use crate::device_message::TempSensor;
@@ -59,12 +60,6 @@ impl MessageEnum {
 
     /// Default process for the message
     pub (crate) async fn process(&self, topic: &str) {
-
-        // let mut r_cnx = SQLConnection::new();
-        // let r_trans = open_transaction(&mut r_cnx).map_err(err_fwd!("💣 Open transaction error"));
-        // let Ok(mut trans) = r_trans else {
-        //     panic!("Cannot open db transaction!"); // TODO
-        // };
 
         match self {
             TEMP_SENSOR(t) => {

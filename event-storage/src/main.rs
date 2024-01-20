@@ -49,7 +49,7 @@ fn parse_params(device_repo: &HashMap<String, Arc<RefCell<GenericDevice>>>) -> P
     }
 
     Params {
-        server_addr : "raspberrypi.local".to_string(),
+        server_addr : "192.168.0.149".to_string(),
         client_id,
         channel_filters,
         keep_alive : 30_000,

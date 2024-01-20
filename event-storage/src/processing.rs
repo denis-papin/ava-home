@@ -1,6 +1,7 @@
 use std::ops::Deref;
 use log::{error, info};
 use rumqttc::v5::{AsyncClient, Event, EventLoop, Incoming};
+use rumqttc::v5::mqttbytes::QoS;
 use crate::loops::{find_loops, HardLoop};
 
 ///
