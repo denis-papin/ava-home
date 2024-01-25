@@ -96,8 +96,8 @@ async fn main() {
 
     let msg_fin_jour = MessageEnum::REGULATION_MAP(RegulationMap {
         tc_bureau: 19.0,
-        tc_salon_1: 23.0,
-        tc_salon_2: 23.0,
+        tc_salon_1: 24.0,
+        tc_salon_2: 24.0,
         tc_chambre_1: 23.0,
         tc_couloir: 23.0,
         mode: 'H',
