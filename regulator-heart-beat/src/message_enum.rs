@@ -117,7 +117,7 @@ async fn regule(device_name: &str, temperature: f64, tc: f32, args: &[String] ) 
     let heatzy_pass = args.get(1).unwrap();
     let heatzy_application_id= args.get(2).unwrap();
 
-    if temperature < tc as f64 - 0.5f64 {
+    if temperature < tc as f64 - 0.3f64 {
         // Set the radiator on "CONFORT"
         println!("Set Bureau to CONFORT");
 
@@ -125,7 +125,7 @@ async fn regule(device_name: &str, temperature: f64, tc: f32, args: &[String] ) 
 
         set_mode("CONFORT", &heatzy_application_id, "74067d76317946fca0433f684cf1e0a1" ).await;// DON'T
 
-    } else if temperature > tc as f64 + 0.5f64 {
+    } else if temperature > tc as f64 + 0.3f64 {
         // Set the radiator on "ON"
         println!("Set Bureau to OFF");
 

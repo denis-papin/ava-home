@@ -172,9 +172,9 @@ impl RadiatorMode {
 }
 
 fn determine_action(t_current: f64, tc: f32) -> RadiatorMode {
-    if t_current < tc as f64 - 0.5f64 {
+    if t_current < tc as f64 - 0.3f64 {
        ON
-    } else if t_current > tc as f64 + 0.5f64 {
+    } else if t_current > tc as f64 + 0.3f64 {
         OFF
     } else {
         NO_ACTION

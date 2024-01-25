@@ -94,6 +94,15 @@ async fn main() {
         mode: 'N',
     });
 
+    let msg_fin_jour = MessageEnum::REGULATION_MAP(RegulationMap {
+        tc_bureau: 19.0,
+        tc_salon_1: 22.0,
+        tc_salon_2: 22.0,
+        tc_chambre_1: 23.0,
+        tc_couloir: 22.0,
+        mode: 'H',
+    });
+
     let device = device_repo.get(REGULATE_RADIATOR).unwrap().as_ref().borrow();
 
     let mut interval = interval(Duration::from_secs(5*60));
@@ -107,15 +116,20 @@ async fn main() {
         let current_time = now.time();
 
         // Définissez les heures de début et de fin
-        let start_time = NaiveTime::from_hms(7, 0, 0);
-        let end_time = NaiveTime::from_hms(22, 0, 0);
+        let j_start_time = NaiveTime::from_hms(7, 0, 0);
+        let j_end_time = NaiveTime::from_hms(22, 0, 0);
+
+        let h_end_time = NaiveTime::from_hms(23, 59, 0);
 
         // Vérifiez si l'heure actuelle est entre 7h00 et 22h00
-        let msg = if current_time >= start_time && current_time <= end_time {
+        let msg = if current_time > j_start_time && current_time <= j_end_time {
             info!("L'heure actuelle est entre 7h00 et 22h00.");
             &msg_jour
+        } else if current_time > j_end_time && current_time <= h_end_time  {
+            info!("L'heure actuelle est entre 22h00 et 00h00.");
+            &msg_fin_jour
         } else {
-            info!("L'heure actuelle n'est pas entre 7h00 et 22h00.");
+            info!("L'heure actuelle est entre 00h00 et 7h00.");
             &msg_nuit
         };
 
