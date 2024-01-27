@@ -77,7 +77,7 @@ async fn main() {
     let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
 
     let msg_jour = MessageEnum::REGULATION_MAP(RegulationMap {
-        tc_bureau: 19.0,
+        tc_bureau: 21.0,
         tc_salon_1: 23.0,
         tc_salon_2: 19.0,
         tc_chambre_1: 19.0,
