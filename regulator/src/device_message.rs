@@ -11,7 +11,6 @@ pub (crate) struct RegulationMap {
     pub mode: char, // J /"JOUR", N / "NUIT", A / "ABSENCE"
 }
 
-///
 /// {
 //       "tc_bureau": 23.0,
 //       "tc_salon_1": 22.5,
@@ -20,8 +19,7 @@ pub (crate) struct RegulationMap {
 //       "tc_couloir": 22.0,
 //       "mode": 'J',
 //   }
-///
-///
+
 impl RegulationMap {
     pub (crate) fn new() -> Self {
         Self {

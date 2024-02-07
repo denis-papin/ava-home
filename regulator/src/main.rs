@@ -117,6 +117,8 @@ async fn main() {
     set_prop_value("chambre_1", "???");
     set_prop_value("bureau", "???");
 
+    set_prop_value("check_radiator_mode_counter", "0");
+
     // Devices
 
     info!("Building the device repository");

@@ -1,18 +1,18 @@
 use std::collections::HashMap;
-use std::fmt::format;
 use std::time::SystemTime;
+
 use anyhow::anyhow;
 use chrono::{DateTime, Utc};
 use lazy_static::lazy_static;
 use log::{error, info};
 use reqwest::header;
-use rumqttc::v5::mqttbytes::QoS;
 use serde_derive::{Deserialize, Serialize};
-use tokio_postgres::{NoTls, types::ToSql};
+use tokio_postgres::NoTls;
 
-use crate::device_message::{RegulationMap};
-use crate::message_enum::MessageEnum::{REGULATION_MAP};
-use crate::message_enum::RadiatorMode::{ON, NO_ACTION, OFF};
+use crate::device_message::RegulationMap;
+use crate::message_enum::MessageEnum::REGULATION_MAP;
+use crate::message_enum::RadiatorAction::{NO_ACTION, OFF, ON};
+use crate::message_enum::RadiatorMode::{CFT, ECO, FRO, STOP};
 use crate::properties::{get_prop_value, set_prop_value};
 
 /// Object by enums
@@ -137,22 +137,34 @@ pub (crate) async fn regulate_radiators(topic: &str, regulation_map: &Regulation
     let action_salon_1 = determine_action(*current_temp.get("salon_1").unwrap(), regulation_map.tc_salon_1);
     // let action_salon_2 = determine_action(*current_temp.get("salon_2").unwrap(), regulation_map.tc_salon_2);
 
-    regule("bureau", action_bureau, &args).await;
-    regule("chambre_1", action_chambre_1, &args).await;
-    regule("couloir", action_couloir, &args).await;
-    regule("salon", action_salon_1, &args).await;
+    let str_count = get_prop_value("check_radiator_mode_counter").unwrap();
+    let count : u16 = str_count.parse().unwrap();
 
-    println!("succès!");
+    info!("Check count: [{}]", count);
+
+    let check_mode = count >= 2; // 0, 1  we don't check
+    regulate("bureau", action_bureau, &args, check_mode).await;
+    regulate("chambre_1", action_chambre_1, &args, check_mode).await;
+    regulate("couloir", action_couloir, &args, check_mode).await;
+    regulate("salon", action_salon_1, &args, check_mode).await;
+
+    if check_mode {
+        set_prop_value("check_radiator_mode_counter", "0");
+    } else {
+        set_prop_value("check_radiator_mode_counter", &(count +1).to_string());
+    }
+
+    info!("succss!");
 }
 
  #[derive(Clone, PartialEq)]
-enum RadiatorMode {
+enum RadiatorAction {
     ON,
     OFF,
     NO_ACTION,
 }
 
-impl RadiatorMode {
+impl RadiatorAction {
     fn value(&self) -> &'static str {
         match self {
             ON => "ON",
@@ -171,7 +183,26 @@ impl RadiatorMode {
     }
 }
 
-fn determine_action(t_current: f64, tc: f32) -> RadiatorMode {
+#[derive(Debug, Clone, PartialEq)]
+enum RadiatorMode {
+    CFT,
+    ECO,
+    FRO,
+    STOP
+}
+
+impl RadiatorMode {
+    fn from_value(value : String) -> Self {
+        match value.as_str() {
+            "cft" => CFT,
+            "eco" => ECO,
+            "fro" => FRO,
+            _ => STOP,
+        }
+    }
+}
+
+fn determine_action(t_current: f64, tc: f32) -> RadiatorAction {
     if t_current < tc as f64 - 0.3f64 {
        ON
     } else if t_current > tc as f64 + 0.3f64 {
@@ -192,43 +223,74 @@ lazy_static! {
     };
 }
 
-async fn regule(radiator_name: &str, action: RadiatorMode, args: &[String] ) {
+async fn regulate(radiator_name: &str, action: RadiatorAction, args: &[String], check_mode: bool ) {
+
+    info!("Regulate [{}]", &radiator_name);
 
     let heatzy_pass = args.get(1).unwrap();
     let heatzy_application_id= args.get(2).unwrap();
 
     let did = DEVICE_DID.get(radiator_name).unwrap();
-    let mode = RadiatorMode::from_value(get_prop_value(radiator_name).unwrap());
 
-    println!("Regule [{}] to new mode [{}], from old mode [{}]", &radiator_name, action.value(), mode.value());
+    let action = if check_mode {
+        info!("\t\tCheck mode is ON");
+        match get_mode(&heatzy_application_id, "74067d76317946fca0433f684cf1e0a1", &did).await {
+            Ok(radiator_mode) => {
+                info!("\t\tCurrent Mode is [{:?}]", &radiator_mode);
+                match &radiator_mode {
+                    CFT => {
+                        set_prop_value(radiator_name, RadiatorAction::ON.value());
+                        action
+                    }
+                    ECO | FRO => {
+                        set_prop_value(radiator_name, RadiatorAction::NO_ACTION.value());
+                        info!("️\t\t️👹 The radiator is manually disable, overriding to NO ACTION");
+                        RadiatorAction::NO_ACTION
+                    }
+                    STOP => {
+                        set_prop_value(radiator_name, RadiatorAction::OFF.value());
+                        action
+                    }
+                }
+            }
+            Err(e) => {
+                error!("\t\tError in getting the radiator mode : {:?}", e);
+                action
+            }
+        }
+    } else {
+        action
+    };
+
+    let mode = RadiatorAction::from_value(get_prop_value(radiator_name).unwrap());
+
+    info!("\t\tCurrent memory mode: [{}]", mode.value());
 
     match action {
         ON => {
-            println!("️🕯️ Must be ON");
+            info!("️\t\t🕯️ Must be ON");
         }
         OFF => {
-            println!("️❄️ Must be OFF");
+            info!("️\t\t❄️ Must be OFF");
         }
         NO_ACTION => {
-            println!("️No Action");
+            info!("️\t\tNo Action");
         }
     }
 
     if mode != action && action != NO_ACTION {
-
         match action {
             ON => {
-                println!("🔥 Set {} to ON", &radiator_name);
+                info!("\t\t🔥 Set {} to ON", &radiator_name);
             }
             OFF => {
-                println!("❄️ Set {} to OFF", &radiator_name);
+                info!("\t\t❄️ Set {} to OFF", &radiator_name);
             }
             NO_ACTION => {
-                println!("️No Action");
+                info!("️\t\tNo Action");
             }
         }
 
-        // 74067d76317946fca0433f684cf1e0a1
         // 74067d76317946fca0433f684cf1e0a1
         set_mode(&action, &heatzy_application_id,  &heatzy_pass, "74067d76317946fca0433f684cf1e0a1", &did).await;
         set_prop_value(radiator_name, action.value());
@@ -242,13 +304,46 @@ struct LoginResponse {
     expire_at: u64,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+struct Attribute {
+    mode: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct DevData {
+    did: String,
+    updated_at: u32,
+    attr: Attribute,
+}
+
+async fn get_mode(heatzy_application_id: &str,  heatzy_token: &str, did: &str) -> anyhow::Result<RadiatorMode> {
+    let mut custom_header = header::HeaderMap::new();
+    custom_header.insert(header::USER_AGENT, header::HeaderValue::from_static("reqwest"));
+    custom_header.insert(header::CONTENT_TYPE, header::HeaderValue::from_static("application/json"));
+    custom_header.insert("X-Gizwits-Application-Id", heatzy_application_id.parse().unwrap());
+    custom_header.insert("X-Gizwits-User-token", heatzy_token.parse().unwrap());
+
+    let url = format!("https://euapi.gizwits.com/app/devdata/{}/latest", did); // device did
+
+    match get_data(&url, custom_header).await {
+        Ok(response) => {
+            let r : DevData = serde_json::from_str(&response)?;
+            Ok(RadiatorMode::from_value(r.attr.mode))
+        }
+        Err(e) => {
+            eprintln!("Error while getting the data : {}", e);
+            Err(anyhow!("Error while getting the data"))
+        }
+    }
+}
+
 
 // {
 //  "attrs": {
 //     "mode":0 // 0 CONFORT,  1 ECO, 2 HORS GEL, 3 OFF
 //  }
 // }
-async fn set_mode(mode: &RadiatorMode, heatzy_application_id: &str,  heatzy_pass: &str, heatzy_token: &str, did: &str) {
+async fn set_mode(mode: &RadiatorAction, heatzy_application_id: &str, heatzy_pass: &str, heatzy_token: &str, did: &str) {
 
     let h_mode = match mode {
         ON => 0,
@@ -276,7 +371,7 @@ async fn set_mode(mode: &RadiatorMode, heatzy_application_id: &str,  heatzy_pass
         }
         Err(e) => {
             eprintln!("Erreur lors de la requête : {}", e);
-            panic!()
+            //panic!()
         }
     }
 }
@@ -310,6 +405,26 @@ async fn login(heatzy_pass: &str, heatzy_application_id: &str) -> LoginResponse 
         }
     }
 
+}
+
+async fn get_data(url: &str, headers: header::HeaderMap) -> anyhow::Result<String> {
+    // Créer une nouvelle session Reqwest
+    let client = reqwest::Client::new();
+
+    // Effectuer la requête GET
+    let response = client.get(url)
+        .headers(headers)
+        .send()
+        .await?;
+
+    // Vérifier la réponse HTTP
+    if response.status().is_success() {
+        // Récupérer le corps de la réponse comme chaîne de caractères
+        let body = response.text().await?;
+        Ok(body)
+    } else {
+        Err(anyhow!("{:?}", response))
+    }
 }
 
 async fn post_data(url: &str, data: serde_json::Value, headers: header::HeaderMap) -> anyhow::Result<String> {

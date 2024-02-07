@@ -22,7 +22,7 @@ pub(crate) struct GenericDevice {
 impl GenericDevice {
 
     pub(crate) fn new(name : &str, msg: MessageEnum) -> Self {
-        info!("🌟🌟🌟🌟🌟 New Generic Device, topic = [{}]", &name);
+        info!("🌟 New Generic Device, topic = [{}]", &name);
         let dl = DeviceLock::new(msg.clone());
         Self {
             name: name.to_string(),
