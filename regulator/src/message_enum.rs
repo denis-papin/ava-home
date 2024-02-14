@@ -10,22 +10,22 @@ use serde_derive::{Deserialize, Serialize};
 use tokio_postgres::NoTls;
 
 use crate::device_message::RegulationMap;
-use crate::message_enum::MessageEnum::REGULATION_MAP;
-use crate::message_enum::RadiatorAction::{NO_ACTION, OFF, ON};
+use crate::message_enum::MessageEnum::MsgRegulation;
+use crate::message_enum::RadiatorAction::{NoAction, Off, On};
 use crate::message_enum::RadiatorMode::{CFT, ECO, FRO, STOP};
 use crate::properties::{get_prop_value, set_prop_value};
 
 /// Object by enums
 #[derive(Debug, Clone)]
 pub (crate) enum MessageEnum {
-    REGULATION_MAP(RegulationMap),
+    MsgRegulation(RegulationMap),
 }
 
 impl MessageEnum {
 
     pub (crate) fn query_for_state(&self) -> String {
         match self {
-            REGULATION_MAP(_) => {
+            MsgRegulation(_) => {
                 let msg = r#"{"state":""}"#;
                 msg.to_string()
             }
@@ -34,27 +34,27 @@ impl MessageEnum {
 
     pub (crate) fn raw_message(&self) -> String {
         match self {
-            MessageEnum::REGULATION_MAP(msg) => {
+            MessageEnum::MsgRegulation(msg) => {
                 serde_json::to_string(msg).unwrap() // TODO
             }
         }
     }
     pub (crate) fn json_to_local(&self, json_msg: &str) -> Result<MessageEnum, String> {
         match self {
-            REGULATION_MAP(_) => {
-                Ok(REGULATION_MAP(RegulationMap::from_json(json_msg)?))
+            MsgRegulation(_) => {
+                Ok(MsgRegulation(RegulationMap::from_json(json_msg)?))
             }
         }
     }
 
     pub (crate) fn default_regulation_map() -> Self {
-        REGULATION_MAP(RegulationMap::new())
+        MsgRegulation(RegulationMap::new())
     }
 
     /// Convert the original message to the type of the current Self
     pub (crate) fn to_local(&self, original_message: &MessageEnum, last_message: &MessageEnum) -> Self {
         match self {
-            REGULATION_MAP(_) => {
+            MsgRegulation(_) => {
                 original_message.to_temp_sensor(&last_message)
             }
         }
@@ -68,7 +68,7 @@ impl MessageEnum {
     /// Default process for the message
     pub (crate) async fn process(&self, topic: &str, args: &[String]) {
         match self {
-            REGULATION_MAP(rm) => {
+            MsgRegulation(rm) => {
                 info!("Default process for RegulationMap, message=[{:?}]", rm);
                 regulate_radiators(&topic, &rm, &args).await;
             }
@@ -77,7 +77,7 @@ impl MessageEnum {
 
 }
 
-pub (crate) async fn regulate_radiators(topic: &str, regulation_map: &RegulationMap, args: &[String]) {
+pub (crate) async fn regulate_radiators(_topic: &str, regulation_map: &RegulationMap, args: &[String]) {
 
     // URL de la base de données PostgreSQL
     let db_url = "postgresql://denis:dentece3.X@192.168.0.149/avahome";
@@ -159,26 +159,26 @@ pub (crate) async fn regulate_radiators(topic: &str, regulation_map: &Regulation
 
  #[derive(Clone, PartialEq)]
 enum RadiatorAction {
-    ON,
-    OFF,
-    NO_ACTION,
+     On,
+     Off,
+     NoAction,
 }
 
 impl RadiatorAction {
     fn value(&self) -> &'static str {
         match self {
-            ON => "ON",
-            OFF => "OFF",
-            NO_ACTION => "NO_ACTION",
+            On => "ON",
+            Off => "OFF",
+            NoAction => "NoAction",
         }
     }
 
     fn from_value(value : String) -> Self {
         match value.as_str() {
-            "ON" => ON,
-            "OFF" => OFF,
-            "NO_ACTION" => NO_ACTION,
-            _ => NO_ACTION,
+            "ON" => On,
+            "OFF" => Off,
+            "NoAction" => NoAction,
+            _ => NoAction,
         }
     }
 }
@@ -204,11 +204,11 @@ impl RadiatorMode {
 
 fn determine_action(t_current: f64, tc: f32) -> RadiatorAction {
     if t_current < tc as f64 - 0.3f64 {
-       ON
+        On
     } else if t_current > tc as f64 + 0.3f64 {
-        OFF
+        Off
     } else {
-        NO_ACTION
+        NoAction
     }
 }
 
@@ -239,16 +239,16 @@ async fn regulate(radiator_name: &str, action: RadiatorAction, args: &[String], 
                 info!("\t\tCurrent Mode is [{:?}]", &radiator_mode);
                 match &radiator_mode {
                     CFT => {
-                        set_prop_value(radiator_name, RadiatorAction::ON.value());
+                        set_prop_value(radiator_name, RadiatorAction::On.value());
                         action
                     }
                     ECO | FRO => {
-                        set_prop_value(radiator_name, RadiatorAction::NO_ACTION.value());
+                        set_prop_value(radiator_name, RadiatorAction::NoAction.value());
                         info!("️\t\t️👹 The radiator is manually disable, overriding to NO ACTION");
-                        RadiatorAction::NO_ACTION
+                        RadiatorAction::NoAction
                     }
                     STOP => {
-                        set_prop_value(radiator_name, RadiatorAction::OFF.value());
+                        set_prop_value(radiator_name, RadiatorAction::Off.value());
                         action
                     }
                 }
@@ -267,26 +267,26 @@ async fn regulate(radiator_name: &str, action: RadiatorAction, args: &[String], 
     info!("\t\tCurrent memory mode: [{}]", mode.value());
 
     match action {
-        ON => {
+        On => {
             info!("️\t\t🕯️ Must be ON");
         }
-        OFF => {
+        Off => {
             info!("️\t\t❄️ Must be OFF");
         }
-        NO_ACTION => {
+        NoAction => {
             info!("️\t\tNo Action");
         }
     }
 
-    if mode != action && action != NO_ACTION {
+    if mode != action && action != NoAction {
         match action {
-            ON => {
+            On => {
                 info!("\t\t🔥 Set {} to ON", &radiator_name);
             }
-            OFF => {
+            Off => {
                 info!("\t\t❄️ Set {} to OFF", &radiator_name);
             }
-            NO_ACTION => {
+            NoAction => {
                 info!("️\t\tNo Action");
             }
         }
@@ -343,11 +343,11 @@ async fn get_mode(heatzy_application_id: &str,  heatzy_token: &str, did: &str) -
 //     "mode":0 // 0 CONFORT,  1 ECO, 2 HORS GEL, 3 OFF
 //  }
 // }
-async fn set_mode(mode: &RadiatorAction, heatzy_application_id: &str, heatzy_pass: &str, heatzy_token: &str, did: &str) {
+async fn set_mode(mode: &RadiatorAction, heatzy_application_id: &str, _heatzy_pass: &str, heatzy_token: &str, did: &str) {
 
     let h_mode = match mode {
-        ON => 0,
-        OFF => 3,
+        On => 0,
+        Off => 3,
         _ => 2,
     };
 
@@ -376,36 +376,36 @@ async fn set_mode(mode: &RadiatorAction, heatzy_application_id: &str, heatzy_pas
     }
 }
 
-async fn login(heatzy_pass: &str, heatzy_application_id: &str) -> LoginResponse {
-
-    let data = serde_json::json!({
-            "username": "denis.1@crespe.fr",
-            "password": heatzy_pass.clone(),
-        });
-
-    // URL de destination
-    let url = "https://euapi.gizwits.com/app/login";
-
-    // Header personnalisé
-    let mut custom_header = header::HeaderMap::new();
-    custom_header.insert(header::USER_AGENT, header::HeaderValue::from_static("reqwest"));
-    custom_header.insert(header::CONTENT_TYPE, header::HeaderValue::from_static("application/json"));
-    custom_header.insert("X-Gizwits-Application-Id", heatzy_application_id.parse().unwrap());
-
-    // Effectuer la requête POST
-    match post_data(url, data, custom_header).await {
-        Ok(response) => {
-            println!("Réponse: {}", response);
-            let login_response : LoginResponse = serde_json::from_str(&response).unwrap();
-            login_response
-        }
-        Err(e) => {
-            eprintln!("Erreur lors de la requête : {}", e);
-            panic!()
-        }
-    }
-
-}
+// async fn login(heatzy_pass: &str, heatzy_application_id: &str) -> LoginResponse {
+//
+//     let data = serde_json::json!({
+//             "username": "denis.1@crespe.fr",
+//             "password": heatzy_pass,
+//         });
+//
+//     // URL de destination
+//     let url = "https://euapi.gizwits.com/app/login";
+//
+//     // Header personnalisé
+//     let mut custom_header = header::HeaderMap::new();
+//     custom_header.insert(header::USER_AGENT, header::HeaderValue::from_static("reqwest"));
+//     custom_header.insert(header::CONTENT_TYPE, header::HeaderValue::from_static("application/json"));
+//     custom_header.insert("X-Gizwits-Application-Id", heatzy_application_id.parse().unwrap());
+//
+//     // Effectuer la requête POST
+//     match post_data(url, data, custom_header).await {
+//         Ok(response) => {
+//             println!("Réponse: {}", response);
+//             let login_response : LoginResponse = serde_json::from_str(&response).unwrap();
+//             login_response
+//         }
+//         Err(e) => {
+//             eprintln!("Erreur lors de la requête : {}", e);
+//             panic!()
+//         }
+//     }
+//
+// }
 
 async fn get_data(url: &str, headers: header::HeaderMap) -> anyhow::Result<String> {
     // Créer une nouvelle session Reqwest

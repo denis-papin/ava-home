@@ -8,14 +8,10 @@ use log::info;
 use rumqttc::v5::{AsyncClient, MqttOptions};
 use rumqttc::v5::mqttbytes::QoS;
 
-use commons_error::*;
-use crate::device_message::TempSensor;
-
 use crate::device_repo::{build_device_repo, device_to_listen};
 use crate::generic_device::GenericDevice;
 use crate::init_loop::{build_init_list, process_initialization_message};
 use crate::loops::build_loops;
-use crate::message_enum::insert_temp;
 use crate::processing::process_incoming_message;
 
 mod device_lock;
@@ -60,8 +56,6 @@ fn parse_params(device_repo: &HashMap<String, Arc<RefCell<GenericDevice>>>) -> P
 async fn test_db() {
 
     use tokio_postgres::{NoTls, types::ToSql};
-    use tokio::time::Duration;
-
     // Remplacez ces valeurs par les informations de votre base de données
     let db_url = "postgresql://denis:dentece3.X@192.168.0.149/avahome";
 

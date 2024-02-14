@@ -1,28 +1,20 @@
-use std::cell::RefCell;
-use std::collections::HashMap;
 use std::env;
-use std::sync::Arc;
 use std::time::Duration;
-use chrono::{Local, NaiveTime};
 
+use chrono::{Local, NaiveTime};
 use log::info;
 use rumqttc::v5::{AsyncClient, Event, Incoming, MqttOptions};
-use rumqttc::v5::mqttbytes::QoS;
 use tokio::time::interval;
 
 use crate::device_message::RegulationMap;
-use crate::device_repo::{build_device_repo, device_to_listen, REGULATE_RADIATOR};
-use crate::generic_device::GenericDevice;
+use crate::device_repo::{build_device_repo, REGULATE_RADIATOR};
 use crate::message_enum::MessageEnum;
 
-mod device_lock;
 mod device_message;
-mod loops;
 mod device_repo;
-mod init_loop;
-mod processing;
 mod message_enum;
 mod generic_device;
+
 
 const CLIENT_ID: &str = "ava-regulator-heart-beat-0.5.0";
 
@@ -30,25 +22,16 @@ const CLIENT_ID: &str = "ava-regulator-heart-beat-0.5.0";
 pub struct Params {
     pub server_addr : String,
     pub client_id : String,
-    pub channel_filters: Vec<(String, QoS)>,
     pub keep_alive :  u16,
 }
 
 /// Build the list of channel to listen
-fn parse_params(device_repo: &HashMap<String, Arc<RefCell<GenericDevice>>>) -> Params {
+fn parse_params() -> Params {
     let client_id = CLIENT_ID.to_string();
-
-    let mut channel_filters: Vec<(String, QoS)> = vec![];
-    for dev in device_to_listen(&device_repo) {
-        let dd = dev.as_ref().borrow();
-        let topic = dd.get_topic();
-        channel_filters.push((topic, QoS::AtMostOnce));
-    }
-
     Params {
         server_addr : "192.168.0.149".to_string(),
         client_id,
-        channel_filters,
+        //channel_filters,
         keep_alive : 30_000,
     }
 }
@@ -65,7 +48,7 @@ async fn main() {
     // Devices
     info!("Building the device repository");
     let device_repo = build_device_repo();
-    let params = parse_params(&device_repo);
+    let params = parse_params();
 
     // Mosquitto
 
@@ -105,7 +88,8 @@ async fn main() {
 
     let device = device_repo.get(REGULATE_RADIATOR).unwrap().as_ref().borrow();
 
-    let mut interval = interval(Duration::from_secs(5*60));
+    //  5*60
+    let mut interval = interval(Duration::from_secs(20));
     loop {
         interval.tick().await;
 
@@ -135,17 +119,11 @@ async fn main() {
 
         info!("prepare to send :  [{:?}]", &msg);
         let _ = device.publish_message_topic(&mut client, msg).await;
+        info!("Sent regulation map notification");
 
-        println!("Sent regulation map notification");
         while let Ok(notification) = eventloop.poll().await {
             let mut end_loop = false;
             match notification {
-                Event::Incoming(Incoming::Publish(publish)) => {
-                    info!("🧶 Publish : [{:?}]", &publish);
-                }
-                Event::Incoming(Incoming::ConnAck(_connack)) => {
-
-                }
                 Event::Incoming(Incoming::PubAck(pub_ack)) => {
                     info!("📩  PubAck ({:?})", &pub_ack);
                     end_loop = true;
@@ -156,10 +134,7 @@ async fn main() {
                 break;
             }
         }
-
     }
-
-    //println!("Done!");
 }
 
 
