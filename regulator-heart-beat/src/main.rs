@@ -76,7 +76,7 @@ async fn main() {
 
     let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
 
-    let msg_jour = MessageEnum::REGULATION_MAP(RegulationMap {
+    let msg_jour = MessageEnum::RegulationMsg(RegulationMap {
         tc_bureau: 21.0,
         tc_salon_1: 23.0,
         tc_salon_2: 19.0,
@@ -85,7 +85,7 @@ async fn main() {
         mode: 'J',
     });
 
-    let msg_nuit = MessageEnum::REGULATION_MAP(RegulationMap {
+    let msg_nuit = MessageEnum::RegulationMsg(RegulationMap {
         tc_bureau: 19.0,
         tc_salon_1: 19.0,
         tc_salon_2: 19.0,
@@ -94,7 +94,7 @@ async fn main() {
         mode: 'N',
     });
 
-    let msg_fin_jour = MessageEnum::REGULATION_MAP(RegulationMap {
+    let msg_fin_jour = MessageEnum::RegulationMsg(RegulationMap {
         tc_bureau: 19.0,
         tc_salon_1: 24.0,
         tc_salon_2: 24.0,
@@ -134,7 +134,7 @@ async fn main() {
         };
 
         info!("prepare to send :  [{:?}]", &msg);
-        let a = device.publish_message_topic(&mut client, msg).await;
+        let _ = device.publish_message_topic(&mut client, msg).await;
 
         println!("Sent regulation map notification");
         while let Ok(notification) = eventloop.poll().await {
@@ -143,11 +143,11 @@ async fn main() {
                 Event::Incoming(Incoming::Publish(publish)) => {
                     info!("🧶 Publish : [{:?}]", &publish);
                 }
-                Event::Incoming(Incoming::ConnAck(connack)) => {
+                Event::Incoming(Incoming::ConnAck(_connack)) => {
 
                 }
-                Event::Incoming(Incoming::PubAck(pubAck)) => {
-                    info!("📩  PubAck ({:?})", &pubAck);
+                Event::Incoming(Incoming::PubAck(pub_ack)) => {
+                    info!("📩  PubAck ({:?})", &pub_ack);
                     end_loop = true;
                 }
                 _ => {}
@@ -159,7 +159,7 @@ async fn main() {
 
     }
 
-    println!("Done!");
+    //println!("Done!");
 }
 
 

@@ -3,22 +3,22 @@ use chrono::{DateTime, Utc};
 use log::info;
 use reqwest::header;
 use serde_derive::{Deserialize, Serialize};
-use tokio_postgres::{NoTls, types::ToSql};
+use tokio_postgres::{NoTls};
 
 use crate::device_message::{RegulationMap};
-use crate::message_enum::MessageEnum::{REGULATION_MAP};
+use crate::message_enum::MessageEnum::{RegulationMsg};
 
 /// Object by enums
 #[derive(Debug, Clone)]
 pub (crate) enum MessageEnum {
-    REGULATION_MAP(RegulationMap),
+    RegulationMsg(RegulationMap),
 }
 
 impl MessageEnum {
 
     pub (crate) fn query_for_state(&self) -> String {
         match self {
-            REGULATION_MAP(_) => {
+            RegulationMsg(_) => {
                 let msg = r#"{"state":""}"#;
                 msg.to_string()
             }
@@ -27,27 +27,27 @@ impl MessageEnum {
 
     pub (crate) fn raw_message(&self) -> String {
         match self {
-            MessageEnum::REGULATION_MAP(msg) => {
+            MessageEnum::RegulationMsg(msg) => {
                 serde_json::to_string(msg).unwrap() // TODO
             }
         }
     }
     pub (crate) fn json_to_local(&self, json_msg: &str) -> Result<MessageEnum, String> {
         match self {
-            REGULATION_MAP(_) => {
-                Ok(REGULATION_MAP(RegulationMap::from_json(json_msg)?))
+            RegulationMsg(_) => {
+                Ok(RegulationMsg(RegulationMap::from_json(json_msg)?))
             }
         }
     }
 
     pub (crate) fn default_regulation_map() -> Self {
-        REGULATION_MAP(RegulationMap::new())
+        RegulationMsg(RegulationMap::new())
     }
 
     /// Convert the original message to the type of the current Self
     pub (crate) fn to_local(&self, original_message: &MessageEnum, last_message: &MessageEnum) -> Self {
         match self {
-            REGULATION_MAP(_) => {
+            RegulationMsg(_) => {
                 original_message.to_temp_sensor(&last_message)
             }
         }
@@ -61,7 +61,7 @@ impl MessageEnum {
     /// Default process for the message
     pub (crate) async fn process(&self, topic: &str, args: &[String]) {
         match self {
-            REGULATION_MAP(rm) => {
+            RegulationMsg(rm) => {
                 info!("Default process for RegulationMap, message=[{:?}]", rm);
                 regulate_radiators(&topic, &rm, &args).await;
             }
@@ -70,7 +70,7 @@ impl MessageEnum {
 
 }
 
-pub (crate) async fn regulate_radiators(topic: &str, regulation_map: &RegulationMap, args: &[String]) {
+pub (crate) async fn regulate_radiators(_topic: &str, regulation_map: &RegulationMap, args: &[String]) {
 
     // URL de la base de données PostgreSQL
     let db_url = "postgresql://denis:dentece3.X@192.168.0.149/avahome";
@@ -110,11 +110,11 @@ pub (crate) async fn regulate_radiators(topic: &str, regulation_map: &Regulation
     println!("succès!");
 }
 
-const APPLICATION_ID: &str = ""; // FIXEME DON'T
+// const APPLICATION_ID: &str = ""; // FIXEME DON'T
 
-async fn regule(device_name: &str, temperature: f64, tc: f32, args: &[String] ) {
+async fn regule(_device_name: &str, temperature: f64, tc: f32, args: &[String] ) {
 
-    let heatzy_pass = args.get(1).unwrap();
+    let _heatzy_pass = args.get(1).unwrap();
     let heatzy_application_id= args.get(2).unwrap();
 
     if temperature < tc as f64 - 0.3f64 {
@@ -186,36 +186,36 @@ async fn set_mode(mode: &str, heatzy_application_id: &str, heatzy_token: &str) {
 
 }
 
-async fn login(heatzy_pass: &str, heatzy_application_id: &str) -> LoginResponse {
-
-    let data = serde_json::json!({
-            "username": "denis.1@crespe.fr",
-            "password": heatzy_pass.clone(),
-        });
-
-    // URL de destination
-    let url = "https://euapi.gizwits.com/app/login";
-
-    // Header personnalisé
-    let mut custom_header = header::HeaderMap::new();
-    custom_header.insert(header::USER_AGENT, header::HeaderValue::from_static("reqwest"));
-    custom_header.insert(header::CONTENT_TYPE, header::HeaderValue::from_static("application/json"));
-    custom_header.insert("X-Gizwits-Application-Id", heatzy_application_id.parse().unwrap());
-
-    // Effectuer la requête POST
-    match post_data(url, data, custom_header).await {
-        Ok(response) => {
-            println!("Réponse: {}", response);
-            let login_response : LoginResponse = serde_json::from_str(&response).unwrap();
-            login_response
-        }
-        Err(e) => {
-            eprintln!("Erreur lors de la requête : {}", e);
-            panic!()
-        }
-    }
-
-}
+// async fn login(heatzy_pass: &str, heatzy_application_id: &str) -> LoginResponse {
+//
+//     let data = serde_json::json!({
+//             "username": "denis.1@crespe.fr",
+//             "password": heatzy_pass,
+//         });
+//
+//     // URL de destination
+//     let url = "https://euapi.gizwits.com/app/login";
+//
+//     // Header personnalisé
+//     let mut custom_header = header::HeaderMap::new();
+//     custom_header.insert(header::USER_AGENT, header::HeaderValue::from_static("reqwest"));
+//     custom_header.insert(header::CONTENT_TYPE, header::HeaderValue::from_static("application/json"));
+//     custom_header.insert("X-Gizwits-Application-Id", heatzy_application_id.parse().unwrap());
+//
+//     // Effectuer la requête POST
+//     match post_data(url, data, custom_header).await {
+//         Ok(response) => {
+//             println!("Réponse: {}", response);
+//             let login_response : LoginResponse = serde_json::from_str(&response).unwrap();
+//             login_response
+//         }
+//         Err(e) => {
+//             eprintln!("Erreur lors de la requête : {}", e);
+//             panic!()
+//         }
+//     }
+//
+// }
 
 async fn post_data(url: &str, data: serde_json::Value, headers: header::HeaderMap) -> Result<String, reqwest::Error> {
     // Créer une nouvelle session Reqwest

@@ -10,7 +10,7 @@ use rumqttc::v5::mqttbytes::QoS;
 
 use crate::generic_device::GenericDevice;
 
-pub (crate) fn build_init_list(device_repo : &HashMap<String, Arc<RefCell<GenericDevice>>>) -> Vec<Arc<RefCell<GenericDevice>>> {
+pub (crate) fn build_init_list(_device_repo : &HashMap<String, Arc<RefCell<GenericDevice>>>) -> Vec<Arc<RefCell<GenericDevice>>> {
     // Nothing to init
     vec![]
 }
@@ -19,14 +19,14 @@ pub (crate) fn build_init_list(device_repo : &HashMap<String, Arc<RefCell<Generi
 /// Send an information message for all the device we want to init
 /// Read the responses from mosquitto and run the init routine for the devices.
 ///
-pub (crate) async fn process_initialization_message(mut client: &mut AsyncClient, mut eventloop: &mut EventLoop, device_to_init: &Vec<Arc<RefCell<GenericDevice>>>) -> Result<(), String> {
+pub (crate) async fn process_initialization_message(client: &mut AsyncClient, eventloop: &mut EventLoop, device_to_init: &Vec<Arc<RefCell<GenericDevice>>>) -> Result<(), String> {
 
     info!("Initialisation stage starts");
 
     if !device_to_init.is_empty() {
         for dev in device_to_init {
             let borr = dev.as_ref().borrow();
-            let dd = borr.deref().clone();
+            let dd = borr.deref();
 
             dbg!("Topic", &dd.get_topic());
             let data = dd.trigger_info();
@@ -39,7 +39,7 @@ pub (crate) async fn process_initialization_message(mut client: &mut AsyncClient
             handle_event(notification, device_to_init).await;
             for dev in device_to_init {
                 let borr = dev.as_ref().borrow();
-                let dd = borr.deref().clone();
+                let dd = borr.deref();
                 info!("Devices before check : topic=[{}], init =[{}]", dd.get_topic(), dd.is_init());
                 if !dd.is_init() {
                     end_loop = false;
@@ -84,8 +84,8 @@ async fn handle_event(event: Event, device_to_init: &Vec<Arc<RefCell<GenericDevi
                 println!("Propriétés de la réponse de connexion: {:?}", properties);
             }
         }
-        Event::Incoming(Incoming::PubAck(pubAck)) => {
-            info!("PubAck ({:?})", &pubAck);
+        Event::Incoming(Incoming::PubAck(_pub_ack)) => {
+            info!("PubAck ({:?})", &_pub_ack);
         }
         _ => {}
     }

@@ -9,7 +9,7 @@ use rumqttc::v5::mqttbytes::QoS;
 use crate::device_lock::DeviceLock;
 use crate::message_enum::MessageEnum;
 
-type MessageGeneratorFn = fn(&str) ->  Result<MessageEnum, String>;
+// type MessageGeneratorFn = fn(&str) ->  Result<MessageEnum, String>;
 
 #[derive(Debug)]
 pub(crate) struct GenericDevice {
@@ -187,16 +187,14 @@ impl GenericDevice {
         self.get_lock().replace(new_lock);
     }
 
-    async fn publish_message(&self, mut client: &mut AsyncClient, object_message : &MessageEnum) {
+    async fn publish_message(&self, client: &mut AsyncClient, object_message : &MessageEnum) {
         let message = object_message.raw_message();
         let data = message.as_bytes().to_vec();
         client.publish(&format!("{}/set", &self.get_topic()), QoS::AtLeastOnce, false, data).await.unwrap(); // TODO unwrap handle
     }
 
-    pub (crate) async fn publish_message_topic(&self, mut client: &mut AsyncClient, object_message : &MessageEnum) {
-
+    pub (crate) async fn publish_message_topic(&self, client: &mut AsyncClient, object_message : &MessageEnum) {
         dbg!(&client);
-
         let message = object_message.raw_message();
         info!("prepare to send :  [{}]", &message);
         let data = message.as_bytes().to_vec();
