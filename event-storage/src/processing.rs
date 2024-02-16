@@ -1,13 +1,14 @@
 use std::ops::Deref;
+
 use log::{error, info};
 use rumqttc::v5::{AsyncClient, Event, EventLoop, Incoming};
-use rumqttc::v5::mqttbytes::QoS;
+
 use crate::loops::{find_loops, HardLoop};
 
 ///
 ///
 ///
-pub async fn process_incoming_message(mut client: &mut AsyncClient, mut eventloop: &mut EventLoop, mut all_loops: &mut Vec<HardLoop>)  {
+pub async fn process_incoming_message(mut client: &mut AsyncClient, eventloop: &mut EventLoop, mut all_loops: &mut Vec<HardLoop>)  {
 
     while let Ok(notification) = eventloop.poll().await {
         info!("New notification");
@@ -45,10 +46,10 @@ pub async fn process_incoming_message(mut client: &mut AsyncClient, mut eventloo
                     }
                 }
             }
-            Event::Incoming(Incoming::ConnAck(connack)) => {
+            Event::Incoming(Incoming::ConnAck(_connack)) => {
 
             }
-            Event::Incoming(Incoming::PubAck(pubAck)) => {
+            Event::Incoming(Incoming::PubAck(_pub_ack)) => {
 
             }
             _ => {}

@@ -1,4 +1,3 @@
-
 use serde_derive::*;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]

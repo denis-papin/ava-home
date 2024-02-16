@@ -9,10 +9,9 @@ use rumqttc::v5::mqttbytes::QoS;
 use crate::device_lock::DeviceLock;
 use crate::message_enum::MessageEnum;
 
-type MessageGeneratorFn = fn(&str) ->  Result<MessageEnum, String>;
-
 #[derive(Debug)]
 pub(crate) struct GenericDevice {
+    pub family: String, // "zigbee2mqtt", "regulator", "external", ...
     pub name: String,
     pub message_type: MessageEnum,
     pub lock: Arc<RefCell<DeviceLock<MessageEnum>>>,
@@ -21,10 +20,11 @@ pub(crate) struct GenericDevice {
 
 impl GenericDevice {
 
-    pub(crate) fn new(name : &str, msg: MessageEnum) -> Self {
+    pub(crate) fn new(family: &str, name : &str, msg: MessageEnum) -> Self {
         info!("🌟 New Generic Device, topic = [{}]", &name);
         let dl = DeviceLock::new(msg.clone());
         Self {
+            family: family.to_string(),
             name: name.to_string(),
             message_type: msg,
             lock: Arc::new(RefCell::new(dl)),
@@ -42,7 +42,7 @@ impl GenericDevice {
 
     // better use the attribute directly
     pub(crate) fn get_topic(&self) -> String {
-        format!("zigbee2mqtt/{}", self.name)
+        format!("{}/{}", self.family, self.name)
     }
     pub(crate) fn is_init(&self) -> bool {
         self.setup
@@ -186,7 +186,7 @@ impl GenericDevice {
         self.get_lock().replace(new_lock);
     }
 
-    async fn publish_message(&self, mut client: &mut AsyncClient, object_message : &MessageEnum) {
+    async fn publish_message(&self, client: &mut AsyncClient, object_message : &MessageEnum) {
         let message = object_message.raw_message();
         let data = message.as_bytes().to_vec();
         client.publish(&format!("{}/set", &self.get_topic()), QoS::AtLeastOnce, false, data).await.unwrap(); // TODO unwrap handle

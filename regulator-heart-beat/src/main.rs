@@ -16,7 +16,7 @@ mod message_enum;
 mod generic_device;
 
 
-const CLIENT_ID: &str = "ava-regulator-heart-beat-0.5.0";
+const CLIENT_ID: &str = "ava-regulator-heart-beat";
 
 #[derive(Debug, Clone)]
 pub struct Params {
@@ -62,34 +62,34 @@ async fn main() {
     let msg_jour = MessageEnum::RegulationMsg(RegulationMap {
         tc_bureau: 21.0,
         tc_salon_1: 23.0,
-        tc_salon_2: 19.0,
+        tc_salon_2: 0.0,
         tc_chambre_1: 19.0,
         tc_couloir: 23.0,
         mode: 'J',
     });
 
-    let msg_nuit = MessageEnum::RegulationMsg(RegulationMap {
-        tc_bureau: 19.0,
-        tc_salon_1: 19.0,
-        tc_salon_2: 19.0,
-        tc_chambre_1: 23.0,
-        tc_couloir: 19.0,
-        mode: 'N',
-    });
-
     let msg_fin_jour = MessageEnum::RegulationMsg(RegulationMap {
         tc_bureau: 19.0,
-        tc_salon_1: 24.0,
-        tc_salon_2: 24.0,
+        tc_salon_1: 23.0,
+        tc_salon_2: 0.0,
         tc_chambre_1: 23.0,
         tc_couloir: 23.0,
         mode: 'H',
     });
 
+    let msg_nuit = MessageEnum::RegulationMsg(RegulationMap {
+        tc_bureau: 19.0,
+        tc_salon_1: 19.0,
+        tc_salon_2: 0.0,
+        tc_chambre_1: 23.0,
+        tc_couloir: 19.0,
+        mode: 'N',
+    });
+
     let device = device_repo.get(REGULATE_RADIATOR).unwrap().as_ref().borrow();
 
     //  5*60
-    let mut interval = interval(Duration::from_secs(20));
+    let mut interval = interval(Duration::from_secs(5*60));
     loop {
         interval.tick().await;
 
@@ -100,10 +100,9 @@ async fn main() {
         let current_time = now.time();
 
         // Définissez les heures de début et de fin
-        let j_start_time = NaiveTime::from_hms(7, 0, 0);
-        let j_end_time = NaiveTime::from_hms(22, 0, 0);
-
-        let h_end_time = NaiveTime::from_hms(23, 59, 0);
+        let j_start_time = NaiveTime::from_hms_opt(7, 0, 0).expect("Invalid time");
+        let j_end_time = NaiveTime::from_hms_opt(22, 0, 0).expect("Invalid time");
+        let h_end_time = NaiveTime::from_hms_opt(23, 59, 0).expect("Invalid time");
 
         // Vérifiez si l'heure actuelle est entre 7h00 et 22h00
         let msg = if current_time > j_start_time && current_time <= j_end_time {

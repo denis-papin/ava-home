@@ -6,7 +6,7 @@ use std::sync::Arc;
 use log::info;
 use rumqttc::v5::AsyncClient;
 
-use crate::device_repo::{RAD_BUREAU, RAD_CHAMBRE, RAD_COULOIR, RAD_SALON, TS_BUREAU, TS_CHAMBRE_1, TS_COULOIR, TS_SALON_1, TS_SALON_2};
+use crate::device_repo::{RAD_BUREAU, RAD_CHAMBRE, RAD_COULOIR, RAD_SALON};
 use crate::generic_device::GenericDevice;
 use crate::message_enum::MessageEnum;
 
@@ -29,23 +29,16 @@ pub (crate) fn find_loops(topic: &str, all_loops: &mut Vec<HardLoop>) -> (Vec<Ha
 }
 
 pub(crate) fn build_loops(device_repo: &HashMap<String, Arc<RefCell<GenericDevice>>>) -> Vec<HardLoop> {
-    vec![HardLoop::new("loop_1".to_string(), vec![device_repo.get(TS_SALON_1).unwrap().clone()]),
-         HardLoop::new("loop_2".to_string(), vec![device_repo.get(TS_SALON_2).unwrap().clone()]),
-         HardLoop::new("loop_3".to_string(), vec![device_repo.get(TS_BUREAU).unwrap().clone()]),
-         HardLoop::new("loop_4".to_string(), vec![device_repo.get(TS_CHAMBRE_1).unwrap().clone()]),
-         HardLoop::new("loop_5".to_string(), vec![device_repo.get(TS_COULOIR).unwrap().clone()]),
-
-         HardLoop::new("loop_6".to_string(), vec![device_repo.get(RAD_SALON).unwrap().clone()]),
-         HardLoop::new("loop_7".to_string(), vec![device_repo.get(RAD_BUREAU).unwrap().clone()]),
-         HardLoop::new("loop_8".to_string(), vec![device_repo.get(RAD_COULOIR).unwrap().clone()]),
-         HardLoop::new("loop_9".to_string(), vec![device_repo.get(RAD_CHAMBRE).unwrap().clone()]),
-    ]
+    vec![   HardLoop::new("loop_1".to_string(), vec![device_repo.get(RAD_SALON).unwrap().clone()]),
+            HardLoop::new("loop_3".to_string(), vec![device_repo.get(RAD_BUREAU).unwrap().clone()]),
+            HardLoop::new("loop_4".to_string(),vec![device_repo.get(RAD_CHAMBRE).unwrap().clone()]),
+            HardLoop::new("loop_5".to_string(), vec![device_repo.get(RAD_COULOIR).unwrap().clone()]),
+        ]
 }
 
 #[derive(Clone)]
 pub (crate) struct HardLoop {
     pub name : String,
-    // pub devices : Vec<Arc<RefCell<dyn DynDevice>>>,
     pub devices : Vec<Arc<RefCell<GenericDevice>>>,
 }
 

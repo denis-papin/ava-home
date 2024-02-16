@@ -6,7 +6,7 @@ use std::sync::Arc;
 use log::info;
 use rumqttc::v5::AsyncClient;
 
-use crate::device_repo::{REGULATE_RADIATOR};
+use crate::device_repo::{RAD_BUREAU, RAD_CHAMBRE, RAD_COULOIR, RAD_SALON, REGULATE_RADIATOR};
 use crate::generic_device::GenericDevice;
 use crate::message_enum::MessageEnum;
 
@@ -29,8 +29,24 @@ pub (crate) fn find_loops(topic: &str, all_loops: &mut Vec<HardLoop>) -> (Vec<Ha
 }
 
 pub(crate) fn build_loops(device_repo: &HashMap<String, Arc<RefCell<GenericDevice>>>) -> Vec<HardLoop> {
-    let loop_1 = HardLoop::new("loop_1".to_string(), vec![device_repo.get(REGULATE_RADIATOR).unwrap().clone()]);
-    vec![loop_1]
+    let loop_1 = HardLoop::new("loop_1".to_string(),
+                               vec![device_repo.get(REGULATE_RADIATOR).unwrap().clone(),
+                                    device_repo.get(RAD_SALON).unwrap().clone(),
+                               ]);
+    let loop_2 = HardLoop::new("loop_2".to_string(),
+                               vec![device_repo.get(REGULATE_RADIATOR).unwrap().clone(),
+                                    device_repo.get(RAD_BUREAU).unwrap().clone(),
+
+                               ]);
+    let loop_3 = HardLoop::new("loop_3".to_string(),
+                               vec![device_repo.get(REGULATE_RADIATOR).unwrap().clone(),
+                                    device_repo.get(RAD_COULOIR).unwrap().clone(),
+                               ]);
+    let loop_4 = HardLoop::new("loop_4".to_string(),
+                               vec![device_repo.get(REGULATE_RADIATOR).unwrap().clone(),
+                                    device_repo.get(RAD_CHAMBRE).unwrap().clone(),
+                               ]);
+    vec![loop_1, loop_2, loop_3, loop_4]
 }
 
 #[derive(Clone)]
@@ -65,15 +81,17 @@ impl HardLoop {
         None
     }
 
-    pub async fn loop_devices(&self, topic: &str, original_message: &MessageEnum, mut client: &mut AsyncClient) {
+    pub async fn loop_devices(&self, topic: &str, original_message: &MessageEnum, ext_data: &HashMap<String, f64>, mut client: &mut AsyncClient) {
         for dev in self.get_devices() {
-            info!("Loop the devices");
             let dd1 = dev.as_ref().borrow();
             let dd = dd1.deref();
+            info!("Loop the devices : [{}]", &dd.get_topic());
             if &dd.get_topic() != topic {
                 info!("🚀 Device Topic of the loop: [{:?}]", &dd.get_topic());
-                dd.consume_message(original_message, &mut client).await;
+                dd.consume_message(original_message, &ext_data, &mut client).await;
                 info!("🚩 End Device Topic of the loop: [{:?}]", &dd.get_topic());
+            } else {
+                 info!("Device ignored : [{}]", &dd.get_topic());
             }
         }
     }

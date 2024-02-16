@@ -1,5 +1,4 @@
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -12,7 +11,6 @@ use crate::message_enum::MessageEnum;
 
 #[derive(Debug)]
 pub(crate) struct GenericDevice {
-    pub family: String, // "zigbee2mqtt", "regulator", "external", ...
     pub name: String,
     pub message_type: MessageEnum,
     pub lock: Arc<RefCell<DeviceLock<MessageEnum>>>,
@@ -21,11 +19,10 @@ pub(crate) struct GenericDevice {
 
 impl GenericDevice {
 
-    pub(crate) fn new(family: &str, name : &str, msg: MessageEnum) -> Self {
+    pub(crate) fn new(name : &str, msg: MessageEnum) -> Self {
         info!("🌟 New Generic Device, topic = [{}]", &name);
         let dl = DeviceLock::new(msg.clone());
         Self {
-            family: family.to_string(),
             name: name.to_string(),
             message_type: msg,
             lock: Arc::new(RefCell::new(dl)),
@@ -41,9 +38,14 @@ impl GenericDevice {
         self.setup = setup;
     }
 
-    // better use the attribute directly
+    pub(crate) fn prefix() -> &'static str {
+        "external"
+    }
+    pub(crate) fn make_topic(device_name: &str) -> String {
+        format!("{}/{}", Self::prefix(), device_name)
+    }
     pub(crate) fn get_topic(&self) -> String {
-        format!("{}/{}", self.family, self.name)
+        Self::make_topic(&self.name)
     }
     pub(crate) fn is_init(&self) -> bool {
         self.setup
@@ -121,7 +123,7 @@ impl GenericDevice {
                 (false, true) => {
                     info!("❌ Device {}, same message, process anyways.", & self.get_topic().to_uppercase());
                     self.process(&original_message, &args).await; // In this case, we process the message even if it's the same as before
-                    allowed = true;
+                    allowed = false;
                 }
                 (false, false) => {
                     info!("👍 Device {}, allowed to process the message.", & self.get_topic().to_uppercase());
@@ -139,8 +141,8 @@ impl GenericDevice {
 
     ///
     /// Make the device consume the current message
-    /// TODO make the HashMap<String, f64> generic
-    pub (crate) async fn consume_message(&self, original_message : &MessageEnum, ext_data: &HashMap<String, f64>,  mut client: &mut AsyncClient) {
+    ///
+    pub (crate) async fn consume_message(&self, original_message : &MessageEnum, mut client: &mut AsyncClient) {
         info!("The device is consuming the message");
         let new_lock = {
             let lk = self.get_lock();
@@ -149,24 +151,13 @@ impl GenericDevice {
 
             info!("Execute device {}", & self.get_topic().to_uppercase());
 
-            //if self.get_topic() == "external/rad_salon" {
-            // Get the state of the device from the db
-                if let Ok(db_last_message) = self.message_type.fetch_device_state(&self.get_topic()).await {
-                    info!("💾 Found last message in db: {:?}", db_last_message);
-                    dev_lock.replace(db_last_message);
-                }
-            //}
-
             // Last message est du même format que le message du device.
             // Il permet de récupérer certaines informations.
             // Ex : Incoming inter dim message + last (LampRGB) ---> hall_lamp message (LampRGB)
             // In Generic Mode it's much simplier, we have the last message in the correct format.
             let last_message = &dev_lock.last_object_message;
 
-            // Should be from MessageEnum ...
-
-
-            let object_message = self.message_type.to_local(&original_message, &ext_data, &last_message, &self.get_topic() );
+            let object_message = self.message_type.to_local(&original_message, &last_message);
             // let object_message = self.to_local(&original_message, &last_message);
 
             match self.allowed_to_process(&object_message) {
@@ -202,8 +193,7 @@ impl GenericDevice {
     async fn publish_message(&self, client: &mut AsyncClient, object_message : &MessageEnum) {
         let message = object_message.raw_message();
         let data = message.as_bytes().to_vec();
-        let set_topic = self.message_type.find_set_topic(&self.get_topic());
-        client.publish(&set_topic, QoS::AtLeastOnce, false, data).await.unwrap(); // TODO unwrap handle
+        client.publish(&format!("{}/set", &self.get_topic()), QoS::AtLeastOnce, false, data).await.unwrap(); // TODO unwrap handle
     }
 
 }

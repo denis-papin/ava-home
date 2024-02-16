@@ -7,7 +7,7 @@ members = [
     "regulator-heart-beat",
     "mqtt5-r",
     "move-light",
-    "mqtt-bridge",
+    "mqtt-bridge", "radiator-ctrl",
 ]
 
 [workspace.dependencies]

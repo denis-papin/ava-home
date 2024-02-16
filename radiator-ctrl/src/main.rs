@@ -23,7 +23,7 @@ mod processing;
 mod message_enum;
 mod generic_device;
 
-const CLIENT_ID: &str = "ava-event-storage";
+const CLIENT_ID: &str = "ava-radiator-ctrl";
 
 #[derive(Debug, Clone)]
 pub struct Params {
@@ -53,43 +53,15 @@ fn parse_params(device_repo: &HashMap<String, Arc<RefCell<GenericDevice>>>) -> P
 }
 
 
-// async fn test_db() {
-//
-//     use tokio_postgres::{NoTls, types::ToSql};
-//     // Remplacez ces valeurs par les informations de votre base de données
-//     let db_url = "postgresql://denis:dentece3.X@192.168.0.149/avahome";
-//
-//     // Établissez une connexion à la base de données
-//     let (client, connection) = tokio_postgres::connect(db_url, NoTls).await.unwrap();
-//
-//     // Spawn une tâche pour gérer la processus de connexion en arrière-plan
-//     tokio::spawn(async move {
-//         if let Err(e) = connection.await {
-//             eprintln!("Connection error: {}", e);
-//         }
-//     });
-//
-//     // Exécutez une requête
-//     let rows = client
-//         //query("SELECT $1::TEXT", &[&"hello".to_owned() as &(dyn ToSql + Sync)])
-//         .query("select device_name from temperature_sensor_history order by ts_create desc", &[])
-//         .await
-//         .unwrap();
-//
-//     // Affiche les résultats de la requête
-//     for row in rows {
-//         let value: &str = row.get(0);
-//         println!("Value: {}", value);
-//     }
-// }
-
 #[tokio::main]
 async fn main() {
 
     env::set_var("RUST_LOG", env::var_os("RUST_LOG").unwrap_or_else(|| "info".into()));
     env_logger::init();
 
-    info!("Starting AVA event-storage 0.5.0");
+    let args: Vec<String> = env::args().collect();
+
+    info!("Starting AVA radiator-ctrl 0.5.0");
 
     // Devices
 
@@ -117,7 +89,7 @@ async fn main() {
     match process_initialization_message(&mut client, &mut eventloop, &mut init_list).await {
         Ok(_) => {
             info!("Process incoming messages");
-            let _ = process_incoming_message(&mut client, &mut eventloop, &mut all_loops).await;
+            let _ = process_incoming_message(&mut client, &mut eventloop, &mut all_loops, &args).await;
         }
         Err(e) => {
             panic!("{}", e);

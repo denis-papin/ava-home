@@ -1,31 +1,47 @@
 use std::collections::HashMap;
-use std::time::SystemTime;
 
-use anyhow::anyhow;
-use chrono::{DateTime, Utc};
-use lazy_static::lazy_static;
-use log::{error, info};
-use reqwest::header;
-use serde_derive::{Deserialize, Serialize};
-use tokio_postgres::NoTls;
+use log::info;
 
-use crate::device_message::RegulationMap;
-use crate::message_enum::MessageEnum::MsgRegulation;
-use crate::message_enum::RadiatorAction::{NoAction, Off, On};
-use crate::message_enum::RadiatorMode::{CFT, ECO, FRO, STOP};
-use crate::properties::{get_prop_value, set_prop_value};
+use crate::db_last_message::db_get_device_state;
+use crate::device_message::{Radiator, RadiatorMode, RegulationMap};
+use crate::external_computing::{compute, determine_action, RadiatorAction};
+use crate::message_enum::MessageEnum::{RadiatorMsg, RegulationMsg};
 
 /// Object by enums
 #[derive(Debug, Clone)]
 pub (crate) enum MessageEnum {
-    MsgRegulation(RegulationMap),
+    RegulationMsg(RegulationMap),
+    RadiatorMsg(Radiator)
 }
 
 impl MessageEnum {
 
+    pub (crate) async fn fetch_device_state(&self, topic: &str) -> Result<MessageEnum, String> {
+        let json_msg = db_get_device_state(&topic).await;
+        self.json_to_local(&json_msg)
+    }
+
+    pub (crate) fn find_set_topic(&self, topic: &str) -> String {
+        match self {
+            RegulationMsg(_) => {
+                String::from("")
+            }
+            RadiatorMsg(_msg) => {
+                // for some device, the set topic is "<topic>/set"
+                String::from(topic)
+            }
+        }
+    }
+
+
     pub (crate) fn query_for_state(&self) -> String {
         match self {
-            MsgRegulation(_) => {
+            RegulationMsg(_) => {
+                let msg = r#"{"state":""}"#;
+                msg.to_string()
+            }
+            RadiatorMsg(_) => {
+                // TODO : ???
                 let msg = r#"{"state":""}"#;
                 msg.to_string()
             }
@@ -34,416 +50,144 @@ impl MessageEnum {
 
     pub (crate) fn raw_message(&self) -> String {
         match self {
-            MessageEnum::MsgRegulation(msg) => {
+            RegulationMsg(msg) => {
+                serde_json::to_string(msg).unwrap() // TODO
+            }
+            RadiatorMsg(msg) => {
                 serde_json::to_string(msg).unwrap() // TODO
             }
         }
     }
     pub (crate) fn json_to_local(&self, json_msg: &str) -> Result<MessageEnum, String> {
         match self {
-            MsgRegulation(_) => {
-                Ok(MsgRegulation(RegulationMap::from_json(json_msg)?))
+            RegulationMsg(_) => {
+                Ok(RegulationMsg(RegulationMap::from_json(json_msg)?))
+            }
+            RadiatorMsg(_) => {
+                Ok(RadiatorMsg(Radiator::from_json(json_msg)?))
             }
         }
     }
 
     pub (crate) fn default_regulation_map() -> Self {
-        MsgRegulation(RegulationMap::new())
+        RegulationMsg(RegulationMap::new())
+    }
+
+    pub (crate) fn default_radiator() -> Self {
+        RadiatorMsg(Radiator::new())
     }
 
     /// Convert the original message to the type of the current Self
-    pub (crate) fn to_local(&self, original_message: &MessageEnum, last_message: &MessageEnum) -> Self {
+    pub (crate) fn to_local(&self, original_message: &MessageEnum, ext_data: &HashMap<String, f64>, last_message: &MessageEnum, topic: &str) -> Self {
         match self {
-            MsgRegulation(_) => {
-                original_message.to_temp_sensor(&last_message)
+            RegulationMsg(_) => {
+                original_message.to_regulation_map(&last_message, &topic)
+            }
+            RadiatorMsg(_) => {
+                original_message.to_radiator(&last_message, &ext_data, &topic)
             }
         }
     }
 
     /// Convert the current type of message to Temperature Sensor
-    fn to_temp_sensor(&self, _last_message: &MessageEnum) -> Self {
-        self.clone()
-    }
-
-    /// Default process for the message
-    pub (crate) async fn process(&self, topic: &str, args: &[String]) {
+    fn to_regulation_map(&self, last_message: &MessageEnum, topic: &str) -> Self {
         match self {
-            MsgRegulation(rm) => {
-                info!("Default process for RegulationMap, message=[{:?}]", rm);
-                regulate_radiators(&topic, &rm, &args).await;
+            RegulationMsg(_msg) => {
+                self.clone()
+            }
+            RadiatorMsg(_msg) => {
+                info!("Prepare the message to send for the device: [{}]", topic);
+                dbg!(&last_message);
+                dbg!(&self);
+                last_message.clone()
             }
         }
+        
     }
 
-}
+    /// Convert the current type of message to Radiator
+    fn to_radiator(&self, last_message: &MessageEnum, ext_data: &HashMap<String, f64>, topic: &str) -> Self {
+        match (self, last_message) {
+            (RegulationMsg(msg), RadiatorMsg(last_rad)) => {
 
-pub (crate) async fn regulate_radiators(_topic: &str, regulation_map: &RegulationMap, args: &[String]) {
+                info!("Prepare the message to send for the device: [{}]", topic);
 
-    // URL de la base de données PostgreSQL
-    let db_url = "postgresql://denis:dentece3.X@192.168.0.149/avahome";
-
-    // Établir une connexion à la base de données
-    let (client, connection) = tokio_postgres::connect(db_url, NoTls).await.unwrap();
-
-    // Spawn une tâche pour gérer la processus de connexion en arrière-plan
-    tokio::spawn(async move {
-        if let Err(e) = connection.await {
-            eprintln!("Erreur de connexion : {}", e);
-        }
-    });
-
-    // Exécuter une requête de sélection pour obtenir les températures les plus récentes par device_name
-    let query = "SELECT DISTINCT ON (device_name) device_name, temperature, ts_create
-                 FROM temperature_sensor_history
-                 ORDER BY device_name, ts_create DESC";
-
-    let rows = client.query(query, &[]).await.unwrap();
-
-    let mut current_temp: HashMap<String, f64> = HashMap::new();
-
-    // Traiter les résultats
-    for row in rows {
-        let device_name: String = row.get("device_name");
-        let temperature: f64 = row.get("temperature");
-        let ts_create: SystemTime = row.get("ts_create");
-        let dt: DateTime<Utc> = ts_create.clone().into();
-
-        match device_name.as_str() {
-            "zigbee2mqtt/ts_bureau" => {
-                current_temp.insert("bureau".to_string(), temperature);
-            }
-            "zigbee2mqtt/ts_chambre_1" => {
-                current_temp.insert("chambre_1".to_string(), temperature);
-            }
-            "zigbee2mqtt/ts_couloir" => {
-                current_temp.insert("couloir".to_string(), temperature);
-            }
-            "zigbee2mqtt/ts_salon_1" => {
-                current_temp.insert("salon_1".to_string(), temperature);
-            }
-            "zigbee2mqtt/ts_salon_2" => {
-                current_temp.insert("salon_2".to_string(), temperature);
-            }
-            _ => {}
-        }
-        println!("Device : {}, Température: {}, Créé à: {:?}", device_name, temperature, dt);
-    }
-
-    println!("Regulation Map = {:?}", &regulation_map);
-
-    let action_bureau = determine_action(*current_temp.get("bureau").unwrap(), regulation_map.tc_bureau);
-    let action_chambre_1 = determine_action(*current_temp.get("chambre_1").unwrap(), regulation_map.tc_chambre_1);
-    let action_couloir = determine_action(*current_temp.get("couloir").unwrap(), regulation_map.tc_couloir);
-    let action_salon_1 = determine_action(*current_temp.get("salon_1").unwrap(), regulation_map.tc_salon_1);
-    // let action_salon_2 = determine_action(*current_temp.get("salon_2").unwrap(), regulation_map.tc_salon_2);
-
-    let str_count = get_prop_value("check_radiator_mode_counter").unwrap();
-    let count : u16 = str_count.parse().unwrap();
-
-    info!("Check count: [{}]", count);
-
-    let check_mode = count >= 2; // 0, 1  we don't check
-    regulate("bureau", action_bureau, &args, check_mode).await;
-    regulate("chambre_1", action_chambre_1, &args, check_mode).await;
-    regulate("couloir", action_couloir, &args, check_mode).await;
-    regulate("salon", action_salon_1, &args, check_mode).await;
-
-    if check_mode {
-        set_prop_value("check_radiator_mode_counter", "0");
-    } else {
-        set_prop_value("check_radiator_mode_counter", &(count +1).to_string());
-    }
-
-    info!("succss!");
-}
-
- #[derive(Clone, PartialEq)]
-enum RadiatorAction {
-     On,
-     Off,
-     NoAction,
-}
-
-impl RadiatorAction {
-    fn value(&self) -> &'static str {
-        match self {
-            On => "ON",
-            Off => "OFF",
-            NoAction => "NoAction",
-        }
-    }
-
-    fn from_value(value : String) -> Self {
-        match value.as_str() {
-            "ON" => On,
-            "OFF" => Off,
-            "NoAction" => NoAction,
-            _ => NoAction,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-enum RadiatorMode {
-    CFT,
-    ECO,
-    FRO,
-    STOP
-}
-
-impl RadiatorMode {
-    fn from_value(value : String) -> Self {
-        match value.as_str() {
-            "cft" => CFT,
-            "eco" => ECO,
-            "fro" => FRO,
-            _ => STOP,
-        }
-    }
-}
-
-fn determine_action(t_current: f64, tc: f32) -> RadiatorAction {
-    if t_current < tc as f64 - 0.3f64 {
-        On
-    } else if t_current > tc as f64 + 0.3f64 {
-        Off
-    } else {
-        NoAction
-    }
-}
-
-lazy_static! {
-    static ref DEVICE_DID: HashMap<&'static str, &'static str> = {
-        let mut map = HashMap::new();
-        map.insert("salon", "3wHa7Ja50MhfShUxcmOqvT");
-        map.insert("couloir", "JUVo7yMFQtdfZhi25Vo4Bu");
-        map.insert("chambre_1", "LNENiFG0MeReR9WtxMebYB");
-        map.insert("bureau", "mO7E2B49G1BS8R77UmWIjk");
-        map
-    };
-}
-
-async fn regulate(radiator_name: &str, action: RadiatorAction, args: &[String], check_mode: bool ) {
-
-    info!("Regulate [{}]", &radiator_name);
-
-    let heatzy_pass = args.get(1).unwrap();
-    let heatzy_application_id= args.get(2).unwrap();
-
-    let did = DEVICE_DID.get(radiator_name).unwrap();
-
-    let action = if check_mode {
-        info!("\t\tCheck mode is ON");
-        match get_mode(&heatzy_application_id, "74067d76317946fca0433f684cf1e0a1", &did).await {
-            Ok(radiator_mode) => {
-                info!("\t\tCurrent Mode is [{:?}]", &radiator_mode);
-                match &radiator_mode {
-                    CFT => {
-                        set_prop_value(radiator_name, RadiatorAction::On.value());
-                        action
+                let action = match (topic, last_rad.mode) {
+                    ("external/rad_bureau", _) if last_rad.mode != RadiatorMode::ECO => {
+                        let t_current = *ext_data.get("bureau").unwrap();
+                        info!("For device BUREAU, current [{}], target: [{}]", t_current, msg.tc_bureau);
+                        determine_action(t_current, msg.tc_bureau)
                     }
-                    ECO | FRO => {
-                        set_prop_value(radiator_name, RadiatorAction::NoAction.value());
-                        info!("️\t\t️👹 The radiator is manually disable, overriding to NO ACTION");
-                        RadiatorAction::NoAction
+                    ("external/rad_couloir", _) if last_rad.mode != RadiatorMode::ECO  => {
+                        let t_current = *ext_data.get("couloir").unwrap();
+                        info!("For device COULOIR, current [{}], target: [{}]", t_current, msg.tc_couloir);
+                        determine_action(t_current, msg.tc_couloir)
+                    },
+                    ("external/rad_salon", _) if last_rad.mode != RadiatorMode::ECO => {
+                        let t_current = *ext_data.get("salon_1").unwrap();
+                        info!("For device SALON, current [{}], target: [{}]", t_current, msg.tc_salon_1);
+                        determine_action(t_current, msg.tc_salon_1)
                     }
-                    STOP => {
-                        set_prop_value(radiator_name, RadiatorAction::Off.value());
-                        action
+                    ("external/rad_chambre", _) if last_rad.mode != RadiatorMode::ECO => {
+                        let t_current = *ext_data.get("chambre_1").unwrap();
+                        info!("For device CHAMBRE, current [{}], target: [{}]", t_current, msg.tc_chambre_1);
+                        determine_action(t_current, msg.tc_chambre_1)
+                    }
+                    (_, RadiatorMode::ECO) => RadiatorAction::NoAction,
+                    (_, _) => RadiatorAction::NoAction,
+                };
+
+                info!("The action to perform is: [{:?}]", &action);
+
+                match action {
+                    RadiatorAction::On => {
+                        info!("\t🔥 Radiator {} must be set to CFT", &topic);
+                        RadiatorMsg(Radiator::from_mode(RadiatorMode::CFT))
+
+                    }
+                    RadiatorAction::Off => {
+                        info!("\t❄️ Radiator {} must be set to STOP", &topic);
+                        RadiatorMsg(Radiator::from_mode(RadiatorMode::STOP))
+                    }
+                    RadiatorAction::NoAction => {
+                        info!("\tRadiator {} must stay the same", &topic);
+                        last_message.clone()
                     }
                 }
             }
-            Err(e) => {
-                error!("\t\tError in getting the radiator mode : {:?}", e);
-                action
+            (RadiatorMsg(_), _) => {
+                self.clone()
+            }
+            (_, _) => {
+                self.clone()
             }
         }
-    } else {
-        action
-    };
-
-    let mode = RadiatorAction::from_value(get_prop_value(radiator_name).unwrap());
-
-    info!("\t\tCurrent memory mode: [{}]", mode.value());
-
-    match action {
-        On => {
-            info!("️\t\t🕯️ Must be ON");
-        }
-        Off => {
-            info!("️\t\t❄️ Must be OFF");
-        }
-        NoAction => {
-            info!("️\t\tNo Action");
-        }
     }
 
-    if mode != action && action != NoAction {
-        match action {
-            On => {
-                info!("\t\t🔥 Set {} to ON", &radiator_name);
+    /// Default process for the message
+    pub (crate) async fn process(&self, _topic: &str, _args: &[String]) {
+        match self {
+            RegulationMsg(rm) => {
+                info!("NOW EMPTY PROCESS - Default process for RegulationMap, message=[{:?}]", rm);
+                // regulate_radiators(&topic, &rm, &args).await;
             }
-            Off => {
-                info!("\t\t❄️ Set {} to OFF", &radiator_name);
-            }
-            NoAction => {
-                info!("️\t\tNo Action");
+            RadiatorMsg(msg) => {
+                info!("NOW EMPTY PROCESS - Default process for Radiator, message=[{:?}]", msg);
             }
         }
-
-        // 74067d76317946fca0433f684cf1e0a1
-        set_mode(&action, &heatzy_application_id,  &heatzy_pass, "74067d76317946fca0433f684cf1e0a1", &did).await;
-        set_prop_value(radiator_name, action.value());
     }
-}
 
-#[derive(Serialize, Deserialize, Debug)]
-struct LoginResponse {
-    token: String,
-    uid: String,
-    expire_at: u64,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct Attribute {
-    mode: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct DevData {
-    did: String,
-    updated_at: u32,
-    attr: Attribute,
-}
-
-async fn get_mode(heatzy_application_id: &str,  heatzy_token: &str, did: &str) -> anyhow::Result<RadiatorMode> {
-    let mut custom_header = header::HeaderMap::new();
-    custom_header.insert(header::USER_AGENT, header::HeaderValue::from_static("reqwest"));
-    custom_header.insert(header::CONTENT_TYPE, header::HeaderValue::from_static("application/json"));
-    custom_header.insert("X-Gizwits-Application-Id", heatzy_application_id.parse().unwrap());
-    custom_header.insert("X-Gizwits-User-token", heatzy_token.parse().unwrap());
-
-    let url = format!("https://euapi.gizwits.com/app/devdata/{}/latest", did); // device did
-
-    match get_data(&url, custom_header).await {
-        Ok(response) => {
-            let r : DevData = serde_json::from_str(&response)?;
-            Ok(RadiatorMode::from_value(r.attr.mode))
-        }
-        Err(e) => {
-            eprintln!("Error while getting the data : {}", e);
-            Err(anyhow!("Error while getting the data"))
+    pub (crate) async fn compute(&self) -> HashMap<String, f64> {
+        match self {
+            RegulationMsg(msg) => {
+                info!("External computing for RegulationMap, message=[{:?}]", msg);
+                compute().await
+            }
+            RadiatorMsg(msg) => {
+                info!("External computing for Radiator, message=[{:?}]", msg);
+                HashMap::new()
+            }
         }
     }
-}
 
-
-// {
-//  "attrs": {
-//     "mode":0 // 0 CONFORT,  1 ECO, 2 HORS GEL, 3 OFF
-//  }
-// }
-async fn set_mode(mode: &RadiatorAction, heatzy_application_id: &str, _heatzy_pass: &str, heatzy_token: &str, did: &str) {
-
-    let h_mode = match mode {
-        On => 0,
-        Off => 3,
-        _ => 2,
-    };
-
-    let data = serde_json::json!({
-         "attrs": {
-            "mode": h_mode
-         }
-    });
-
-    let url = format!("https://euapi.gizwits.com/app/control/{}", did); // device did
-
-    let mut custom_header = header::HeaderMap::new();
-    custom_header.insert(header::USER_AGENT, header::HeaderValue::from_static("reqwest"));
-    custom_header.insert(header::CONTENT_TYPE, header::HeaderValue::from_static("application/json"));
-    custom_header.insert("X-Gizwits-Application-Id", heatzy_application_id.parse().unwrap());
-    custom_header.insert("X-Gizwits-User-token", heatzy_token.parse().unwrap());
-
-    match post_data(&url, data, custom_header).await {
-        Ok(response) => {
-            println!("Réponse: {}", response);
-        }
-        Err(e) => {
-            eprintln!("Erreur lors de la requête : {}", e);
-            //panic!()
-        }
-    }
-}
-
-// async fn login(heatzy_pass: &str, heatzy_application_id: &str) -> LoginResponse {
-//
-//     let data = serde_json::json!({
-//             "username": "denis.1@crespe.fr",
-//             "password": heatzy_pass,
-//         });
-//
-//     // URL de destination
-//     let url = "https://euapi.gizwits.com/app/login";
-//
-//     // Header personnalisé
-//     let mut custom_header = header::HeaderMap::new();
-//     custom_header.insert(header::USER_AGENT, header::HeaderValue::from_static("reqwest"));
-//     custom_header.insert(header::CONTENT_TYPE, header::HeaderValue::from_static("application/json"));
-//     custom_header.insert("X-Gizwits-Application-Id", heatzy_application_id.parse().unwrap());
-//
-//     // Effectuer la requête POST
-//     match post_data(url, data, custom_header).await {
-//         Ok(response) => {
-//             println!("Réponse: {}", response);
-//             let login_response : LoginResponse = serde_json::from_str(&response).unwrap();
-//             login_response
-//         }
-//         Err(e) => {
-//             eprintln!("Erreur lors de la requête : {}", e);
-//             panic!()
-//         }
-//     }
-//
-// }
-
-async fn get_data(url: &str, headers: header::HeaderMap) -> anyhow::Result<String> {
-    // Créer une nouvelle session Reqwest
-    let client = reqwest::Client::new();
-
-    // Effectuer la requête GET
-    let response = client.get(url)
-        .headers(headers)
-        .send()
-        .await?;
-
-    // Vérifier la réponse HTTP
-    if response.status().is_success() {
-        // Récupérer le corps de la réponse comme chaîne de caractères
-        let body = response.text().await?;
-        Ok(body)
-    } else {
-        Err(anyhow!("{:?}", response))
-    }
-}
-
-async fn post_data(url: &str, data: serde_json::Value, headers: header::HeaderMap) -> anyhow::Result<String> {
-    // Créer une nouvelle session Reqwest
-    let client = reqwest::Client::new();
-
-    // Effectuer la requête POST
-    let response = client.post(url)
-        .headers(headers)
-        .json(&data)
-        .send()
-        .await?;
-
-    // Vérifier la réponse HTTP
-    if response.status().is_success() {
-        // Récupérer le corps de la réponse comme chaîne de caractères
-        let body = response.text().await?;
-        Ok(body)
-    } else {
-        Err(anyhow!("{:?}", response))
-    }
 }

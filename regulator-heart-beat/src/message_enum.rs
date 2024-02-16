@@ -1,5 +1,3 @@
-use serde_derive::{Deserialize, Serialize};
-
 use crate::device_message::RegulationMap;
 
 /// Object by enums

@@ -1139,6 +1139,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "radiator-ctrl"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "commons-error",
+ "env_logger 0.10.2",
+ "lazy_static",
+ "log",
+ "reqwest",
+ "rumqttc",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "tokio",
+ "tokio-postgres",
+ "uuid",
+]
+
+[[package]]
 name = "rand"
 version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"

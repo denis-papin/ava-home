@@ -13,7 +13,6 @@ use crate::generic_device::GenericDevice;
 use crate::init_loop::{build_init_list, process_initialization_message};
 use crate::loops::build_loops;
 use crate::processing::process_incoming_message;
-use crate::properties::set_prop_value;
 
 mod device_lock;
 mod device_message;
@@ -24,8 +23,10 @@ mod processing;
 mod message_enum;
 mod generic_device;
 mod properties;
+mod external_computing;
+mod db_last_message;
 
-const CLIENT_ID: &str = "ava-regulator-0.5.0";
+const CLIENT_ID: &str = "ava-regulator";
 
 #[derive(Debug, Clone)]
 pub struct Params {
@@ -93,11 +94,13 @@ async fn main() {
     env::set_var("RUST_LOG", env::var_os("RUST_LOG").unwrap_or_else(|| "info".into()));
     env_logger::init();
 
-    let args: Vec<String> = env::args().collect();
-    let heatzy_pass = args.get(1).unwrap();
-    let heatzy_application_id= args.get(2).unwrap();
-    dbg!(heatzy_pass);
-    dbg!(heatzy_application_id);
+    let args: Vec<String> = vec![];
+
+    // let args: Vec<String> = env::args().collect();
+    // let heatzy_pass = args.get(1).unwrap();
+    // let heatzy_application_id= args.get(2).unwrap();
+    // dbg!(heatzy_pass);
+    // dbg!(heatzy_application_id);
 
     info!("Starting AVA regulator 0.5.0");
 
@@ -112,12 +115,12 @@ async fn main() {
 
     // Current mode for the radiators : <radiator_name, mode>
 
-    set_prop_value("salon", "???");
-    set_prop_value("couloir", "???");
-    set_prop_value("chambre_1", "???");
-    set_prop_value("bureau", "???");
-
-    set_prop_value("check_radiator_mode_counter", "0");
+    // set_prop_value("salon", "???");
+    // set_prop_value("couloir", "???");
+    // set_prop_value("chambre_1", "???");
+    // set_prop_value("bureau", "???");
+    //
+    // set_prop_value("check_radiator_mode_counter", "0");
 
     // Devices
 

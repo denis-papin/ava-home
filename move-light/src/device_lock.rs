@@ -20,7 +20,7 @@ impl <T> DeviceLock<T> {
     }
     pub (crate) fn dec(&mut self) {
         self.count_locks -= 1;
-        info!("⏬After down Locks:[{}]", self.count_locks);
+        info!("⏬ After down Locks:[{}]", self.count_locks);
     }
 
     pub (crate) fn replace(&mut self, o : T) {
