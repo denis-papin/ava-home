@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #f5f5f5;
+    }
+
+    header {
+      background-color: #333;
+      color: white;
+      padding: 10px;
+      text-align: center;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+      padding: 20px;
+    }
+
+    .widget {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      border: 1px solid #ddd;
+      transition: transform 0.3s ease-in-out;
+      position: relative;
+    }
+
+    .widget:hover {
+      transform: scale(1.05);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    }
+
+    h2 {
+      margin-top: 0;
+      color: #333;
+    }
+
+    p {
+      color: #666;
+    }
+
+    .logo {
+      position: absolute;
+      top: 50%;
+      right: 20px;
+      transform: translateY(-50%);
+      max-width: 50px;
+      max-height: 50px;
+    }
+  </style>
+  <title>Temperature Dashboard</title>
+</head>
+<body>
+  <header>
+    <h1>Temperature Dashboard</h1>
+  </header>
+
+  <main>
+    <div class="widget">
+      <h2>Sensor 1</h2>
+      <p>Temperature: 25°C</p>
+      <img class="logo" src="https://example.com/path/to/thermometer-image.jpg" alt="Thermometer">
+      <!-- Add more widget content as needed -->
+    </div>
+
+    <div class="widget">
+      <h2>Sensor 2</h2>
+      <p>Temperature: 22°C</p>
+      <img class="logo" src="https://example.com/path/to/thermometer-image.jpg" alt="Thermometer">
+      <!-- Add more widget content as needed -->
+    </div>
+
+    <!-- Add more widgets as needed -->
+
+  </main>
+</body>
+</html>
