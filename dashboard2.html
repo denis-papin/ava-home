@@ -19,16 +19,21 @@
   <main class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
     
 	<div class="bg-white rounded-md shadow-md transition-transform hover:scale-105 hover:shadow-lg">
-		<div class="widget p-6 relative">
-		  <h2 class="text-xl font-semibold mb-2">Sensor 1</h2>
-		  <p class="text-gray-600">Temperature: 25°C</p>
+		<div class="widget p-6 relative flex items-center">
+		  <div>
+		    <h2 class="text-xl font-semibold mb-2">Salon</h2>
+			<div class="flex items-baseline"> <!-- Utilisation de flex pour disposer en ligne -->
+			  <p class="text-gray-600 text-xl mr-4">25°C</p> <!-- Utilisation de mr-2 pour ajouter de la marge à droite -->
+			  <p class="text-gray-400">7 min</p>
+			</div>
+		  </div>
 		  <img class="logo absolute top-1/2 right-6 transform -translate-y-1/2 w-12 h-12" src="https://www.creativefabrica.com/wp-content/uploads/2019/12/18/Thermometer-icon-design-Graphics-1-1-580x387.png" alt="Thermometer">
 		</div>
 		
 		<div class="banner right-0 bg-gray-200 p-2 rounded-b-md">
-			<p class="text-sm text-gray-600">Current Temperature: 25°C</p>
+			<p class="text-lg text-gray-600">Temperature cible: 25°C</p>
 			<div class="flex items-center">
-			  <span class="mr-2">Heater Status:</span>
+			  <span class="mr-2">Statut:</span>
 			  <div class="w-3 h-3 bg-green-500 rounded-full"></div>
 			  <span class="ml-1 text-green-500">En chauffe</span>
 			</div>
@@ -36,21 +41,44 @@
 	</div>
 
 	<div class="bg-white rounded-md shadow-md transition-transform hover:scale-105 hover:shadow-lg">
-		<div class="widget p-6 relative">
-		  <h2 class="text-xl font-semibold mb-2">Sensor 2</h2>
-		  <p class="text-gray-600">Temperature: 22°C</p>
+		<div class="widget p-6 relative flex items-center">
+		  <div>
+		    <h2 class="text-xl font-semibold mb-2">Bureau</h2>
+		    <p class="text-gray-600 text-xl">22°C</p>
+		  </div>
 		  <img class="logo absolute top-1/2 right-6 transform -translate-y-1/2 w-12 h-12" src="https://www.creativefabrica.com/wp-content/uploads/2019/12/18/Thermometer-icon-design-Graphics-1-1-580x387.png" alt="Thermometer">
 		</div>
 		
 		<div class="banner right-0 bg-gray-200 p-2 rounded-b-md">
-			<p class="text-sm text-gray-600">Current Temperature: 25°C</p>
+			<p class="text-lg text-gray-600">Temperature cible: 22°C</p>
 			<div class="flex items-center">
-			  <span class="mr-2">Heater Status:</span>
+			  <span class="mr-2">Statut:</span>
 			  <div class="w-3 h-3 bg-yellow-500 rounded-full"></div>
 			   <span class="ml-1 text-yellow-500">Veille</span>
 			</div>
 		</div>
 	</div>
+
+
+	<div class="bg-white rounded-md shadow-md transition-transform hover:scale-105 hover:shadow-lg">
+		<div class="widget p-6 relative flex items-center">
+		  <div>
+		    <h2 class="text-xl font-semibold mb-2">Chambre</h2>
+		    <p class="text-gray-600 text-xl">21,3°C</p>
+		  </div>
+		  <img class="logo absolute top-1/2 right-6 transform -translate-y-1/2 w-12 h-12" src="https://www.creativefabrica.com/wp-content/uploads/2019/12/18/Thermometer-icon-design-Graphics-1-1-580x387.png" alt="Thermometer">
+		</div>
+		
+		<div class="banner right-0 bg-gray-200 p-2 rounded-b-md">
+			<p class="text-lg text-gray-600">Temperature cible: 22°C</p>
+			<div class="flex items-center">
+			  <span class="mr-2">Statut:</span>
+			  <div class="w-3 h-3 bg-red-500 rounded-full"></div>
+			   <span class="ml-1 text-red-500">En chauffe</span>
+			</div>
+		</div>
+	</div>
+
 
   </main>
 </body>
