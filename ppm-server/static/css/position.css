@@ -1,0 +1,63 @@
+
+/* @media screen and (max-width: 767px) { */
+  body {
+    /*font-size: 16px; */ /* ajuster la taille de la police pour les petits écrans */
+    line-height: 1.5; /* augmenter l'espacement entre les lignes pour une meilleure lisibilité */
+    margin: 0; /* supprimer les marges par défaut pour un meilleur affichage sur les petits écrans */
+    padding: 0; /* supprimer les marges internes par défaut pour un meilleur affichage sur les petits écrans */
+  }
+/*}*/
+
+/** info_bar  */
+
+.position_info_bar {
+    padding: 1rem;
+    display: -webkit-flex;
+    display: flex;
+    justify-content : space-between;
+    align-items : center;
+}
+
+.position_menu_control {
+}
+
+/* iphone */
+@media (width <= 48rem), (max-device-width: 390px) {
+    .position_info_bar {
+        height: 5rem;
+    }
+    .position_menu_control {
+        height: 3.5rem;
+    }
+
+}
+
+/* PC */
+@media (width > 48rem) {
+    .position_info_bar {
+        height: 2rem;
+    }
+    .position_menu_control {
+        height: 2rem;
+    }
+
+}
+
+/** resort_editor  */
+
+.position_resort_editor {
+    max-width: 70vw;
+    margin: 0 auto; /* centre la div horizontalement */
+    height: auto;
+    padding: 2rem;
+    display: -webkit-flex;
+    display: flex;
+    flex-direction: column;
+    justify-content : space-between;
+    align-items : flex-start;
+}
+
+
+.position_input_field {
+    height: 5rem;
+}

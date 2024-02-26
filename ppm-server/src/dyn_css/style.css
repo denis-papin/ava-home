@@ -1,0 +1,107 @@
+.my1 {
+    border : {{size}}px solid blue;
+}
+
+body {
+    background-color: #f3f2ef;
+    font-family: {{font_family}};
+}
+
+
+.visual_info_bar {
+    background-color: rgb(251,251,251);
+    font-family: {{font_family}};
+    color: darkblue;
+}
+
+.visual_menu_control {
+
+}
+
+button {
+    box-shadow: -10px 10px;
+    background-color: #FFEE32;
+    border: 3px solid;
+    display: inline-block;
+    cursor: pointer;
+    color: #202020;
+    font-size: 30px;
+    font-weight: bold;
+    padding: 10px 30px;
+      transition: all 0.15s linear 0s;
+    text-decoration: none;
+    position: relative;
+    box-sizing: border-box;
+
+}
+
+button:hover {
+    top: 0px;
+      transition: all 0.15s linear 0s;
+    left: 0px;
+    color: #FFEE32;
+    background-color: #202020;
+    border:3px solid #FFEE32;
+    box-shadow: 0px 0px 0 #ffe800 !important;
+    position: relative;
+
+}
+
+/* iphone */
+@media (width <= 48rem), (max-device-width: 390px) {
+    .visual_info_bar {
+        font-size: 2.2rem;
+    }
+    .visual_menu_control {
+        font-size: 2.2rem;
+        outline: none;
+    }
+}
+
+/* PC */
+@media (width > 48rem) {
+    .visual_info_bar {
+        font-size: 1rem;
+    }
+    .visual_menu_control {
+        font-size: 1rem;
+    }
+}
+
+.visual_resort_editor {
+    background-color: rgb(251,251,251);
+    font-family: {{font_family}};
+    border-radius: 10px;
+    border : 1px solid lightgray;
+}
+
+.visual_input_label {
+    color: rgb(50,50,50);
+    font-family: {{font_family}};
+}
+
+.visual_input_field {
+    background-color: rgb(251,251,251);
+    font-family: {{font_family}};
+    border-radius: 3px;
+    border : 1px solid lightgray;
+}
+
+/**
+    TODO Use a Template not to rebuild the project every time
+         Find a correct flex style for the inputs
+*/
+
+/* iphone */
+@media (width <= 48rem), (max-device-width: 390px) {
+    .visual_input_field {
+        font-size: 2.2rem;
+    }
+}
+
+/* PC */
+@media (width > 48rem) {
+    .visual_input_field {
+        font-size: 1rem;
+    }
+}

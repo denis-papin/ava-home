@@ -2,12 +2,15 @@
 
 members = [
     "commons-error",
+    "commons-pg",
     "event-storage",
     "regulator",
     "regulator-heart-beat",
     "mqtt5-r",
     "move-light",
-    "mqtt-bridge", "radiator-ctrl",
+    "mqtt-bridge",
+    "radiator-ctrl",
+    "ppm-server",
 ]
 
 [workspace.dependencies]

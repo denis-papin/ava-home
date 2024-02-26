@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Barre d'information avec champ de recherche</title>
+    <script src="/ppm/static/js/ppm.js"></script>
+    <style>
+    .info-bar {
+      background-color: #f0f0f0;
+      padding: 10px;
+      display: flex;
+      align-items: center;
+    }
+
+    .info-bar img {
+      width: 20px;
+      height: 20px;
+      margin-right: 10px;
+    }
+
+#user-info {
+    width: 1.8rem;
+    height: 1.8rem;
+}
+
+.icon-size {
+    width: 1.2rem;
+    height: 1.2rem;
+}
+
+.search-form {
+  margin-top: 20px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: center;
+}
+
+.search-form input[type="text"] {
+    width: 50vw;
+  padding: 5px;
+  font-size: 16px;
+}
+
+
+
+/* Style des boîtes d'entrée */
+.result-block {
+  background-color: #ffffff;
+  border-radius: 4px;
+  padding: 10px;
+  margin-bottom: 20px;
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+}
+
+body {
+  background-color: #f2f2f2;
+}
+
+/* Style du titre */
+.result-title {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+/* Style des champs */
+.result-value {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.result-value-title input {
+    font-weight: bold;
+}
+
+.result-value label {
+  margin-bottom: 5px;
+  padding-left: 5px;
+  font-weight: 600;
+  color : grey;
+}
+
+.result-value input {
+  border: 1px solid #ccc;
+  background-color: white;
+  padding: 10px;
+  font-size: 14px;
+  border-radius: 4px;
+  border-color: #ddd;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Style de la grille responsive */
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-gap: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+
+  </style>
+</head>
+<body>
+<div class="info-bar">
+    <img id="user-info" src="/ppm/static/icon/user-info.png" alt="Information">
+    <img id="user-add" src="/ppm/static/icon/user-add.png" alt="Ajout d'un utilisateur" onclick="navigateSetupPage()">
+    <img id="add-entry" class="icon-size" src="/ppm/static/icon/add-entry.png" alt="Ajout d'une entrée" onclick="navigateInputPage('')">
+    <img id="logout" class="icon-size" src="/ppm/static/icon/logout.png" alt="Déconnexion" onclick="logout('')">
+</div>
+
+<div class="search-form">
+    <input type="text" id="chars" placeholder="Recherche..." onkeypress="handleKeyPress(event)">
+    <img id="search" class="icon-size" src="/ppm/static/icon/search.png" alt="Rechercher" onclick="performSearch(event)">
+</div>
+
+<div id="results-container"></div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    window.onload = loadCategory;
+</script>
+
+</body>
+</html>
