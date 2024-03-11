@@ -87,20 +87,17 @@ impl Fairing for CORS {
     }
 }
 
-
-///
-/// ✨  Main component...
-///
-// Fonction pour gérer la page d'accueil
 #[get("/index")]
 fn index() -> Template {
-    // Création des données à afficher dans le template
-    let mut context = HashMap::new();
-    context.insert("title", "Page d'accueil");
-    context.insert("message", "Bienvenue sur notre site web!");
+    let context = TemplateContext {
+        message: String::from("Hello, world!"),
+    };
+    let handlebars = handlebars::Handlebars::new();
+    let template_str = include_str!("../templates/dashboard.hbs");
 
-    // Rendu du template avec les données
-    Template::render("index", &context)
+    let mut handlebars = handlebars::Handlebars::new();
+    handlebars.register_template_string("dashboard",template_str).expect("Failed to register template");
+    Template::render("dashboard", context)
 }
 
 #[get("/search_page")]
@@ -300,8 +297,8 @@ fn main() {
 
     println!("😎 Init {}", PROGRAM_NAME);
 
-    const PROJECT_CODE: &str = "ppm";
-    const VAR_NAME: &str = "PPM_ENV";
+    const PROJECT_CODE: &str = "dashboard";
+    const VAR_NAME: &str = "DASH_ENV";
 
     println!("😎 Config file using PROJECT_CODE={} VAR_NAME={}", PROJECT_CODE, VAR_NAME);
 
