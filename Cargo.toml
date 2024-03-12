@@ -10,7 +10,7 @@ members = [
     "move-light",
     "mqtt-bridge",
     "radiator-ctrl",
-    "ppm-server",
+    "dashboard",
 ]
 
 [workspace.dependencies]

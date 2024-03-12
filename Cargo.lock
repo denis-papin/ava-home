@@ -507,6 +507,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "dashboard"
+version = "0.5.0"
+dependencies = [
+ "anyhow",
+ "base64 0.12.3",
+ "chrono",
+ "commons-error",
+ "commons-pg",
+ "csv",
+ "java-properties",
+ "lazy_static",
+ "log 0.4.20",
+ "log4rs 0.11.0",
+ "obfstr",
+ "okapi",
+ "rand 0.7.3",
+ "rocket",
+ "rocket_contrib",
+ "rocket_cors",
+ "rocket_okapi",
+ "rs-uuid",
+ "rust-crypto",
+ "rustc-serialize",
+ "schemars",
+ "serde",
+ "serde-xml-rs",
+ "serde_derive",
+ "serde_json",
+ "uuid 0.5.1",
+ "xml-rs",
+]
+
+[[package]]
 name = "data-encoding"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2071,37 +2104,6 @@ name = "powerfmt"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "439ee305def115ba05938db6eb1644ff94165c5ab5e9420d1c1bcedbba909391"
-
-[[package]]
-name = "ppm-server"
-version = "0.5.0"
-dependencies = [
- "anyhow",
- "base64 0.12.3",
- "chrono",
- "csv",
- "java-properties",
- "lazy_static",
- "log 0.4.20",
- "log4rs 0.11.0",
- "obfstr",
- "okapi",
- "rand 0.7.3",
- "rocket",
- "rocket_contrib",
- "rocket_cors",
- "rocket_okapi",
- "rs-uuid",
- "rust-crypto",
- "rustc-serialize",
- "schemars",
- "serde",
- "serde-xml-rs",
- "serde_derive",
- "serde_json",
- "uuid 0.5.1",
- "xml-rs",
-]
 
 [[package]]
 name = "ppv-lite86"
