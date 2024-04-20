@@ -116,7 +116,7 @@ pub (crate) async fn db_put_device_state(topic: &str, json_msg: &str) {
 
     let query =  r#"INSERT INTO public.device_state_history
                                 (device_name, state, ts_create)
-                                VALUES($1, $2, now())"#;
+                                VALUES($1, $2, timezone('UTC', current_timestamp))"#;
 
     let values: &[&(dyn ToSql + Sync)] = &[&topic, &json_msg];
     let _ = client.execute(query, values).await.unwrap();
@@ -144,7 +144,7 @@ pub (crate) async fn insert_temp(topic: &str, temp: &TempSensor) {
     // let ts_create = chrono::Utc::now();
 
     // Exécutez une requête d'insertion
-    let query = "INSERT INTO temperature_sensor_history (device_name, temperature, ts_create) VALUES ($1, $2, now())";
+    let query = "INSERT INTO temperature_sensor_history (device_name, temperature, ts_create) VALUES ($1, $2, timezone('UTC', current_timestamp))";
     let values: &[&(dyn ToSql + Sync)] = &[&device_name, &temperature];
 
     let _ = client.execute(query, values).await.unwrap();

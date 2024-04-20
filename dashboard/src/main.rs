@@ -8,6 +8,8 @@ use std::ops::{Deref, DerefMut};
 use std::path::Path;
 use std::process::exit;
 use std::sync::{Mutex, RwLock};
+use std::time::SystemTime;
+use anyhow::anyhow;
 
 use chrono::{DateTime, Utc};
 use lazy_static::*;
@@ -90,15 +92,92 @@ impl Fairing for CORS {
 
 #[get("/index")]
 fn index() -> Template {
-    let context = TemplateContext {
-        message: String::from("Hello, world!"),
+    let mut context = match build_current_temp_context() {
+        Ok(c) => c,
+        Err(e) => panic!("{}", e)
     };
+
     let handlebars = handlebars::Handlebars::new();
     let template_str = include_str!("../templates/dashboard.hbs");
 
     let mut handlebars = handlebars::Handlebars::new();
     handlebars.register_template_string("dashboard",template_str).expect("Failed to register template");
     Template::render("dashboard", context)
+}
+
+fn build_current_temp_context() -> anyhow::Result<HashMap<String, String>> {
+    let mut context = HashMap::new();
+
+    let mut r_cnx = SQLConnection::new();
+    // let-else
+    let r_trans = open_transaction(&mut r_cnx).map_err(err_fwd!("💣 Open transaction error, follower=[]"/*, &self.follower*/));
+    let Ok(mut trans) = r_trans else {
+        return Err(anyhow!("💣 Impossible to connect the database")); // WebType::from_errorset(INTERNAL_DATABASE_ERROR);
+    };
+
+    // let Ok((open_session_request, password_hash)) = self.search_user(&mut trans, &login_request.login) else {
+    //     log_warn!("⛔ login not found, login=[{}], follower=[{}]", &login_request.login, &self.follower);
+    //     return WebType::from_errorset(SESSION_LOGIN_DENIED);
+    // };
+
+    let mut params = HashMap::new();
+    // params.insert("p_login".to_owned(), CellValue::from_raw_string(login.to_string()));
+
+    let query = SQLQueryBlock {
+        sql_query : r"SELECT DISTINCT ON (device_name) device_name, temperature, ts_create
+        FROM temperature_sensor_history
+        ORDER BY device_name, ts_create DESC".to_string(),
+        start : 0,
+        length : None,
+        params,
+    };
+
+    let mut sql_result = query.execute(&mut trans).map_err(err_fwd!("💣 Query failed, [{}], follower=[]", &query.sql_query/*, &self.follower*/))?;
+
+    dbg!(&sql_result);
+
+    while sql_result.next() {
+        let device_name : String = sql_result.get_string("device_name").ok_or(anyhow!("Wrong device_name"))?;
+        let temperature : f64 = sql_result.get_double("temperature").ok_or(anyhow!("Wrong temperature"))?;
+        let ts_create = sql_result.get_timestamp_as_datetime("ts_create").ok_or(anyhow!("Wrong ts_create"))?;
+
+        let elapse_time_min = Utc::now().signed_duration_since(ts_create).num_minutes().abs();
+        let elapse_time_hour = elapse_time_min / 60;
+        let remain_time_min = elapse_time_min % 60;
+        let elapse_time_string = if elapse_time_hour > 0 {
+            format!("{} h {}", elapse_time_hour, remain_time_min)
+        } else {
+            format!("{}", elapse_time_min)
+        };
+
+        let temperature_string = format!("{:.1}", temperature).replace(".", ",");
+        match device_name.as_str() {
+            "zigbee2mqtt/ts_bureau" => {
+                // current_temp.insert("bureau".to_string(), temperature);
+                context.insert("bureau_temperature".to_string(), temperature_string);
+                context.insert("bureau_elapse".to_string(), elapse_time_string);
+            }
+            "zigbee2mqtt/ts_chambre_1" => {
+                context.insert("chambre_temperature".to_string(), temperature_string);
+                context.insert("chambre_elapse".to_string(), elapse_time_string);
+            }
+            "zigbee2mqtt/ts_couloir" => {
+                context.insert("couloir_temperature".to_string(), temperature_string);
+                context.insert("couloir_elapse".to_string(),elapse_time_string);
+            }
+            "zigbee2mqtt/ts_salon_1" => {
+                context.insert("salon_temperature".to_string(), temperature_string);
+                context.insert("salon_elapse".to_string(), elapse_time_string);
+            }
+            "zigbee2mqtt/ts_salon_2" => {
+                // nothing to do
+            }
+            _ => {}
+        }
+    }
+
+    trans.commit()?;
+    Ok(context)
 }
 
 #[get("/index_live")]
@@ -305,8 +384,8 @@ fn keep_newest_files(folder: &str, prefix: &str, n: usize) {
 
 use rocket_contrib::serve::StaticFiles;
 use commons_error::*;
-use commons_pg::init_db_pool;
-use crate::dao_db::{fetch_temperature, TemperatureForSensor};
+use commons_pg::{init_db_pool, SQLConnection, SQLQueryBlock};
+use crate::dao_db::{fetch_temperature, open_transaction, TemperatureForSensor};
 
 pub fn get_prop_pg_connect_string() -> anyhow::Result<(String,u32)> {
     let db_hostname = get_prop_value("db.hostname");
@@ -320,7 +399,7 @@ pub fn get_prop_pg_connect_string() -> anyhow::Result<(String,u32)> {
 }
 
 fn main() {
-    const PROGRAM_NAME: &str = "PPM Pretty Password Manager";
+    const PROGRAM_NAME: &str = "DASH - Tha Ava Home Dashboard";
 
     println!("😎 Init {}", PROGRAM_NAME);
 

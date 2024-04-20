@@ -8,6 +8,7 @@ use rumqttc::v5::mqttbytes::QoS;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::{accept_async, tungstenite::{Error, Message, Result}, WebSocketStream};
 use uuid::Uuid;
+use serde::{Deserialize, Serialize};
 
 async fn accept_connection(peer: SocketAddr, mut stream: SplitSink<WebSocketStream<TcpStream>, Message>) {
     if let Err(e) = handle_connection(peer, stream).await {
@@ -55,6 +56,12 @@ async fn handle_read(peer: SocketAddr, mut ws_receiver:  SplitStream<WebSocketSt
     Ok(())
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+struct BridgeMessage {
+    topic: String,
+    raw_message: String, // Json string of the actual message
+}
+
 async fn handle_connection(peer: SocketAddr, mut ws_sender: SplitSink<WebSocketStream<TcpStream>, Message>) -> Result<()> {
     // let ws_stream = accept_async(stream).await.expect("Failed to accept");
     info!("New WebSocket connection: {}", peer);
@@ -73,20 +80,34 @@ async fn handle_connection(peer: SocketAddr, mut ws_sender: SplitSink<WebSocketS
     client.subscribe("*", QoS::AtMostOnce).await.unwrap();
     client.subscribe("zigbee2mqtt/ts_salon_1", QoS::AtMostOnce).await.unwrap();
     client.subscribe("zigbee2mqtt/bureau", QoS::AtMostOnce).await.unwrap();
+    client.subscribe("zigbee2mqtt/ts_chambre_1", QoS::AtMostOnce).await.unwrap();
+    client.subscribe("zigbee2mqtt/ts_couloir", QoS::AtMostOnce).await.unwrap();
+
     client.subscribe("regulator/regulate_radiator", QoS::AtMostOnce).await.unwrap();
+
+    client.subscribe("external/rad_salon", QoS::AtMostOnce).await.unwrap();
+    client.subscribe("external/rad_bureau", QoS::AtMostOnce).await.unwrap();
+    client.subscribe("external/rad_chambre", QoS::AtMostOnce).await.unwrap();
+    client.subscribe("external/rad_couloir", QoS::AtMostOnce).await.unwrap();
+
     // }
 
     while let Ok(notification) = eventloop.poll().await {
         info!("New notification");
         match notification {
             Event::Incoming(Incoming::Publish(publish)) => {
-                let msg = std::str::from_utf8(&publish.payload).unwrap();
                 let topic = std::str::from_utf8(publish.topic.as_ref()).unwrap(); // TODO
+                let msg = std::str::from_utf8(&publish.payload).unwrap();
                 info!("🧶 Publish on topic: [{}], message: <{}>", topic, msg);
 
                 // *** MQTT ****
                 println!("Send a message");
-                ws_sender.send(Message::Text(format!("mqtt message : [{}]", msg))).await?;
+                let m = serde_json::to_string(&BridgeMessage {
+                    topic: topic.to_string(),
+                    raw_message: msg.to_string(),
+                }).unwrap();
+                let m = Message::Text(m);
+                ws_sender.send(m).await?;
 
             }
             Event::Incoming(Incoming::ConnAck(_connack)) => {

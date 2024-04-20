@@ -10,6 +10,8 @@
     }
   </style>
   <title>Temperature Dashboard</title>
+   <script src="/dashboard/static/js/mqtt_message_processing.js"></script>
+   <script src="/dashboard/static/js/ws_handler.js"></script>
 </head>
 <body class="font-sans">
   <header class="bg-gray-800 text-white py-4 text-center">
@@ -17,7 +19,8 @@
   </header>
 
   <main class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
-    
+
+    <!-- Salon -->
 	<div class="bg-white rounded-md shadow-md transition-transform hover:scale-105 hover:shadow-lg">
 		<div class="widget p-6 relative flex items-center">
 		  <div>
@@ -31,7 +34,10 @@
 		</div>
 		
 		<div class="banner right-0 bg-gray-200 p-2 rounded-b-md">
-			<p class="text-lg text-gray-600">Temperature cible: 25°C</p>
+			<p class="text-lg text-gray-600">
+			  <span>Temperature cible:</span>
+              <span id="tc_salon_1">0</span><span>°C</span><span id="tc_salon_1_ts" class="ml-2 text-sm text-gray-400">le 1 jan. à 05:00</span>
+			</p>
 			<div class="flex items-center">
 			  <span class="mr-2">Statut:</span>
 			  <div class="w-3 h-3 bg-green-500 rounded-full"></div>
@@ -40,7 +46,7 @@
 		</div>
 	</div>
 
-
+    <!-- Bureau -->
 	<div class="bg-white rounded-md shadow-md transition-transform hover:scale-105 hover:shadow-lg">
 		<div class="widget p-6 relative flex items-center">
 		  <div>
@@ -54,7 +60,10 @@
 		</div>
 
 		<div class="banner right-0 bg-gray-200 p-2 rounded-b-md">
-			<p class="text-lg text-gray-600">Temperature cible: 25°C</p>
+            <p class="text-lg text-gray-600">
+              <span>Temperature cible:</span>
+              <span id="tc_bureau">0</span><span>°C</span><span id="tc_bureau_ts" class="ml-2 text-sm text-gray-400">le 1 jan. à 05:00</span>
+            </p>
 			<div class="flex items-center">
 			  <span class="mr-2">Statut:</span>
 			  <div class="w-3 h-3 bg-yellow-500 rounded-full"></div>
@@ -63,7 +72,7 @@
 		</div>
 	</div>
 
-
+    <!-- Chambre -->
 	<div class="bg-white rounded-md shadow-md transition-transform hover:scale-105 hover:shadow-lg">
 		<div class="widget p-6 relative flex items-center">
 		  <div>
@@ -77,7 +86,36 @@
 		</div>
 
 		<div class="banner right-0 bg-gray-200 p-2 rounded-b-md">
-			<p class="text-lg text-gray-600">Temperature cible: 25°C</p>
+            <p class="text-lg text-gray-600">
+              <span>Temperature cible:</span>
+              <span id="tc_chambre">0</span><span>°C</span><span id="tc_chambre_ts" class="ml-2 text-sm text-gray-400">le 1 jan. à 05:00</span>
+            </p>
+			<div class="flex items-center">
+			  <span class="mr-2">Statut:</span>
+			  <div class="w-3 h-3 bg-red-500 rounded-full"></div>
+			   <span class="ml-1 text-red-500">En chauffe</span>
+			</div>
+		</div>
+	</div>
+
+    <!-- Couloir -->
+	<div class="bg-white rounded-md shadow-md transition-transform hover:scale-105 hover:shadow-lg">
+		<div class="widget p-6 relative flex items-center">
+		  <div>
+		    <h2 class="text-xl font-semibold mb-2">Couloir</h2>
+			<div class="flex items-baseline"> <!-- Utilisation de flex pour disposer en ligne -->
+			  <p class="text-gray-600 text-xl mr-4">{{couloir_temperature}} °C</p> <!-- Utilisation de mr-2 pour ajouter de la marge à droite -->
+			  <p class="text-gray-400">{{couloir_elapse}} min</p>
+			</div>
+		  </div>
+		  <img class="logo absolute top-1/2 right-6 transform -translate-y-1/2 w-12 h-12" src="https://www.creativefabrica.com/wp-content/uploads/2019/12/18/Thermometer-icon-design-Graphics-1-1-580x387.png" alt="Thermometer">
+		</div>
+
+		<div class="banner right-0 bg-gray-200 p-2 rounded-b-md">
+            <p class="text-lg text-gray-600">
+              <span>Temperature cible:</span>
+              <span id="tc_couloir">0</span><span>°C</span><span id="tc_couloir_ts" class="ml-2 text-sm text-gray-400">le 1 jan. à 05:00</span>
+            </p>
 			<div class="flex items-center">
 			  <span class="mr-2">Statut:</span>
 			  <div class="w-3 h-3 bg-red-500 rounded-full"></div>
