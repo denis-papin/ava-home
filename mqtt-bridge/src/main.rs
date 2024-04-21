@@ -3,36 +3,35 @@ use std::{env, net::SocketAddr, time::Duration};
 use futures_util::{SinkExt, StreamExt};
 use futures_util::stream::{SplitSink, SplitStream};
 use log::*;
-use rumqttc::v5::{AsyncClient, Event, Incoming, MqttOptions};
+use rumqttc::v5::{AsyncClient, Event, EventLoop, Incoming, MqttOptions};
 use rumqttc::v5::mqttbytes::QoS;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::{accept_async, tungstenite::{Error, Message, Result}, WebSocketStream};
 use uuid::Uuid;
 use serde::{Deserialize, Serialize};
 
-async fn accept_connection(peer: SocketAddr, mut stream: SplitSink<WebSocketStream<TcpStream>, Message>) {
-    if let Err(e) = handle_connection(peer, stream).await {
+async fn accept_connection_for_writing_ws(peer: SocketAddr, mut stream: SplitSink<WebSocketStream<TcpStream>, Message>, mut eventloop: EventLoop) {
+    if let Err(e) = handle_writing_ws(peer, stream, eventloop).await {
         match e {
             Error::ConnectionClosed | Error::Protocol(_) | Error::Utf8 => (),
-            err => error!("Error processing connection: {}", err),
+            err => error!("Error processing connection: {:?}", err),
         }
     }
 }
 
-async fn accept_connection_for_read(peer: SocketAddr, mut ws_receiver: SplitStream<WebSocketStream<TcpStream>>) {
-    if let Err(e) = handle_read(peer, ws_receiver).await {
+async fn accept_connection_for_reading_ws(peer: SocketAddr, mut ws_receiver: SplitStream<WebSocketStream<TcpStream>>, mut client: AsyncClient) {
+    if let Err(e) = handle_reading_ws(peer, ws_receiver, client).await {
         match e {
             Error::ConnectionClosed | Error::Protocol(_) | Error::Utf8 => (),
-            err => error!("Error processing connection: {}", err),
+            err => error!("Error processing connection: {:?}", err),
         }
     }
 }
 
-async fn handle_read(peer: SocketAddr, mut ws_receiver:  SplitStream<WebSocketStream<TcpStream>>) -> Result<()> {
-
-    let mut i = 0;
+///
+/// Handle incoming WS messages
+async fn handle_reading_ws(peer: SocketAddr, mut ws_receiver:  SplitStream<WebSocketStream<TcpStream>>, mut client: AsyncClient) -> Result<()> {
     println!("Send a message");
-
     loop {
         println!("Loop is spinning");
         tokio::select! {
@@ -41,8 +40,11 @@ async fn handle_read(peer: SocketAddr, mut ws_receiver:  SplitStream<WebSocketSt
                     Some(msg) => {
                         let msg = msg?;
                         if msg.is_text() ||msg.is_binary() {
-                            // ws_sender.send(msg).await?;
-                            info!("New message received : {}", msg);
+                            info!("WS message received : {}", msg);
+                            let bridge_message : BridgeMessage = serde_json::from_str(&msg.to_string()).unwrap(); // TODO
+                            info!("📨 Client [{}] sent message to mqtt, topic=[{}], message=[{}]", &peer, &bridge_message.topic,  &bridge_message.raw_message);
+                            let data = bridge_message.raw_message.as_bytes().to_vec();
+                            client.publish(&bridge_message.topic, QoS::AtLeastOnce, false, data).await.unwrap(); // TODO
                         } else if msg.is_close() {
                             break;
                         }
@@ -52,7 +54,6 @@ async fn handle_read(peer: SocketAddr, mut ws_receiver:  SplitStream<WebSocketSt
             }
         }
     }
-
     Ok(())
 }
 
@@ -62,9 +63,10 @@ struct BridgeMessage {
     raw_message: String, // Json string of the actual message
 }
 
-async fn handle_connection(peer: SocketAddr, mut ws_sender: SplitSink<WebSocketStream<TcpStream>, Message>) -> Result<()> {
-    // let ws_stream = accept_async(stream).await.expect("Failed to accept");
-    info!("New WebSocket connection: {}", peer);
+
+async fn mqtt_open() -> (AsyncClient, EventLoop) {
+
+    info!("Open Mqtt connection");
 
     // Mosquitto
     let uuid = Uuid::new_v4();
@@ -75,8 +77,7 @@ async fn handle_connection(peer: SocketAddr, mut ws_sender: SplitSink<WebSocketS
 
     let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
 
-    // for p in &params.channel_filters {
-    info!("Subscribe to [{}]", "zigbee2mqtt/ts_salon_1");
+    info!("Subscribe to channels");
     client.subscribe("*", QoS::AtMostOnce).await.unwrap();
     client.subscribe("zigbee2mqtt/ts_salon_1", QoS::AtMostOnce).await.unwrap();
     client.subscribe("zigbee2mqtt/bureau", QoS::AtMostOnce).await.unwrap();
@@ -90,18 +91,22 @@ async fn handle_connection(peer: SocketAddr, mut ws_sender: SplitSink<WebSocketS
     client.subscribe("external/rad_chambre", QoS::AtMostOnce).await.unwrap();
     client.subscribe("external/rad_couloir", QoS::AtMostOnce).await.unwrap();
 
-    // }
+    (client, eventloop)
+}
+
+async fn handle_writing_ws(peer: SocketAddr, mut ws_sender: SplitSink<WebSocketStream<TcpStream>, Message>, mut eventloop: EventLoop) -> Result<()> {
+    info!("WebSocket connection: {}", &peer);
 
     while let Ok(notification) = eventloop.poll().await {
-        info!("New notification");
+        // info!("Enter notification pool");
         match notification {
             Event::Incoming(Incoming::Publish(publish)) => {
                 let topic = std::str::from_utf8(publish.topic.as_ref()).unwrap(); // TODO
                 let msg = std::str::from_utf8(&publish.payload).unwrap();
-                info!("🧶 Publish on topic: [{}], message: <{}>", topic, msg);
+                info!("🧶 Client [{}] is reading mqtt message on topic: [{}], message: <{}>", &peer, topic, msg);
 
-                // *** MQTT ****
-                println!("Send a message");
+                // Send the mqtt message to the ws client
+                println!("Send a WS message to the web client: [{}]", &peer);
                 let m = serde_json::to_string(&BridgeMessage {
                     topic: topic.to_string(),
                     raw_message: msg.to_string(),
@@ -117,10 +122,7 @@ async fn handle_connection(peer: SocketAddr, mut ws_sender: SplitSink<WebSocketS
             _ => {}
         }
     }
-
-
-
-
+    info!("Exit client [{}] notification loop", &peer);
     Ok(())
 }
 
@@ -129,10 +131,11 @@ async fn main() {
     env::set_var("RUST_LOG", env::var_os("RUST_LOG").unwrap_or_else(|| "info".into()));
     env_logger::init();
 
-    info!("Starting Mqtt Bridge 0.5.0");
+    info!("Starting Mqtt Bridge 0.7.0");
 
     // ** Web Socket **
-    let addr = "127.0.0.1:9002";
+    // let addr = "127.0.0.1:9002";
+    let addr = "192.168.0.99:9002";
     let listener = TcpListener::bind(&addr).await.expect("Can't listen");
     info!("Listening on: {}", addr);
 
@@ -141,10 +144,10 @@ async fn main() {
         info!("Peer address: {}", peer);
         let ws_stream = accept_async(stream).await.expect("Failed to accept");
         let (ws_sender, ws_receiver) = ws_stream.split();
-//         SplitStream<WebSocketStream<TcpStream>>
-        // SplitSink<WebSocketStream<TcpStream>, Message>
-        tokio::spawn(accept_connection_for_read(peer, ws_receiver));
-        tokio::spawn(accept_connection(peer, ws_sender));
+
+        let (mut client, mut eventloop) = mqtt_open().await;
+        tokio::spawn(accept_connection_for_reading_ws(peer, ws_receiver, client));
+        tokio::spawn(accept_connection_for_writing_ws(peer, ws_sender, eventloop));
     }
 }
 

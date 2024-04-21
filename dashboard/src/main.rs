@@ -97,12 +97,61 @@ fn index() -> Template {
         Err(e) => panic!("{}", e)
     };
 
+    // context.insert("salon_status".to_string(), "STOP".to_string());
+    // context.insert("chambre_status".to_string(), "STOP".to_string());
+    // context.insert("bureau_status".to_string(), "STOP".to_string());
+    // context.insert("couloir_status".to_string(), "STOP".to_string());
+
     let handlebars = handlebars::Handlebars::new();
     let template_str = include_str!("../templates/dashboard.hbs");
 
     let mut handlebars = handlebars::Handlebars::new();
     handlebars.register_template_string("dashboard",template_str).expect("Failed to register template");
     Template::render("dashboard", context)
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+pub (crate) struct RadiatorStatus {
+    pub mode: String
+}
+
+fn build_current_radiator_state_context(mut trans: &mut SQLTransaction) -> anyhow::Result<HashMap<String, String>> {
+    let mut context = HashMap::new();
+    let query = SQLQueryBlock {
+        sql_query : r"select DISTINCT ON (device_name) device_name, state, ts_create
+                    from device_state_history dsh
+                    order by  device_name, ts_create DESC".to_string(),
+        start : 0,
+        length : None,
+        params: HashMap::new(),
+    };
+
+    let mut sql_result = query.execute(&mut trans).map_err(err_fwd!("💣 Query failed, [{}], follower=[]", &query.sql_query/*, &self.follower*/))?;
+
+    while sql_result.next() {
+        let device_name : String = sql_result.get_string("device_name").ok_or(anyhow!("Wrong device_name"))?;
+        let json_state: String = sql_result.get_string("state").ok_or(anyhow!("Wrong state"))?;
+        //let _ts_create = sql_result.get_timestamp_as_datetime("ts_create").ok_or(anyhow!("Wrong ts_create"))?;
+
+        let status : RadiatorStatus = serde_json::from_str(json_state.as_str()).unwrap();
+
+        match device_name.as_str() {
+            "external/rad_bureau" => {
+                context.insert("bureau_status".to_string(), status.mode);
+            }
+            "external/rad_chambre" => {
+                context.insert("chambre_status".to_string(), status.mode);
+            }
+            "external/rad_couloir" => {
+                context.insert("couloir_status".to_string(), status.mode);
+            }
+            "external/rad_salon" => {
+                context.insert("salon_status".to_string(), status.mode);
+            }
+            _ => {}
+        }
+    }
+    Ok(context)
 }
 
 fn build_current_temp_context() -> anyhow::Result<HashMap<String, String>> {
@@ -114,6 +163,11 @@ fn build_current_temp_context() -> anyhow::Result<HashMap<String, String>> {
     let Ok(mut trans) = r_trans else {
         return Err(anyhow!("💣 Impossible to connect the database")); // WebType::from_errorset(INTERNAL_DATABASE_ERROR);
     };
+
+    // Ajoute le contexte pour le statut des radiateurs
+    context.extend(build_current_radiator_state_context(&mut trans)?.into_iter());
+
+    dbg!(&context);
 
     // let Ok((open_session_request, password_hash)) = self.search_user(&mut trans, &login_request.login) else {
     //     log_warn!("⛔ login not found, login=[{}], follower=[{}]", &login_request.login, &self.follower);
@@ -384,7 +438,7 @@ fn keep_newest_files(folder: &str, prefix: &str, n: usize) {
 
 use rocket_contrib::serve::StaticFiles;
 use commons_error::*;
-use commons_pg::{init_db_pool, SQLConnection, SQLQueryBlock};
+use commons_pg::{init_db_pool, SQLConnection, SQLQueryBlock, SQLTransaction};
 use crate::dao_db::{fetch_temperature, open_transaction, TemperatureForSensor};
 
 pub fn get_prop_pg_connect_string() -> anyhow::Result<(String,u32)> {
