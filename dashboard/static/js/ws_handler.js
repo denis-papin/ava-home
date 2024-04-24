@@ -1,4 +1,4 @@
-let socket = new WebSocket('ws://192.168.0.99:9002');
+let socket = new WebSocket('ws://192.168.0.149:9002');
 
 let roomStatus = {}
 roomStatus['salon'] = ''

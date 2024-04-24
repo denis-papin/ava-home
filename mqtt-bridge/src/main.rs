@@ -1,5 +1,4 @@
 use std::{env, net::SocketAddr, time::Duration};
-use std::fmt::format;
 
 use futures_util::{SinkExt, StreamExt};
 use futures_util::stream::{SplitSink, SplitStream};
