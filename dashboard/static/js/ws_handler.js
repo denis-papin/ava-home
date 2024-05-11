@@ -1,4 +1,9 @@
-let socket = new WebSocket('ws://192.168.0.149:9002');
+
+// var url = new URL(window.location.href);
+// var serverName = url.hostname;
+// console.log('ws serveur: ', serverName);
+// // let socket = new WebSocket('ws://192.168.0.149:9002');
+// let socket = new WebSocket('ws://'+ serverName +':9002');
 
 let roomStatus = {}
 roomStatus['salon'] = ''
@@ -6,75 +11,75 @@ roomStatus['bureau'] = ''
 roomStatus['couloir'] = ''
 roomStatus['chambre'] = ''
 
-
 document.addEventListener('visibilitychange', function() {
     if (document.visibilityState === 'visible') {
         location.reload()
     }
 });
 
+function addSocketEvent(socket) {
+    // Connection opened
+    socket.addEventListener('open', (event) => {
+        console.log('WebSocket connection opened:', event);
+    });
 
-// Connection opened
-socket.addEventListener('open', (event) => {
-    console.log('WebSocket connection opened:', event);
-});
+    // Listen for messages
+    socket.addEventListener('message', (event) => {
+        const bridgeMsg = JSON.parse(event.data)
+        const mqttMsg = JSON.parse(bridgeMsg.raw_message)
 
-// Listen for messages
-socket.addEventListener('message', (event) => {
-    const bridgeMsg = JSON.parse(event.data)
-    const mqttMsg = JSON.parse(bridgeMsg.raw_message)
+        switch (bridgeMsg.topic) {
+            case 'regulator/regulate_radiator' : {
+                regulateRadiatorAction(mqttMsg)
+                break;
+            }
+            case 'zigbee2mqtt/ts_salon_1' : {
+                tsSalonAction(mqttMsg)
+                break;
+            }
+            case 'zigbee2mqtt/ts_bureau' : {
+                tsBureauAction(mqttMsg)
+                break;
+            }
+            case 'zigbee2mqtt/ts_chambre_1' : {
+                tsChambreAction(mqttMsg)
+                break;
+            }
+            case 'zigbee2mqtt/ts_couloir' : {
+                tsCouloirAction(mqttMsg)
+                break;
+            }
+            case 'external/rad_salon' : {
+                externalRad('salon', mqttMsg)
+                break;
+            }
+            case 'external/rad_bureau' : {
+                externalRad('bureau', mqttMsg)
+                break;
+            }
+            case 'external/rad_chambre' : {
+                externalRad('chambre', mqttMsg)
+                break;
+            }
+            case 'external/rad_couloir' : {
+                externalRad('couloir', mqttMsg)
+                break;
+            }
+        }
 
-    switch (bridgeMsg.topic) {
-        case 'regulator/regulate_radiator' : {
-            regulateRadiatorAction(mqttMsg)
-            break;
-        }
-        case 'zigbee2mqtt/ts_salon_1' : {
-            tsSalonAction(mqttMsg)
-            break;
-        }
-        case 'zigbee2mqtt/ts_bureau' : {
-            tsBureauAction(mqttMsg)
-            break;
-        }
-        case 'zigbee2mqtt/ts_chambre_1' : {
-            tsChambreAction(mqttMsg)
-            break;
-        }
-        case 'zigbee2mqtt/ts_couloir' : {
-            tsCouloirAction(mqttMsg)
-            break;
-        }
-        case 'external/rad_salon' : {
-            externalRad('salon', mqttMsg)
-            break;
-        }
-        case 'external/rad_bureau' : {
-            externalRad('bureau', mqttMsg)
-            break;
-        }
-        case 'external/rad_chambre' : {
-            externalRad('chambre', mqttMsg)
-            break;
-        }
-        case 'external/rad_couloir' : {
-            externalRad('couloir', mqttMsg)
-            break;
-        }
-    }
+        console.log(bridgeMsg.topic, mqttMsg)
+    });
 
-    console.log(bridgeMsg.topic, mqttMsg)
-});
+    // Connection closed
+    socket.addEventListener('close', (event) => {
+        console.log('WebSocket connection closed:', event);
+    });
 
-// Connection closed
-socket.addEventListener('close', (event) => {
-    console.log('WebSocket connection closed:', event);
-});
-
-// Connection error
-socket.addEventListener('error', (event) => {
-    console.error('WebSocket error:', event);
-});
+    // Connection error
+    socket.addEventListener('error', (event) => {
+        console.error('WebSocket error:', event);
+    });
+}
 
 function spinStatus(room) {
     if (roomStatus[room] === 'STOP') {

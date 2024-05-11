@@ -125,9 +125,27 @@ function currentDateTime() /*: string*/ {
     return texteDateHeure
 }
 
+
+let socket;
+
 document.addEventListener("DOMContentLoaded", function() {
     // Votre code JavaScript à exécuter une fois que le DOM est prêt
     console.log("Le DOM est prêt !");
+
+    // Read WS settings
+
+    // Accéder à l'élément <body>
+    const bodyEl = document.body;
+    const wsHostname = bodyEl.getAttribute('data-ws-hostname');
+    const wsPort = bodyEl.getAttribute('data-ws-port');
+
+    console.log('wsHostname:', wsHostname)
+    console.log('wsPort:', wsPort)
+    socket = new WebSocket('ws://'+ wsHostname +':' + wsPort);
+
+    addSocketEvent(socket);
+
+
     initRadStatus()
 
     // Mettre les dernières valeurs cibles connues

@@ -97,10 +97,8 @@ fn index() -> Template {
         Err(e) => panic!("{}", e)
     };
 
-    // context.insert("salon_status".to_string(), "STOP".to_string());
-    // context.insert("chambre_status".to_string(), "STOP".to_string());
-    // context.insert("bureau_status".to_string(), "STOP".to_string());
-    // context.insert("couloir_status".to_string(), "STOP".to_string());
+    context.insert("ws_hostname".to_string(), get_prop_value("ws.hostname"));
+    context.insert("ws_port".to_string(), get_prop_value("ws.port"));
 
     let handlebars = handlebars::Handlebars::new();
     let template_str = include_str!("../templates/dashboard.hbs");
@@ -454,22 +452,17 @@ pub fn get_prop_pg_connect_string() -> anyhow::Result<(String,u32)> {
 
 fn main() {
     const PROGRAM_NAME: &str = "DASH - Tha Ava Home Dashboard";
-
     println!("😎 Init {}", PROGRAM_NAME);
 
     const PROJECT_CODE: &str = "dashboard";
     const VAR_NAME: &str = "DASH_ENV";
-
     println!("😎 Config file using PROJECT_CODE={} VAR_NAME={}", PROJECT_CODE, VAR_NAME);
 
     let props = read_config(PROJECT_CODE, VAR_NAME);
     set_props(props);
-
     let port = get_prop_value("server.port").parse::<u16>().unwrap();
     let log_config: String = get_prop_value("log4rs.config");
-
     let log_config_path = Path::new(&log_config);
-
     println!("😎 Read log properties from {:?}", &log_config_path);
 
     match log4rs::init_file(&log_config_path, Default::default()) {
@@ -493,7 +486,6 @@ fn main() {
     };
 
     dbg!(&connect_string, &db_pool_size);
-
     init_db_pool(&connect_string, db_pool_size);
 
     let mut my_config = Config::new(Environment::Production);
