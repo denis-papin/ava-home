@@ -89,9 +89,10 @@ pub (crate) async fn command_radiator(topic: &str, msg: &Radiator, args: &[Strin
 
     let heatzy_pass = args.get(1).unwrap();
     let heatzy_application_id= args.get(2).unwrap();
+    let heatzy_token= args.get(3).unwrap(); // "74067d76317946fca0433f684cf1e0a1"
 
     let did = DEVICE_DID.get(topic).unwrap();
-    set_mode(&msg.mode, &heatzy_application_id,  &heatzy_pass, "74067d76317946fca0433f684cf1e0a1", &did).await;
+    set_mode(&msg.mode, &heatzy_application_id,  &heatzy_pass, &heatzy_token, &did).await;
     info!("Radiator status changed!");
 }
 
