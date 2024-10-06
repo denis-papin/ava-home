@@ -7,26 +7,19 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-chrono = { version = "0.4.19", features = ["serde"] }
-rocket = "^0.4"
-rocket_cors = "0.5.2"
-rocket_contrib = { version = "^0.4",  default-features = false, features = ["json","handlebars_templates", "tera_templates", "serve"] }
+
 serde = "1.0"
 serde_json = "1.0"
 serde_derive = "1.0"
 base64 = "0.12.0"
-lazy_static = "1.4.0"
 rs-uuid = "0.3.1"
 log = "0.4"
 log4rs = "0.11.0"
-rocket_okapi = "0.5.1"
-schemars = "0.7"
 okapi = { version = "0.4", features = ["derive_json_schema"] }
 java-properties = "1.2.0"
 obfstr = "0.2"
 
 uuid = "^0.5"
-#lazy_static = "^0.2"
 rust-crypto = "0.2.36"
 rand = "0.7.3"
 rustc-serialize = "0.3.24"
@@ -34,19 +27,28 @@ rustc-serialize = "0.3.24"
 serde-xml-rs = "0.4.0"
 xml-rs = "0.8.3"
 csv = "1.1.3"
+reqwest = { version = "^0.11", features = ["blocking", "json"] }
+async-trait = "0.1.81"
+axum = { version = "^0.7", features = ["multipart"] }
+handlebars = "^6.1"
+tower-http = { version = "^0.6", features = ["fs", "trace"] }
+
+postgres = { workspace = true }
+postgres-types = { workspace = true }
 
 anyhow = { workspace = true }
+lazy_static = { workspace = true }
+mut_static = { workspace = true }
+tokio = { workspace = true }
+sqlx = { workspace = true }
+chrono = { workspace = true }
+
+
 
 commons-error = {path= "../commons-error"}
-commons-pg = {path= "../commons-pg"}
+commons-pg = {path= "../commons-pg" }
 
-#[dependencies.rocket_contrib]
-#version = "0.4.11"
-#default-features = false
-#features = ["json","handlebars_templates", "tera_templates", "serve"]
 
-[profile.release]
-opt-level = 3
-debug = false
-debug-assertions = false
+
+
 
