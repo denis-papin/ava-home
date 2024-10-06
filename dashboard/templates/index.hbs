@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Page de connexion</title>
+  <script src="/ppm/static/js/ppm.js"></script>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: #f2f2f2;
+    }
+
+    .login-box {
+      width: 300px;
+      padding: 20px;
+      background-color: #ffffff;
+      box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
+
+    .login-box h2 {
+      margin-bottom: 20px;
+    }
+
+    .login-box input[type="text"],
+    .login-box input[type="password"] {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+
+    .login-box input[type="button"] {
+      width: 100%;
+      padding: 10px;
+      background-color: #4caf50;
+      border: none;
+      color: #ffffff;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .login-box input[type="button"]:hover {
+      background-color: #45a049;
+    }
+  </style>
+</head>
+<body>
+<div class="login-box">
+  <h2>Connexion</h2>
+  <form>
+    // le roi des mots de passe
+    <input type="text" id="username" placeholder="Nom d'utilisateur" required><br>
+    <input type="password" id="password" placeholder="Mot de passe" required><br>
+    <input type="button" value="Se connecter" onclick="login(event)">
+  </form>
+</div>
+</body>
+</html>

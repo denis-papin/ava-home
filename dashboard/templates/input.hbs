@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Saisie des informations</title>
+    <script src="/ppm/static/js/ppm.js"></script>
+    <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: #f2f2f2;
+    }
+
+    .info-box {
+      width: 300px;
+      padding: 20px;
+      background-color: #ffffff;
+      box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
+
+    .info-box input[type="text"],
+    .info-box input[type="password"] {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+
+    #confirmation-box {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 10px;
+        background-color: #f1f1f1;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        display: none;
+    }
+
+  </style>
+</head>
+<body>
+<div id="confirmation-box">
+    <p>Information enregistrée avec succés.</p>
+</div>
+
+<div class="info-box">
+    <h2>Saisie des informations</h2>
+
+    <input type="text" id="uuid" readonly><br>
+    <input type="text" id="entry_id" readonly><br>
+
+    <label for="title">Titre:</label>
+    <input type="text" id="title" placeholder="Titre" ><br>
+
+    <label for="username">Nom d'utilisateur:</label>
+    <input type="text" id="username" placeholder="Username" ><br>
+
+    <label for="password">Mot de passe:</label>
+    <input type="password" id="password" placeholder="Password" ><br>
+
+    <label for="url">URL:</label>
+    <input type="text" id="url" placeholder="URL" ><br>
+
+    <label for="notes">Notes:</label>
+    <input type="text" id="notes" placeholder="Notes" ><br>
+
+    <label for="category">Catégorie:</label>
+<!--    <select id="category">-->
+<!--        <option>Aucune</option>-->
+<!--    </select>-->
+    <input type="text" id="category" placeholder="Catégorie" >
+    <span id="eye" style="cursor: pointer;">👁️</span>
+
+    <div id="categorySelection" style="display: none;">
+        <select id="categoryOptions"></select>
+    </div>
+    <br>
+    <button onclick="saveEntry()">Enregistrer</button>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+         // window.onload = fillEntry;
+         $(document).ready(function() {
+            fillEntry()
+             buildCatSelector()
+         });
+
+</script>
+
+</body>
+</html>
