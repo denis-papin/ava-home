@@ -7,7 +7,6 @@ use std::io::BufReader;
 use std::collections::HashMap;
 
 use java_properties::read;
-use log::info;
 
 ///
 /// Read the configuration file whose path is stored in an environment variable.

@@ -1,5 +1,4 @@
 [workspace]
-
 members = [
     "commons-error",
     "commons-pg",
@@ -16,10 +15,22 @@ members = [
 [workspace.dependencies]
 log = "^0.4"
 log4rs = "^1.2"
-chrono = { version = "^0.4", features = ["serde"] }
+postgres = { version = "^0.19", features = ["with-chrono-0_4"] }
+postgres-types = "^0.2"
+r2d2_postgres = "^0.18"
 anyhow = "^1.0"
 lazy_static = "^1.4"
 mut_static = "^5.0"
+
+
+
+reqwest = { version = "^0.11", features = ["blocking", "json"] }
+tokio = { version = "^1", features = ["full"] }
+async-trait = "0.1.81"
+axum = { version = "^0.7", features = ["multipart"] }
+sqlx = { version = "^0.8", features = ["postgres", "runtime-tokio-rustls", "chrono"]}
+chrono = { version = "^0.4", features = ["serde"] }
+
 
 [profile.release]
 opt-level = 3
