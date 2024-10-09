@@ -2,7 +2,7 @@ use log::info;
 use rumqttc::v5::AsyncClient;
 use rumqttc::v5::mqttbytes::QoS;
 
-use crate::message_enum::MessageEnum;
+use crate::regulation_message::MessageEnum;
 
 #[derive(Debug)]
 pub(crate) struct GenericDevice {

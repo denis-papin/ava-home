@@ -4,7 +4,7 @@ use std::sync::OnceLock;
 use std::time::{Duration, UNIX_EPOCH};
 
 use anyhow::anyhow;
-use chrono::NaiveDateTime;
+use chrono::{NaiveDateTime, NaiveTime};
 use futures::TryStreamExt;
 use lazy_static::*;
 use log::*;
@@ -186,6 +186,8 @@ fn bind_cell_to_query<'q>(
             };
             query_builder.bind(opt_naive_datetime)
         }
+        CellValue::Time(value) => query_builder.bind(value),
+        CellValue::Json(value) => query_builder.bind(value),
     }
 }
 
@@ -286,6 +288,22 @@ impl SQLQueryBlock2 {
                             .map_err(err_fwd!("Error reading column: {}", name))?;
                         let systime = naive_datetime_to_system_time(db_value);
                         let option_cell = CellValue::from_opt_systemtime(systime);
+                        my_row.insert(name.to_owned(), option_cell);
+                    }
+                    "time" => {
+                        let db_value: Option<NaiveTime> = row
+                            .try_get(name)
+                            .map_err(err_fwd!("Error reading column: {}", name))?;
+
+                        let option_cell = CellValue::from_opt_naivetime(db_value);
+                        my_row.insert(name.to_owned(), option_cell);
+                    }
+                    "json" => {
+                        let db_value: Option<serde_json::Value> = row
+                            .try_get(name)
+                            .map_err(err_fwd!("Error reading column: {}", name))?;
+                        dbg!(&db_value);
+                        let option_cell = CellValue::from_opt_json(db_value);
                         my_row.insert(name.to_owned(), option_cell);
                     }
                     t => {

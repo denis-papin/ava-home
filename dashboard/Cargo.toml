@@ -31,7 +31,7 @@ reqwest = { version = "^0.11", features = ["blocking", "json"] }
 async-trait = "0.1.81"
 axum = { version = "^0.7", features = ["multipart"] }
 handlebars = "^6.1"
-tower-http = { version = "^0.6", features = ["fs", "trace"] }
+tower-http = { version = "^0.6", features = ["fs", "trace", "cors"] }
 
 postgres = { workspace = true }
 postgres-types = { workspace = true }

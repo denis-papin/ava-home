@@ -23,6 +23,7 @@ chrono = { workspace = true }
 #dkdto = {path="../dkdto"}
 commons-error = {path="../commons-error"}
 futures = { version = "0.3.30", features = [] }
+serde_json = { version = "1.0.116", features = [] }
 
 [dev-dependencies]
 log4rs = { workspace = true }

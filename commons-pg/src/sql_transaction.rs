@@ -1,4 +1,4 @@
-use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
+use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 use commons_error::*;
 use lazy_static::*;
 use log::*;
@@ -73,6 +73,12 @@ pub(crate) fn parse_query<'a>(
             }
             CellValue::SystemTime(st) => {
                 v_params.push(st);
+            }
+            CellValue::Time(t) => {
+                v_params.push(t);
+            }
+            CellValue::Json(v) => {
+                log_error!("We cannot use a Json as an input for a query");
             }
         }
 
@@ -291,6 +297,24 @@ impl SQLDataSet {
         cell.inner_value_naivedate()
     }
 
+    pub fn get_naivetime(&self, col_name: &str) -> Option<NaiveTime> {
+        if self.position < 1 || self.position > self.data.len() {
+            return None;
+        }
+        let row: &HashMap<String, CellValue> = self.data.deref().get(self.position - 1)?;
+        let cell = row.get(col_name).unwrap();
+        cell.inner_value_naivetime()
+    }
+
+    pub fn get_json(&self, col_name: &str) -> Option<serde_json::Value> {
+        if self.position < 1 || self.position > self.data.len() {
+            return None;
+        }
+        let row: &HashMap<String, CellValue> = self.data.deref().get(self.position - 1)?;
+        let cell = row.get(col_name).unwrap();
+        cell.inner_value_json()
+    }
+
     fn system_time_to_date_time(t: &SystemTime) -> DateTime<Utc> {
         let dt: DateTime<Utc> = t.clone().into();
         dt
@@ -345,8 +369,10 @@ pub enum CellValue {
     Int16(Option<i16>),
     Double(Option<f64>),
     Date(Option<NaiveDate>),
+    Time(Option<NaiveTime>),
     // TODO replace it with a NativeDateTime
     SystemTime(Option<SystemTime>),
+    Json(Option<serde_json::Value>),
 }
 
 impl CellValue {
@@ -420,6 +446,22 @@ impl CellValue {
         }
     }
 
+    pub fn inner_value_naivetime(&self) -> Option<NaiveTime> {
+        if let CellValue::Time(opt_val) = self {
+            opt_val.clone()
+        } else {
+            None
+        }
+    }
+
+    pub fn inner_value_json(&self) -> Option<serde_json::Value> {
+        if let CellValue::Json(opt_val) = self {
+            opt_val.clone()
+        } else {
+            None
+        }
+    }
+
     pub fn from_raw_int(i: i64) -> Self {
         CellValue::Int(Some(i))
     }
@@ -446,6 +488,14 @@ impl CellValue {
 
     pub fn from_raw_naivedate(nd: NaiveDate) -> Self {
         CellValue::Date(Some(nd))
+    }
+
+    pub fn from_raw_naivetime(nt: NaiveTime) -> Self {
+        CellValue::Time(Some(nt))
+    }
+
+    pub fn from_raw_json(v: serde_json::Value) -> Self {
+        CellValue::Json(Some(v))
     }
 
     // pub fn from_float( option_val : Option<f64> ) -> Self {
@@ -503,6 +553,21 @@ impl CellValue {
             Some(val) => CellValue::from_raw_naivedate(val),
         }
     }
+
+    pub fn from_opt_naivetime(option_val: Option<NaiveTime>) -> Self {
+        match option_val {
+            None => CellValue::Time(None),
+            Some(val) => CellValue::from_raw_naivetime(val),
+        }
+    }
+
+    pub fn from_opt_json(option_val: Option<serde_json::Value>) -> Self {
+        match option_val {
+            None => CellValue::String(None),
+            Some(val) => CellValue::from_raw_json(val.to_owned()),
+        }
+    }
+
 }
 
 pub struct SQLQueryBlock {
