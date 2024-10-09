@@ -95,32 +95,7 @@ async fn main() {
     env_logger::init();
 
     let args: Vec<String> = vec![];
-
-    // let args: Vec<String> = env::args().collect();
-    // let heatzy_pass = args.get(1).unwrap();
-    // let heatzy_application_id= args.get(2).unwrap();
-    // dbg!(heatzy_pass);
-    // dbg!(heatzy_application_id);
-
     info!("Starting AVA regulator 0.5.0");
-
-    // Database
-    // let db_hostname = "192.168.0.149";
-    // let db_port = 5432;
-    // let db_name = "avahome";
-    // let db_user = "denis";
-    // let db_password = "dentece3.X";
-    // let db_pool_size = 5;
-    // let connect_string = format!("host={} port={} dbname={} user={} password={}", db_hostname, db_port, db_name, db_user,db_password);
-
-    // Current mode for the radiators : <radiator_name, mode>
-
-    // set_prop_value("salon", "???");
-    // set_prop_value("couloir", "???");
-    // set_prop_value("chambre_1", "???");
-    // set_prop_value("bureau", "???");
-    //
-    // set_prop_value("check_radiator_mode_counter", "0");
 
     // Devices
 

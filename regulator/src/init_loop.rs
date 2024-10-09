@@ -27,8 +27,6 @@ pub (crate) async fn process_initialization_message(client: &mut AsyncClient, ev
         for dev in device_to_init {
             let borr = dev.as_ref().borrow();
             let dd = borr.deref();
-
-            dbg!("Topic", &dd.get_topic());
             let data = dd.trigger_info();
             client.publish(&format!("{}/get", &dd.get_topic()), QoS::AtLeastOnce, false,  data).await.unwrap(); // TODO
         }

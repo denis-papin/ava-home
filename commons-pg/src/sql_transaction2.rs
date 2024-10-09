@@ -302,7 +302,6 @@ impl SQLQueryBlock2 {
                         let db_value: Option<serde_json::Value> = row
                             .try_get(name)
                             .map_err(err_fwd!("Error reading column: {}", name))?;
-                        dbg!(&db_value);
                         let option_cell = CellValue::from_opt_json(db_value);
                         my_row.insert(name.to_owned(), option_cell);
                     }

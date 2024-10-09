@@ -30,7 +30,6 @@ pub (crate) async fn process_initialization_message(mut client: &mut AsyncClient
             let borr = dev.as_ref().borrow();
             let dd = borr.deref().clone();
 
-            dbg!("Topic", &dd.get_topic());
             let data = dd.trigger_info();
             client.publish(&format!("{}/get", &dd.get_topic()), QoS::AtLeastOnce, false,  data).await.unwrap(); // TODO
         }
