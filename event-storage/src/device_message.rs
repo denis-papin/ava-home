@@ -27,7 +27,7 @@ impl TempSensor {
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]
 pub (crate) struct MoveSensor {
-    pub battery : f32,
+    pub battery : Option<f32>,
     pub linkquality : u32,
     pub occupancy: bool,
 }
@@ -35,7 +35,7 @@ pub (crate) struct MoveSensor {
 impl MoveSensor {
     pub (crate) fn new() -> Self {
         Self {
-            battery: 0.0,
+            battery: Some(0.0),
             linkquality: 0,
             occupancy: false,
         }
