@@ -1,4 +1,4 @@
-use crate::device_message::{InterDim, InterSwitch, LampRGB};
+use ava_toolkit::device_message::{InterDim, InterSwitch, LampRGB};
 use crate::message_enum::MessageEnum::{INTER_DIMMER, INTER_SWITCH, LAMP_RGB};
 
 /// Object by enums
@@ -8,8 +8,6 @@ pub (crate) enum MessageEnum {
     INTER_DIMMER(InterDim),
     INTER_SWITCH(InterSwitch),
 }
-
-
 
 impl MessageEnum {
 

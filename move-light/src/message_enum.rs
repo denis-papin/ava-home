@@ -1,5 +1,5 @@
 use log::info;
-use crate::device_message::{LampRGB, MoveSensor};
+use ava_toolkit::device_message::{LampRGB, MoveSensor};
 use crate::message_enum::MessageEnum::{LAMP_RGB, MOVE_SENSOR};
 
 #[macro_export]

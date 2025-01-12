@@ -14,9 +14,6 @@ use crate::init_loop::{build_init_list, process_initialization_message};
 use crate::loops::build_loops;
 use crate::processing::process_incoming_message;
 
-
-mod device_lock;
-mod device_message;
 mod loops;
 mod device_repo;
 mod init_loop;

@@ -1,4 +1,4 @@
-use crate::device_message::RegulationMap;
+use ava_toolkit::device_message::RegulationMap;
 
 /// Object by enums
 #[derive(Debug, Clone)]

@@ -26,3 +26,4 @@ log4rs = "0.11.0"
 
 commons-error = {path= "../commons-error"}
 commons-pg = {path= "../commons-pg" }
+ava-toolkit = {path="../ava-toolkit"}

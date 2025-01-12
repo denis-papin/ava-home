@@ -7,7 +7,7 @@ use log::{error, info};
 use rumqttc::v5::AsyncClient;
 use rumqttc::v5::mqttbytes::QoS;
 
-use crate::device_lock::DeviceLock;
+use ava_toolkit::device_lock::DeviceLock;
 use crate::message_enum::MessageEnum;
 
 #[derive(Debug)]

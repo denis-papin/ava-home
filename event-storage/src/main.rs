@@ -15,8 +15,7 @@ use crate::init_loop::{build_init_list, process_initialization_message};
 use crate::loops::build_loops;
 use crate::processing::process_incoming_message;
 
-mod device_lock;
-mod device_message;
+
 mod loops;
 mod device_repo;
 mod init_loop;
@@ -84,11 +83,6 @@ async fn main() {
         }
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     }
-
-    // match client.subscribe("external/#", QoS::AtMostOnce).await {
-    //     Ok(_) => log_info!("Successfully subscribed to [external/#]"),
-    //     Err(e) => log_error!("Failed to subscribe to [external/#]: {:?}", e),
-    // }
 
     let mut init_list = build_init_list(&device_repo);
     let mut all_loops = build_loops(&device_repo);

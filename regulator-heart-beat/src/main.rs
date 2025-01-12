@@ -6,7 +6,6 @@ use std::process::exit;
 use std::sync::RwLock;
 use std::time::Duration;
 
-use chrono::{Local, NaiveTime};
 use lazy_static::lazy_static;
 use log::info;
 use rumqttc::v5::{AsyncClient, Event, Incoming, MqttOptions};
@@ -17,11 +16,10 @@ use commons_pg::sql_transaction2::init_db_pool2;
 use crate::conf_reader::read_config;
 use crate::dao::get_current_regulation_map;
 
-use crate::device_message::RegulationMap;
+use ava_toolkit::device_message::RegulationMap;
 use crate::device_repo::{build_device_repo, REGULATE_RADIATOR};
 use crate::regulation_message::MessageEnum;
 
-mod device_message;
 mod device_repo;
 mod regulation_message;
 mod generic_device;

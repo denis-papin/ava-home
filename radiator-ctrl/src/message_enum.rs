@@ -5,7 +5,7 @@ use lazy_static::lazy_static;
 use log::{error, info};
 use reqwest::header;
 
-use crate::device_message::{Radiator, RadiatorMode};
+use ava_toolkit::device_message::{Radiator, RadiatorMode};
 use crate::device_repo::{RAD_BUREAU, RAD_CHAMBRE, RAD_COULOIR, RAD_SALON};
 use crate::generic_device::GenericDevice;
 use crate::message_enum::MessageEnum::RadiatorMsg;

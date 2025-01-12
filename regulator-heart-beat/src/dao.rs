@@ -5,7 +5,7 @@ use serde_json::Value;
 use commons_error::*;
 use commons_pg::sql_transaction2::{SQLConnection2, SQLQueryBlock2};
 use commons_pg::sql_transaction::CellValue;
-use crate::device_message::RegulationMap;
+use ava_toolkit::device_message::RegulationMap;
 
 
 const CURRENT_REGULATION_MAP_SQL : &str = "SELECT id, starting_time, ending_time, end_the_next_day, boost, regulation_map, ts_created

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use log::info;
 
 use crate::db_last_message::db_get_device_state;
-use crate::device_message::{Radiator, RadiatorMode, RegulationMap};
+use ava_toolkit::device_message::{Radiator, RadiatorMode, RegulationMap};
 use crate::external_computing::{compute, determine_action, RadiatorAction};
 use crate::message_enum::MessageEnum::{RadiatorMsg, RegulationMsg};
 

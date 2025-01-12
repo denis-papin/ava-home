@@ -1,0 +1,14 @@
+[package]
+name = "ava-toolkit"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+commons-error = {path="../commons-error"}
+
+log = { workspace = true }
+log4rs = { workspace = true }
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_derive = { workspace = true }

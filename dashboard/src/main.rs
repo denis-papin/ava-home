@@ -26,7 +26,7 @@ use crate::dao_db::build_current_temp_context;
 mod conf_reader;
 mod dao_db;
 mod dao;
-mod device_message;
+
 
 // PROPERTIES must be locked when on write, but not locked on read actions
 // It contains a double map { 0 : { "server.port" : 30040, "app.secret-folder" : "/secret", .... },... }

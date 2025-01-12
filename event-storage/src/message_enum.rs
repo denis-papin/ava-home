@@ -1,7 +1,7 @@
 use log::info;
 use tokio_postgres::{NoTls, types::ToSql};
 
-use crate::device_message::{BasicSwitch, MoveSensor, Radiator, TempSensor};
+use ava_toolkit::device_message::{BasicSwitch, MoveSensor, Radiator, TempSensor};
 use crate::message_enum::MessageEnum::{BasicSwitchMsg, MoveSensorMsg, RadiatorMsg, TempSensorMsg};
 
 /// Object by enums
