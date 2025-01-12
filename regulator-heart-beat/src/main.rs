@@ -28,9 +28,9 @@ mod generic_device;
 mod dao;
 mod conf_reader;
 
-// PROPERTIES must be locked when on write, but not locked on read actions
-// It contains a double map { 0 : { "server.port" : 30040, "app.secret-folder" : "/secret", .... },... }
-// where only the map[0] is used in our case.
+/// PROPERTIES must be locked when on write, but not locked on read actions
+/// It contains a double map { 0 : { "server.port" : 30040, "app.secret-folder" : "/secret", .... },... }
+/// where only the map[0] is used in our case.
 lazy_static! {
     #[derive(Debug)]
     static ref PROPERTIES : RwLock<HashMap<u32, &'static mut HashMap<String,String>> > = RwLock::new(
@@ -57,7 +57,7 @@ fn parse_params() -> Params {
     Params {
         server_addr : "192.168.0.149".to_string(),
         client_id,
-        //channel_filters,
+        // channel_filters,
         keep_alive : 30_000,
     }
 }

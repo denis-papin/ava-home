@@ -8,7 +8,6 @@ pub (crate) struct TempSensor {
     pub humidity :f32,
     pub linkquality : u32,
     pub temperature: f32,
-    pub voltage: u32,
 }
 
 impl TempSensor {
@@ -18,7 +17,6 @@ impl TempSensor {
             humidity: 0.0,
             linkquality: 0,
             temperature: 0.0,
-            voltage: 0,
         }
     }
 
@@ -27,6 +25,47 @@ impl TempSensor {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]
+pub (crate) struct MoveSensor {
+    pub battery : f32,
+    pub linkquality : u32,
+    pub occupancy: bool,
+}
+
+impl MoveSensor {
+    pub (crate) fn new() -> Self {
+        Self {
+            battery: 0.0,
+            linkquality: 0,
+            occupancy: false,
+        }
+    }
+
+    pub (crate) fn from_json(msg: &str) -> Result<Self, String> {
+        serde_json::from_str(msg).map_err(|e| e.to_string())
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub (crate) struct BasicSwitch {
+    pub battery: f32,
+    pub linkquality: u32,
+    pub action: String,
+}
+
+impl BasicSwitch {
+    pub (crate) fn new() -> Self {
+        Self {
+            battery: 0.0,
+            linkquality: 0,
+            action: "".to_string(),
+        }
+    }
+
+    pub (crate) fn from_json(msg: &str) -> Result<Self, String> {
+        serde_json::from_str(msg).map_err(|e| e.to_string())
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]
 pub (crate) enum RadiatorMode {

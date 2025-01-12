@@ -62,7 +62,6 @@ pub (crate) struct TempSensor {
     pub humidity :f32,
     pub linkquality : u32,
     pub temperature: f32,
-    pub voltage: u32,
 }
 
 impl TempSensor {
@@ -72,7 +71,6 @@ impl TempSensor {
             humidity: 0.0,
             linkquality: 0,
             temperature: 0.0,
-            voltage: 0,
         }
     }
 

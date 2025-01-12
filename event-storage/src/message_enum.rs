@@ -1,13 +1,15 @@
 use log::info;
 use tokio_postgres::{NoTls, types::ToSql};
 
-use crate::device_message::{Radiator, TempSensor};
-use crate::message_enum::MessageEnum::{RadiatorMsg, TempSensorMsg};
+use crate::device_message::{BasicSwitch, MoveSensor, Radiator, TempSensor};
+use crate::message_enum::MessageEnum::{BasicSwitchMsg, MoveSensorMsg, RadiatorMsg, TempSensorMsg};
 
 /// Object by enums
 #[derive(Debug, Clone)]
 pub (crate) enum MessageEnum {
     TempSensorMsg(TempSensor),
+    MoveSensorMsg(MoveSensor),
+    BasicSwitchMsg(BasicSwitch),
     RadiatorMsg(Radiator)
 }
 
@@ -20,7 +22,14 @@ impl MessageEnum {
                 msg.to_string()
             }
             RadiatorMsg(_) => {
-                // TODO : ???
+                let msg = r#"{"state":""}"#;
+                msg.to_string()
+            }
+            MessageEnum::MoveSensorMsg(_) => {
+                let msg = r#"{"state":""}"#;
+                msg.to_string()
+            }
+            MessageEnum::BasicSwitchMsg(_) => {
                 let msg = r#"{"state":""}"#;
                 msg.to_string()
             }
@@ -30,10 +39,16 @@ impl MessageEnum {
     pub (crate) fn raw_message(&self) -> String {
         match self {
             TempSensorMsg(msg) => {
-                serde_json::to_string(msg).unwrap() // TODO
+                serde_json::to_string(msg).unwrap() // TODO handle error
             }
             RadiatorMsg(msg) => {
-                serde_json::to_string(msg).unwrap() // TODO
+                serde_json::to_string(msg).unwrap() // TODO handle error
+            }
+            MoveSensorMsg(msg) => {
+                serde_json::to_string(msg).unwrap() // TODO handle error
+            }
+            MessageEnum::BasicSwitchMsg(msg) => {
+                serde_json::to_string(msg).unwrap() // TODO handle error
             }
         }
     }
@@ -45,11 +60,25 @@ impl MessageEnum {
             RadiatorMsg(_) => {
                 Ok(RadiatorMsg(Radiator::from_json(json_msg)?))
             }
+            MoveSensorMsg(_) => {
+                Ok(MoveSensorMsg(MoveSensor::from_json(json_msg)?))
+            }
+            MessageEnum::BasicSwitchMsg(_) => {
+                Ok(BasicSwitchMsg(BasicSwitch::from_json(json_msg)?))
+            }
         }
     }
 
     pub (crate) fn default_temp_sensor() -> Self {
         TempSensorMsg(TempSensor::new())
+    }
+
+    pub (crate) fn default_move_sensor() -> Self {
+        MoveSensorMsg(MoveSensor::new())
+    }
+
+    pub (crate) fn default_basic_switch() -> Self {
+        BasicSwitchMsg(BasicSwitch::new())
     }
 
     pub (crate) fn default_radiator() -> Self {
@@ -65,11 +94,27 @@ impl MessageEnum {
             RadiatorMsg(_) => {
                 original_message.to_radiator(&last_message)
             }
+            MoveSensorMsg(_) => {
+                original_message.to_move_sensor(&last_message)
+            }
+            BasicSwitchMsg(_) => {
+                original_message.to_basic_switch(&last_message)
+            }
         }
     }
 
     /// Convert the current type of message to Temperature Sensor
     fn to_temp_sensor(&self, _last_message: &MessageEnum) -> Self {
+        self.clone()
+    }
+
+    /// Convert the current type of message to Move Sensor
+    fn to_move_sensor(&self, _last_message: &MessageEnum) -> Self {
+        self.clone()
+    }
+
+    /// Convert the current type of message to Basic Switch
+    fn to_basic_switch(&self, _last_message: &MessageEnum) -> Self {
         self.clone()
     }
 
@@ -86,13 +131,22 @@ impl MessageEnum {
                 insert_temp(&topic, &msg).await;
             }
             RadiatorMsg(msg) => {
-                info!("NOW EMPTY PROCESS - Default process for Radiator, message=[{:?}]", msg);
+                info!("Default process for Radiator, message=[{:?}]", msg);
+                db_put_device_state(&topic, &json_msg).await;
+            }
+            MoveSensorMsg(msg) => {
+                info!("Default process for MoveSensor, message=[{:?}]", msg);
+                db_put_device_state(&topic, &json_msg).await;
+            }
+            BasicSwitchMsg(msg) => {
+                info!("Default process for BasicSwitch, message=[{:?}]", msg);
                 db_put_device_state(&topic, &json_msg).await;
             }
         }
     }
 }
 
+/// Insère les données de l'état du périphérique dans la base de données
 pub (crate) async fn db_put_device_state(topic: &str, json_msg: &str) {
     let db_url = "postgresql://denis:dentece3.X@192.168.0.149/avahome";
 
@@ -106,14 +160,6 @@ pub (crate) async fn db_put_device_state(topic: &str, json_msg: &str) {
         }
     });
 
-    // Données à insérer
-    // let device_name = topic;
-    // let temperature = temp.temperature as f64;
-    // let ts_create = chrono::Utc::now();
-
-    // Exécutez une requête d'insertion
-    // let query = "INSERT INTO temperature_sensor_history (device_name, temperature, ts_create) VALUES ($1, $2, now())";
-
     let query =  r#"INSERT INTO public.device_state_history
                                 (device_name, state, ts_create)
                                 VALUES($1, $2, timezone('UTC', current_timestamp))"#;
@@ -124,6 +170,7 @@ pub (crate) async fn db_put_device_state(topic: &str, json_msg: &str) {
     println!("Données insérées avec succès!");
 }
 
+/// Insère les données de température dans la base de données
 pub (crate) async fn insert_temp(topic: &str, temp: &TempSensor) {
     // Remplacez ces valeurs par les informations de votre base de données
     let db_url = "postgresql://denis:dentece3.X@192.168.0.149/avahome";

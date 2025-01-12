@@ -43,8 +43,6 @@ tokio = { workspace = true }
 sqlx = { workspace = true }
 chrono = { workspace = true }
 
-
-
 commons-error = {path= "../commons-error"}
 commons-pg = {path= "../commons-pg" }
 

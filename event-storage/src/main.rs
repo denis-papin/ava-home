@@ -4,9 +4,10 @@ use std::env;
 use std::sync::Arc;
 use std::time::Duration;
 
-use log::info;
+use log::*;
 use rumqttc::v5::{AsyncClient, MqttOptions};
 use rumqttc::v5::mqttbytes::QoS;
+use commons_error::*;
 
 use crate::device_repo::{build_device_repo, device_to_listen};
 use crate::generic_device::GenericDevice;
@@ -69,6 +70,9 @@ async fn main() {
     // Mosquitto
 
     let mut mqttoptions = MqttOptions::new(&params.client_id, &params.server_addr, 1883);
+    mqttoptions.set_max_packet_size(Some(1024 * 1024)); // Increase packet size limit
+    mqttoptions.set_receive_maximum(Some(20));
+    mqttoptions.set_request_channel_capacity(20);
     mqttoptions.set_keep_alive(Duration::from_secs(params.keep_alive as u64));
     mqttoptions.set_clean_start(true);
     mqttoptions.set_credentials("ava", "avatece3.X");
@@ -77,7 +81,16 @@ async fn main() {
 
     for p in &params.channel_filters {
         info!("Subscribe to [{}]", p.0);
-        client.subscribe(p.0.clone(), QoS::AtMostOnce).await.unwrap();
+        match client.subscribe(p.0.clone(), QoS::AtMostOnce).await {
+            Ok(_) => log_info!("Successfully subscribed to [{}]", p.0),
+            Err(e) => log_error!("Failed to subscribe to [{}]: {:?}", p.0, e),
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+
+    match client.subscribe("external/#", QoS::AtMostOnce).await {
+        Ok(_) => log_info!("Successfully subscribed to [external/#]"),
+        Err(e) => log_error!("Failed to subscribe to [external/#]: {:?}", e),
     }
 
     let mut init_list = build_init_list(&device_repo);
@@ -89,7 +102,7 @@ async fn main() {
             let _ = process_incoming_message(&mut client, &mut eventloop, &mut all_loops).await;
         }
         Err(e) => {
-            panic!("{}", e);
+            panic!("Panic will error : {}", e);
         }
     }
     println!("Done!");
