@@ -70,14 +70,11 @@ async fn main() {
     // Mosquitto
 
     let mut mqttoptions = MqttOptions::new(&params.client_id, &params.server_addr, 1883);
-    mqttoptions.set_max_packet_size(Some(1024 * 1024)); // Increase packet size limit
-    mqttoptions.set_receive_maximum(Some(20));
-    mqttoptions.set_request_channel_capacity(20);
     mqttoptions.set_keep_alive(Duration::from_secs(params.keep_alive as u64));
     mqttoptions.set_clean_start(true);
     mqttoptions.set_credentials("ava", "avatece3.X");
 
-    let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
+    let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 20); // 20 max !!!
 
     for p in &params.channel_filters {
         info!("Subscribe to [{}]", p.0);
@@ -88,10 +85,10 @@ async fn main() {
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     }
 
-    match client.subscribe("external/#", QoS::AtMostOnce).await {
-        Ok(_) => log_info!("Successfully subscribed to [external/#]"),
-        Err(e) => log_error!("Failed to subscribe to [external/#]: {:?}", e),
-    }
+    // match client.subscribe("external/#", QoS::AtMostOnce).await {
+    //     Ok(_) => log_info!("Successfully subscribed to [external/#]"),
+    //     Err(e) => log_error!("Failed to subscribe to [external/#]: {:?}", e),
+    // }
 
     let mut init_list = build_init_list(&device_repo);
     let mut all_loops = build_loops(&device_repo);

@@ -64,9 +64,9 @@ pub (crate) fn device_to_listen(device_repo: &HashMap<String, Arc<RefCell<Generi
         device_repo.get(MOVE_SENSOR_BUREAU).unwrap().clone(),
         device_repo.get(MOVE_SENSOR_SALON).unwrap().clone(),
 
-        // device_repo.get(RAD_SALON).unwrap().clone(),
-        // device_repo.get(RAD_BUREAU).unwrap().clone(),
-        // device_repo.get(RAD_COULOIR).unwrap().clone(),
-        // device_repo.get(RAD_CHAMBRE).unwrap().clone(),
+        device_repo.get(RAD_SALON).unwrap().clone(),
+        device_repo.get(RAD_BUREAU).unwrap().clone(),
+        device_repo.get(RAD_COULOIR).unwrap().clone(),
+        device_repo.get(RAD_CHAMBRE).unwrap().clone(),
     ]
 }
