@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::fmt::Debug;
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -6,31 +7,46 @@ use log::{error, info};
 use rumqttc::v5::AsyncClient;
 use rumqttc::v5::mqttbytes::QoS;
 
-use ava_toolkit::device_lock::DeviceLock;
-use crate::message_enum::MessageEnum;
+use crate::device_lock::DeviceLock;
 
-#[derive(Debug)]
-pub(crate) struct GenericDevice {
-    pub name: String,
-    pub message_type: MessageEnum,
-    pub lock: Arc<RefCell<DeviceLock<MessageEnum>>>,
-    pub setup: bool,
+/// A Locality is a set of features
+/// shared by a group of messages often called a MessageEnum
+pub trait Locality : Clone + Debug {
+    // Self is MessageEnum indeed
+    fn query_for_state(&self) -> String;
+    fn raw_message(&self) -> String;
+    fn to_local(&self, original_message: &Self, last_message: &Self) -> Self;
+    fn json_to_local(&self, json_msg: &str) -> Result<Self, String>;
+    async fn process(&self, topic: &str, args: &[String]);
 }
 
-impl GenericDevice {
 
-    pub(crate) fn new(name : &str, msg: MessageEnum) -> Self {
+#[derive(Debug)]
+pub struct GenericDevice<T: Locality> {
+    pub family: String, // "zigbee2mqtt", "regulator", "external", ...
+    pub name: String,
+    pub message_type: T,
+    pub lock: Arc<RefCell<DeviceLock<T>>>,
+    pub setup: bool,
+    pub process_same_message: bool,
+}
+
+impl <T> GenericDevice<T>  where T : Locality {
+
+    pub fn new(family: &str, name : &str, msg: T, process_same_message: bool) -> Self {
         info!("🌟 New Generic Device, topic = [{}]", &name);
         let dl = DeviceLock::new(msg.clone());
         Self {
+            family: family.to_string(),
             name: name.to_string(),
             message_type: msg,
             lock: Arc::new(RefCell::new(dl)),
             setup: false,
+            process_same_message
         }
     }
 
-    fn get_lock(&self) -> Arc<RefCell<DeviceLock<MessageEnum>>> {
+    fn get_lock(&self) -> Arc<RefCell<DeviceLock<T>>> {
         self.lock.clone()
     }
 
@@ -38,20 +54,18 @@ impl GenericDevice {
         self.setup = setup;
     }
 
-    pub(crate) fn prefix() -> &'static str {
-        "external"
+    pub fn make_topic(family: &str, device_name: &str) -> String {
+        format!("{}/{}", family, device_name)
     }
-    pub(crate) fn make_topic(device_name: &str) -> String {
-        format!("{}/{}", Self::prefix(), device_name)
+
+    pub fn get_topic(&self) -> String {
+        format!("{}/{}", self.family, self.name)
     }
-    pub(crate) fn get_topic(&self) -> String {
-        Self::make_topic(&self.name)
-    }
-    pub(crate) fn is_init(&self) -> bool {
+    pub fn is_init(&self) -> bool {
         self.setup
     }
 
-    pub(crate) fn init(&mut self, topic : &str, json_msg: &str) {
+    pub fn init(&mut self, topic : &str, json_msg: &str) {
         let new_lock = {
             let lk = self.get_lock();
             let borr = lk.as_ref().borrow();
@@ -77,14 +91,14 @@ impl GenericDevice {
     }
 
     /// Send the message on the right end point (/get) to trigger the device properties on the bus
-    pub(crate) fn trigger_info(&self) -> Vec<u8> {
+    pub fn trigger_info(&self) -> Vec<u8> {
         let lk = self.get_lock();
         let borr = lk.as_ref().borrow();
         let dev_lock = borr.deref().clone();
         dev_lock.last_object_message.query_for_state().as_bytes().to_vec()
     }
 
-    fn allowed_to_process(&self, object_message: &MessageEnum) -> (bool, bool) {
+    fn allowed_to_process(&self, object_message: &T) -> (bool, bool) {
         let lk = self.get_lock();
         let borr = lk.as_ref().borrow();
         let dev_lock = borr.deref().clone();
@@ -98,7 +112,7 @@ impl GenericDevice {
     ///
     /// Specific processing for the device that emits the message
     ///
-    async fn process(&self,  original_message : &MessageEnum, args: &[String]) {
+    async fn process(&self,  original_message : &T, args: &[String]) {
         info!("Default empty process for device {}.", & self.get_topic());
         original_message.process(& self.get_topic(), &args).await;
     }
@@ -106,7 +120,7 @@ impl GenericDevice {
     ///
     /// Run the local specific processing if allowed.
     ///
-    pub(crate) async fn process_and_continue(&self, original_message : &MessageEnum, args: &[String]) -> bool {
+    pub async fn process_and_continue(&self, original_message : &T, args: &[String]) -> bool {
 
         info!("process_and_continue");
         let (new_lock, allowed) = {
@@ -121,8 +135,12 @@ impl GenericDevice {
                     allowed = false;
                 }
                 (false, true) => {
-                    info!("❌ Device {}, same message, process anyways.", & self.get_topic().to_uppercase());
-                    self.process(&original_message, &args).await; // In this case, we process the message even if it's the same as before
+                    if self.process_same_message {
+                        info!("❌ Device {}, same message, process anyways.", & self.get_topic().to_uppercase());
+                        self.process(&original_message, &args).await; // In this case, we process the message even if it's the same as before
+                    } else {
+                        info!("❌ Device {}, same message.", & self.get_topic().to_uppercase());
+                    }
                     allowed = false;
                 }
                 (false, false) => {
@@ -142,7 +160,7 @@ impl GenericDevice {
     ///
     /// Make the device consume the current message
     ///
-    pub (crate) async fn consume_message(&self, original_message : &MessageEnum, mut client: &mut AsyncClient) {
+    pub async fn consume_message(&self, original_message : &T, mut client: &mut AsyncClient) {
         info!("The device is consuming the message");
         let new_lock = {
             let lk = self.get_lock();
@@ -190,7 +208,7 @@ impl GenericDevice {
         self.get_lock().replace(new_lock);
     }
 
-    async fn publish_message(&self, client: &mut AsyncClient, object_message : &MessageEnum) {
+    async fn publish_message(&self, client: &mut AsyncClient, object_message : &T) {
         let message = object_message.raw_message();
         let data = message.as_bytes().to_vec();
         client.publish(&format!("{}/set", &self.get_topic()), QoS::AtLeastOnce, false, data).await.unwrap(); // TODO unwrap handle

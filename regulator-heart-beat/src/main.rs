@@ -16,7 +16,7 @@ use commons_pg::sql_transaction2::init_db_pool2;
 use crate::conf_reader::read_config;
 use crate::dao::get_current_regulation_map;
 
-use ava_toolkit::device_message::RegulationMap;
+use ava_toolkit::device_message::RegulationMapMsg;
 use crate::device_repo::{build_device_repo, REGULATE_RADIATOR};
 use crate::regulation_message::MessageEnum;
 
@@ -114,7 +114,7 @@ async fn main() {
 
     let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
 
-    let msg_jour = MessageEnum::RegulationMsg(RegulationMap {
+    let msg_jour = MessageEnum::RegulationMsg(RegulationMapMsg {
         tc_bureau: 21.0,
         tc_salon_1: 23.0,
         tc_salon_2: 0.0,
@@ -122,7 +122,7 @@ async fn main() {
         tc_couloir: 23.0,
     });
 
-    let msg_fin_jour = MessageEnum::RegulationMsg(RegulationMap {
+    let msg_fin_jour = MessageEnum::RegulationMsg(RegulationMapMsg {
         tc_bureau: 19.0,
         tc_salon_1: 23.0,
         tc_salon_2: 0.0,
@@ -130,7 +130,7 @@ async fn main() {
         tc_couloir: 23.0,
     });
 
-    let msg_nuit = MessageEnum::RegulationMsg(RegulationMap {
+    let msg_nuit = MessageEnum::RegulationMsg(RegulationMapMsg {
         tc_bureau: 19.0,
         tc_salon_1: 19.0,
         tc_salon_2: 0.0,

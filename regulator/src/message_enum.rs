@@ -3,15 +3,15 @@ use std::collections::HashMap;
 use log::info;
 
 use crate::db_last_message::db_get_device_state;
-use ava_toolkit::device_message::{Radiator, RadiatorMode, RegulationMap};
+use ava_toolkit::device_message::{RadiatorMsg, RadiatorMode, RegulationMapMsg};
 use crate::external_computing::{compute, determine_action, RadiatorAction};
 use crate::message_enum::MessageEnum::{RadiatorMsg, RegulationMsg};
 
 /// Object by enums
 #[derive(Debug, Clone)]
 pub (crate) enum MessageEnum {
-    RegulationMsg(RegulationMap),
-    RadiatorMsg(Radiator)
+    RegulationMsg(RegulationMapMsg),
+    RadiatorMsg(RadiatorMsg)
 }
 
 impl MessageEnum {
@@ -61,20 +61,20 @@ impl MessageEnum {
     pub (crate) fn json_to_local(&self, json_msg: &str) -> Result<MessageEnum, String> {
         match self {
             RegulationMsg(_) => {
-                Ok(RegulationMsg(RegulationMap::from_json(json_msg)?))
+                Ok(RegulationMsg(RegulationMapMsg::from_json(json_msg)?))
             }
             RadiatorMsg(_) => {
-                Ok(RadiatorMsg(Radiator::from_json(json_msg)?))
+                Ok(RadiatorMsg(RadiatorMsg::from_json(json_msg)?))
             }
         }
     }
 
     pub (crate) fn default_regulation_map() -> Self {
-        RegulationMsg(RegulationMap::new())
+        RegulationMsg(RegulationMapMsg::new())
     }
 
     pub (crate) fn default_radiator() -> Self {
-        RadiatorMsg(Radiator::new())
+        RadiatorMsg(RadiatorMsg::new())
     }
 
     /// Convert the original message to the type of the current Self
@@ -142,12 +142,12 @@ impl MessageEnum {
                 match action {
                     RadiatorAction::On => {
                         info!("\t🔥 Radiator {} must be set to CFT", &topic);
-                        RadiatorMsg(Radiator::from_mode(RadiatorMode::CFT))
+                        RadiatorMsg(RadiatorMsg::from_mode(RadiatorMode::CFT))
 
                     }
                     RadiatorAction::Off => {
                         info!("\t❄️ Radiator {} must be set to STOP", &topic);
-                        RadiatorMsg(Radiator::from_mode(RadiatorMode::STOP))
+                        RadiatorMsg(RadiatorMsg::from_mode(RadiatorMode::STOP))
                     }
                     RadiatorAction::NoAction => {
                         info!("\tRadiator {} must stay the same", &topic);

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use log::info;
 
-use crate::generic_device::GenericDevice;
+use ava_toolkit::generic_device::GenericDevice;
 use crate::message_enum::MessageEnum;
 
 pub (crate) const TS_SALON_1 : &str = "ts_salon_1";
@@ -24,25 +24,25 @@ pub (crate) const RAD_COULOIR: &str = "rad_couloir";
 pub (crate) const RAD_CHAMBRE: &str = "rad_chambre";
 
 
-pub (crate) fn build_device_repo() -> HashMap<String, Arc<RefCell<GenericDevice>>> {
+pub (crate) fn build_device_repo() -> HashMap<String, Arc<RefCell<GenericDevice<MessageEnum>>>> {
     info!("Inside the Repo Builder");
-    let mut device_repo : HashMap<String, Arc<RefCell<GenericDevice>>> = HashMap::new();
-    let dev_list: Vec<GenericDevice> = vec![
-        GenericDevice::new("zigbee2mqtt", TS_SALON_1, MessageEnum::default_temp_sensor()),
-        GenericDevice::new("zigbee2mqtt", TS_SALON_2, MessageEnum::default_temp_sensor()),
-        GenericDevice::new("zigbee2mqtt", TS_BUREAU, MessageEnum::default_temp_sensor()),
-        GenericDevice::new("zigbee2mqtt", TS_CHAMBRE_1, MessageEnum::default_temp_sensor()),
-        GenericDevice::new("zigbee2mqtt", TS_COULOIR, MessageEnum::default_temp_sensor()),
+    let mut device_repo : HashMap<String, Arc<RefCell<GenericDevice<MessageEnum>>>> = HashMap::new();
+    let dev_list: Vec<GenericDevice<MessageEnum>> = vec![
+        GenericDevice::new("zigbee2mqtt", TS_SALON_1, MessageEnum::default_temp_sensor(), false),
+        GenericDevice::new("zigbee2mqtt", TS_SALON_2, MessageEnum::default_temp_sensor(), false),
+        GenericDevice::new("zigbee2mqtt", TS_BUREAU, MessageEnum::default_temp_sensor(), false),
+        GenericDevice::new("zigbee2mqtt", TS_CHAMBRE_1, MessageEnum::default_temp_sensor(), false),
+        GenericDevice::new("zigbee2mqtt", TS_COULOIR, MessageEnum::default_temp_sensor(), false),
 
-        GenericDevice::new("zigbee2mqtt", SW_CHAMBRE, MessageEnum::default_basic_switch()),
+        GenericDevice::new("zigbee2mqtt", SW_CHAMBRE, MessageEnum::default_basic_switch(), false),
 
-        GenericDevice::new("zigbee2mqtt", MOVE_SENSOR_BUREAU, MessageEnum::default_move_sensor()),
-        GenericDevice::new("zigbee2mqtt", MOVE_SENSOR_SALON, MessageEnum::default_move_sensor()),
+        GenericDevice::new("zigbee2mqtt", MOVE_SENSOR_BUREAU, MessageEnum::default_move_sensor(), false),
+        GenericDevice::new("zigbee2mqtt", MOVE_SENSOR_SALON, MessageEnum::default_move_sensor(), false),
 
-        GenericDevice::new("external", RAD_SALON, MessageEnum::default_radiator()),
-        GenericDevice::new("external", RAD_BUREAU, MessageEnum::default_radiator()),
-        GenericDevice::new("external", RAD_COULOIR, MessageEnum::default_radiator()),
-        GenericDevice::new("external", RAD_CHAMBRE, MessageEnum::default_radiator()),
+        GenericDevice::new("external", RAD_SALON, MessageEnum::default_radiator(), false),
+        GenericDevice::new("external", RAD_BUREAU, MessageEnum::default_radiator(), false),
+        GenericDevice::new("external", RAD_COULOIR, MessageEnum::default_radiator(), false),
+        GenericDevice::new("external", RAD_CHAMBRE, MessageEnum::default_radiator(), false),
     ];
 
     for dev in dev_list {
@@ -51,7 +51,7 @@ pub (crate) fn build_device_repo() -> HashMap<String, Arc<RefCell<GenericDevice>
     device_repo
 }
 
-pub (crate) fn device_to_listen(device_repo: &HashMap<String, Arc<RefCell<GenericDevice>>>) -> Vec<Arc<RefCell<GenericDevice>>> {
+pub (crate) fn device_to_listen(device_repo: &HashMap<String, Arc<RefCell<GenericDevice<MessageEnum>>>>) -> Vec<Arc<RefCell<GenericDevice<MessageEnum>>>> {
     vec![
         device_repo.get(TS_SALON_1).unwrap().clone(),
         device_repo.get(TS_SALON_2).unwrap().clone(),

@@ -9,9 +9,10 @@ use rumqttc::v5::{AsyncClient, MqttOptions};
 use rumqttc::v5::mqttbytes::QoS;
 
 use crate::device_repo::{build_device_repo, device_to_listen};
-use crate::generic_device::GenericDevice;
+use ava_toolkit::generic_device::GenericDevice;
 use crate::init_loop::{build_init_list, process_initialization_message};
 use crate::loops::build_loops;
+use crate::message_enum::MessageEnum;
 use crate::processing::process_incoming_message;
 
 mod loops;
@@ -19,7 +20,6 @@ mod device_repo;
 mod init_loop;
 mod processing;
 mod message_enum;
-mod generic_device;
 
 const CLIENT_ID: &str = "ava-radiator-ctrl";
 
@@ -32,7 +32,7 @@ pub struct Params {
 }
 
 /// Build the list of channel to listen
-fn parse_params(device_repo: &HashMap<String, Arc<RefCell<GenericDevice>>>) -> Params {
+fn parse_params(device_repo: &HashMap<String, Arc<RefCell<GenericDevice<MessageEnum>>>>) -> Params {
     let client_id = CLIENT_ID.to_string();
 
     let mut channel_filters: Vec<(String, QoS)> = vec![];

@@ -10,9 +10,10 @@ use rumqttc::v5::mqttbytes::QoS;
 use uuid::Uuid;
 
 use crate::device_repo::{build_device_repo, device_to_listen};
-use crate::generic_device::GenericDevice;
+use ava_toolkit::generic_device::GenericDevice;
 use crate::init_loop::{build_init_list, process_initialization_message};
 use crate::loops::build_loops;
+use crate::message_enum::MessageEnum;
 use crate::processing::process_incoming_message;
 
 mod loops;
@@ -37,7 +38,7 @@ fn generate_client_id() -> String {
 }
 
 /// Build the list of channel to listen
-fn parse_params(device_repo: &HashMap<String, Arc<RefCell<GenericDevice>>>) -> Params {
+fn parse_params(device_repo: &HashMap<String, Arc<RefCell<GenericDevice<MessageEnum>>>>) -> Params {
     let client_id = generate_client_id(); // CLIENT_ID.to_string();
 
     let mut channel_filters: Vec<(String, QoS)> = vec![];

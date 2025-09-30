@@ -2,13 +2,16 @@ use std::ops::Deref;
 
 use log::{error, info};
 use rumqttc::v5::{AsyncClient, Event, EventLoop, Incoming};
+use ava_toolkit::generic_device::Locality;
+use ava_toolkit::hard_loop::HardLoop;
 
-use crate::loops::{find_loops, HardLoop};
+use crate::loops::{find_loops};
+use crate::message_enum::MessageEnum;
 
 ///
 ///
 ///
-pub async fn process_incoming_message(mut client: &mut AsyncClient, eventloop: &mut EventLoop, mut all_loops: &mut Vec<HardLoop>)  {
+pub async fn process_incoming_message(mut client: &mut AsyncClient, eventloop: &mut EventLoop, mut all_loops: &mut Vec<HardLoop<MessageEnum>>, args: &[String])  {
 
     while let Ok(notification) = eventloop.poll().await {
         info!("New notification");
@@ -39,7 +42,7 @@ pub async fn process_incoming_message(mut client: &mut AsyncClient, eventloop: &
                                 }
                             };
 
-                            if dd.process_and_continue(&original_message).await {
+                            if dd.process_and_continue(&original_message, &args).await {
                                 lp.loop_devices(&topic, &original_message, &mut client).await;
                             }
                         }

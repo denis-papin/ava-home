@@ -3,7 +3,7 @@ use serde_derive::*;
 use crate::device_message::RadiatorMode::FRO;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]
-pub struct RegulationMap {
+pub struct RegulationMapMsg {
     pub tc_bureau: f32,
     pub tc_salon_1: f32,
     pub tc_salon_2: f32,
@@ -11,7 +11,7 @@ pub struct RegulationMap {
     pub tc_couloir: f32,
 }
 
-impl RegulationMap {
+impl RegulationMapMsg {
     pub fn new() -> Self {
         Self {
             tc_bureau: 0.0,
@@ -28,14 +28,14 @@ impl RegulationMap {
 }
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]
-pub struct TempSensor {
+pub struct TempSensorMsg {
     pub battery : f32,
     pub humidity :f32,
     pub linkquality : u32,
     pub temperature: f32,
 }
 
-impl TempSensor {
+impl TempSensorMsg {
     pub fn new() -> Self {
         Self {
             battery: 0.0,
@@ -51,13 +51,13 @@ impl TempSensor {
 }
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]
-pub struct MoveSensor {
+pub struct MoveSensorMsg {
     pub battery : Option<f32>,
     pub linkquality : u32,
     pub occupancy: bool,
 }
 
-impl MoveSensor {
+impl MoveSensorMsg {
     pub fn new() -> Self {
         Self {
             battery: Some(0.0),
@@ -72,13 +72,13 @@ impl MoveSensor {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct BasicSwitch {
+pub struct BasicSwitchMsg {
     pub battery: f32,
     pub linkquality: u32,
     pub action: String,
 }
 
-impl BasicSwitch {
+impl BasicSwitchMsg {
     pub fn new() -> Self {
         Self {
             battery: 0.0,
@@ -113,11 +113,11 @@ pub enum RadiatorMode {
 
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]
-pub struct Radiator {
+pub struct RadiatorMsg {
     pub mode: RadiatorMode
 }
 
-impl Radiator {
+impl RadiatorMsg {
     pub fn new() -> Self {
         Self {
             mode: FRO
@@ -137,27 +137,27 @@ impl Radiator {
 
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]
-pub struct LampColor {
+pub struct LampColorMsg {
     pub x:f32,
     pub y:f32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct LampRGB {
+pub struct LampRgbMsg {
     // There are 2 different modes : color xy for RGB and color temp for white lamps
     // pub color_mode: String, // "xy"
-    pub color : LampColor,
+    pub color : LampColorMsg,
     // pub color_temp:u16,
     pub brightness:u16,
     pub state: String,
 }
 
-impl LampRGB {
+impl LampRgbMsg {
     pub fn new() -> Self {
         Self {
             // There are 2 different modes : color xy for RGB and color temp for white lamps
             // color_mode: "xy".to_string(),
-            color: LampColor {
+            color: LampColorMsg {
                 x: 0.0,
                 y: 0.0
             },

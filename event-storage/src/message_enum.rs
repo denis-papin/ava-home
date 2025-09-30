@@ -1,106 +1,35 @@
 use log::info;
 use tokio_postgres::{NoTls, types::ToSql};
 
-use ava_toolkit::device_message::{BasicSwitch, MoveSensor, Radiator, TempSensor};
-use crate::message_enum::MessageEnum::{BasicSwitchMsg, MoveSensorMsg, RadiatorMsg, TempSensorMsg};
+use ava_toolkit::device_message::{BasicSwitchMsg, MoveSensorMsg, RadiatorMsg, TempSensorMsg};
+use ava_toolkit::generic_device::Locality;
+use crate::message_enum::MessageEnum::{BasicSwitch, MoveSensor, Radiator, TempSensor};
 
 /// Object by enums
 #[derive(Debug, Clone)]
 pub (crate) enum MessageEnum {
-    TempSensorMsg(TempSensor),
-    MoveSensorMsg(MoveSensor),
-    BasicSwitchMsg(BasicSwitch),
-    RadiatorMsg(Radiator)
+    TempSensor(TempSensorMsg),
+    MoveSensor(MoveSensorMsg),
+    BasicSwitch(BasicSwitchMsg),
+    Radiator(RadiatorMsg)
 }
 
 impl MessageEnum {
 
-    pub (crate) fn query_for_state(&self) -> String {
-        match self {
-            TempSensorMsg(_) => {
-                let msg = r#"{"state":""}"#;
-                msg.to_string()
-            }
-            RadiatorMsg(_) => {
-                let msg = r#"{"state":""}"#;
-                msg.to_string()
-            }
-            MessageEnum::MoveSensorMsg(_) => {
-                let msg = r#"{"state":""}"#;
-                msg.to_string()
-            }
-            MessageEnum::BasicSwitchMsg(_) => {
-                let msg = r#"{"state":""}"#;
-                msg.to_string()
-            }
-        }
-    }
-
-    pub (crate) fn raw_message(&self) -> String {
-        match self {
-            TempSensorMsg(msg) => {
-                serde_json::to_string(msg).unwrap() // TODO handle error
-            }
-            RadiatorMsg(msg) => {
-                serde_json::to_string(msg).unwrap() // TODO handle error
-            }
-            MoveSensorMsg(msg) => {
-                serde_json::to_string(msg).unwrap() // TODO handle error
-            }
-            MessageEnum::BasicSwitchMsg(msg) => {
-                serde_json::to_string(msg).unwrap() // TODO handle error
-            }
-        }
-    }
-    pub (crate) fn json_to_local(&self, json_msg: &str) -> Result<MessageEnum, String> {
-        match self {
-            TempSensorMsg(_) => {
-                Ok(TempSensorMsg(TempSensor::from_json(json_msg)?))
-            }
-            RadiatorMsg(_) => {
-                Ok(RadiatorMsg(Radiator::from_json(json_msg)?))
-            }
-            MoveSensorMsg(_) => {
-                Ok(MoveSensorMsg(MoveSensor::from_json(json_msg)?))
-            }
-            MessageEnum::BasicSwitchMsg(_) => {
-                Ok(BasicSwitchMsg(BasicSwitch::from_json(json_msg)?))
-            }
-        }
-    }
-
     pub (crate) fn default_temp_sensor() -> Self {
-        TempSensorMsg(TempSensor::new())
+        TempSensor(TempSensorMsg::new())
     }
 
     pub (crate) fn default_move_sensor() -> Self {
-        MoveSensorMsg(MoveSensor::new())
+        MoveSensor(MoveSensorMsg::new())
     }
 
     pub (crate) fn default_basic_switch() -> Self {
-        BasicSwitchMsg(BasicSwitch::new())
+        BasicSwitch(BasicSwitchMsg::new())
     }
 
     pub (crate) fn default_radiator() -> Self {
-        RadiatorMsg(Radiator::new())
-    }
-
-    /// Convert the original message to the type of the current Self
-    pub (crate) fn to_local(&self, original_message: &MessageEnum, last_message: &MessageEnum) -> Self {
-        match self {
-            TempSensorMsg(_) => {
-                original_message.to_temp_sensor(&last_message)
-            }
-            RadiatorMsg(_) => {
-                original_message.to_radiator(&last_message)
-            }
-            MoveSensorMsg(_) => {
-                original_message.to_move_sensor(&last_message)
-            }
-            BasicSwitchMsg(_) => {
-                original_message.to_basic_switch(&last_message)
-            }
-        }
+        Radiator(RadiatorMsg::new())
     }
 
     /// Convert the current type of message to Temperature Sensor
@@ -122,33 +51,93 @@ impl MessageEnum {
         self.clone()
     }
 
-    /// Default process for the message
-    pub (crate) async fn process(&self, topic: &str) {
-        let json_msg = self.raw_message();
+}
+
+
+impl Locality for MessageEnum {
+   fn query_for_state(&self) -> String {
         match self {
-            TempSensorMsg(msg) => {
-                info!("Default process for TempSensor, message=[{:?}]", msg);
-                insert_temp(&topic, &msg).await;
+            TempSensor(_) => {
+                let msg = r#"{"state":""}"#;
+                msg.to_string()
             }
-            RadiatorMsg(msg) => {
-                info!("Default process for Radiator, message=[{:?}]", msg);
-                db_put_device_state(&topic, &json_msg).await;
+            Radiator(_) => {
+                let msg = r#"{"state":""}"#;
+                msg.to_string()
             }
-            MoveSensorMsg(msg) => {
-                info!("Default process for MoveSensor, message=[{:?}]", msg);
-                db_put_device_state(&topic, &json_msg).await;
+            MoveSensor(_) => {
+                let msg = r#"{"state":""}"#;
+                msg.to_string()
             }
-            BasicSwitchMsg(msg) => {
-                info!("Default process for BasicSwitch, message=[{:?}]", msg);
-                db_put_device_state(&topic, &json_msg).await;
+            BasicSwitch(_) => {
+                let msg = r#"{"state":""}"#;
+                msg.to_string()
             }
         }
     }
+
+    fn raw_message(&self) -> String {
+        match self {
+            TempSensor(msg) => {
+                serde_json::to_string(msg).unwrap() // TODO handle error
+            }
+            Radiator(msg) => {
+                serde_json::to_string(msg).unwrap() // TODO handle error
+            }
+            MoveSensor(msg) => {
+                serde_json::to_string(msg).unwrap() // TODO handle error
+            }
+            BasicSwitch(msg) => {
+                serde_json::to_string(msg).unwrap() // TODO handle error
+            }
+        }
+    }
+    /// Convert the original message to the type of the current Self
+    fn to_local(&self, original_message: &MessageEnum, last_message: &MessageEnum) -> Self {
+        match self {
+            TempSensor(_) => {
+                original_message.to_temp_sensor(&last_message)
+            }
+            Radiator(_) => {
+                original_message.to_radiator(&last_message)
+            }
+            MoveSensor(_) => {
+                original_message.to_move_sensor(&last_message)
+            }
+            BasicSwitch(_) => {
+                original_message.to_basic_switch(&last_message)
+            }
+        }
+    }
+
+    fn json_to_local(&self, json_msg: &str) -> Result<MessageEnum, String> {
+        match self {
+            TempSensor(_) => {
+                Ok(TempSensor(TempSensorMsg::from_json(json_msg)?))
+            }
+            Radiator(_) => {
+                Ok(Radiator(RadiatorMsg::from_json(json_msg)?))
+            }
+            MoveSensor(_) => {
+                Ok(MoveSensor(MoveSensorMsg::from_json(json_msg)?))
+            }
+            MessageEnum::BasicSwitch(_) => {
+                Ok(BasicSwitch(BasicSwitchMsg::from_json(json_msg)?))
+            }
+        }
+    }
+
+    /// Non disponible
+    async fn process(&self, _topic: &str, _args: &[String]) {
+        unimplemented!()
+    }
+
 }
+
 
 /// Insère les données de l'état du périphérique dans la base de données
 pub (crate) async fn db_put_device_state(topic: &str, json_msg: &str) {
-    let db_url = "postgresql://denis:dentece3.X@192.168.0.149/avahome";
+    let db_url = "postgresql://denis:dentece3.X@192.168.0.149/avahome"; // TODO ...
 
     // Établissez une connexion à la base de données
     let (client, connection) = tokio_postgres::connect(db_url, NoTls).await.unwrap();
@@ -171,7 +160,7 @@ pub (crate) async fn db_put_device_state(topic: &str, json_msg: &str) {
 }
 
 /// Insère les données de température dans la base de données
-pub (crate) async fn insert_temp(topic: &str, temp: &TempSensor) {
+pub (crate) async fn insert_temp(topic: &str, temp: &TempSensorMsg) {
     // Remplacez ces valeurs par les informations de votre base de données
     let db_url = "postgresql://denis:dentece3.X@192.168.0.149/avahome";
 

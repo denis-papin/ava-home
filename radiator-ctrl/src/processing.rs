@@ -2,8 +2,9 @@ use std::ops::Deref;
 
 use log::{error, info};
 use rumqttc::v5::{AsyncClient, Event, EventLoop, Incoming};
+use ava_toolkit::generic_device::Locality;
 
-use crate::loops::{find_loops, HardLoop};
+use crate::loops::{find_loops};
 
 ///
 ///

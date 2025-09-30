@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use log::info;
 
-use crate::generic_device::GenericDevice;
+use ava_toolkit::generic_device::GenericDevice;
 use crate::message_enum::MessageEnum;
 
 pub (crate) const RAD_SALON: &str = "rad_salon";
@@ -16,14 +16,14 @@ pub (crate) const RAD_COULOIR: &str = "rad_couloir";
 pub (crate) const RAD_CHAMBRE: &str = "rad_chambre";
 
 
-pub (crate) fn build_device_repo() -> HashMap<String, Arc<RefCell<GenericDevice>>> {
+pub (crate) fn build_device_repo() -> HashMap<String, Arc<RefCell<GenericDevice<MessageEnum>>>> {
     info!("Inside the Repo Builder");
-    let mut device_repo : HashMap<String, Arc<RefCell<GenericDevice>>> = HashMap::new();
-    let dev_list: Vec<GenericDevice> = vec![
-        GenericDevice::new(RAD_SALON, MessageEnum::default_radiator()),
-        GenericDevice::new(RAD_BUREAU, MessageEnum::default_radiator()),
-        GenericDevice::new(RAD_CHAMBRE, MessageEnum::default_radiator()),
-        GenericDevice::new(RAD_COULOIR, MessageEnum::default_radiator()),
+    let mut device_repo : HashMap<String, Arc<RefCell<GenericDevice<MessageEnum>>>> = HashMap::new();
+    let dev_list: Vec<GenericDevice<MessageEnum>> = vec![
+        GenericDevice::new("external", RAD_SALON, MessageEnum::default_radiator(), true),
+        GenericDevice::new("external", RAD_BUREAU, MessageEnum::default_radiator(),true),
+        GenericDevice::new("external", RAD_CHAMBRE, MessageEnum::default_radiator(),true),
+        GenericDevice::new("external", RAD_COULOIR, MessageEnum::default_radiator(),true),
     ];
 
     for dev in dev_list {
@@ -32,7 +32,7 @@ pub (crate) fn build_device_repo() -> HashMap<String, Arc<RefCell<GenericDevice>
     device_repo
 }
 
-pub (crate) fn device_to_listen(device_repo: &HashMap<String, Arc<RefCell<GenericDevice>>>) -> Vec<Arc<RefCell<GenericDevice>>> {
+pub (crate) fn device_to_listen(device_repo: &HashMap<String, Arc<RefCell<GenericDevice<MessageEnum>>>>) -> Vec<Arc<RefCell<GenericDevice<MessageEnum>>>> {
     vec![
         device_repo.get(RAD_SALON).unwrap().clone(),
         device_repo.get(RAD_BUREAU).unwrap().clone(),

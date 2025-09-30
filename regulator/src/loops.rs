@@ -7,12 +7,13 @@ use log::info;
 use rumqttc::v5::AsyncClient;
 
 use crate::device_repo::{RAD_BUREAU, RAD_CHAMBRE, RAD_COULOIR, RAD_SALON, REGULATE_RADIATOR};
-use crate::generic_device::GenericDevice;
+use ava_toolkit::generic_device::GenericDevice;
+use ava_toolkit::hard_loop::HardLoop;
 use crate::message_enum::MessageEnum;
 
-pub (crate) fn find_loops(topic: &str, all_loops: &mut Vec<HardLoop>) -> (Vec<HardLoop>, Option<Arc<RefCell<GenericDevice>>>)  {
-    let mut eligible_loops : Vec<HardLoop> = vec![];
-    let mut output_dev : Option<Arc<RefCell<GenericDevice>>> = None;
+pub (crate) fn find_loops(topic: &str, all_loops: &mut Vec<HardLoop<MessageEnum>>) -> (Vec<HardLoop<MessageEnum>>, Option<Arc<RefCell<GenericDevice<MessageEnum>>>>)  {
+    let mut eligible_loops : Vec<HardLoop<MessageEnum>> = vec![];
+    let mut output_dev : Option<Arc<RefCell<GenericDevice<MessageEnum>>>> = None;
 
     for lp in all_loops {
         match lp.find_device_by_topic(topic) {
@@ -28,7 +29,7 @@ pub (crate) fn find_loops(topic: &str, all_loops: &mut Vec<HardLoop>) -> (Vec<Ha
     (eligible_loops, output_dev)
 }
 
-pub(crate) fn build_loops(device_repo: &HashMap<String, Arc<RefCell<GenericDevice>>>) -> Vec<HardLoop> {
+pub(crate) fn build_loops(device_repo: &HashMap<String, Arc<RefCell<GenericDevice<MessageEnum>>>>) -> Vec<HardLoop<MessageEnum>> {
     let loop_1 = HardLoop::new("loop_1".to_string(),
                                vec![device_repo.get(REGULATE_RADIATOR).unwrap().clone(),
                                     device_repo.get(RAD_SALON).unwrap().clone(),
@@ -48,52 +49,52 @@ pub(crate) fn build_loops(device_repo: &HashMap<String, Arc<RefCell<GenericDevic
                                ]);
     vec![loop_1, loop_2, loop_3, loop_4]
 }
-
-#[derive(Clone)]
-pub (crate) struct HardLoop {
-    pub name : String,
-    pub devices : Vec<Arc<RefCell<GenericDevice>>>,
-}
-
-impl HardLoop {
-    fn new(name: String, devices : Vec<Arc<RefCell<GenericDevice>>>) -> Self {
-        Self {
-            name,
-            devices,
-        }
-    }
-
-    pub fn get_name(&self) -> String {
-        self.name.clone()
-    }
-
-    fn get_devices(&self) -> Vec<Arc<RefCell<GenericDevice>>> {
-        self.devices.clone()
-    }
-
-    pub fn find_device_by_topic(&self, topic: &str) -> Option<Arc<RefCell<GenericDevice>>> {
-        for dev in self.get_devices() {
-            let dd = dev.deref().borrow();
-            if dd.get_topic() == topic {
-                return Some(dev.clone());
-            }
-        }
-        None
-    }
-
-    pub async fn loop_devices(&self, topic: &str, original_message: &MessageEnum, ext_data: &HashMap<String, f64>, mut client: &mut AsyncClient) {
-        for dev in self.get_devices() {
-            let dd1 = dev.as_ref().borrow();
-            let dd = dd1.deref();
-            info!("Loop the devices : [{}]", &dd.get_topic());
-            if &dd.get_topic() != topic {
-                info!("🚀 Device Topic of the loop: [{:?}]", &dd.get_topic());
-                dd.consume_message(original_message, &ext_data, &mut client).await;
-                info!("🚩 End Device Topic of the loop: [{:?}]", &dd.get_topic());
-            } else {
-                 info!("Device ignored : [{}]", &dd.get_topic());
-            }
-        }
-    }
-
-}
+//
+// #[derive(Clone)]
+// pub (crate) struct HardLoop {
+//     pub name : String,
+//     pub devices : Vec<Arc<RefCell<GenericDevice<MessageEnum>>>>,
+// }
+//
+// impl HardLoop {
+//     fn new(name: String, devices : Vec<Arc<RefCell<GenericDevice<MessageEnum>>>>) -> Self {
+//         Self {
+//             name,
+//             devices,
+//         }
+//     }
+//
+//     pub fn get_name(&self) -> String {
+//         self.name.clone()
+//     }
+//
+//     fn get_devices(&self) -> Vec<Arc<RefCell<GenericDevice<MessageEnum>>>> {
+//         self.devices.clone()
+//     }
+//
+//     pub fn find_device_by_topic(&self, topic: &str) -> Option<Arc<RefCell<GenericDevice<MessageEnum>>>> {
+//         for dev in self.get_devices() {
+//             let dd = dev.deref().borrow();
+//             if dd.get_topic() == topic {
+//                 return Some(dev.clone());
+//             }
+//         }
+//         None
+//     }
+//
+//     pub async fn loop_devices(&self, topic: &str, original_message: &MessageEnum, ext_data: &HashMap<String, f64>, mut client: &mut AsyncClient) {
+//         for dev in self.get_devices() {
+//             let dd1 = dev.as_ref().borrow();
+//             let dd = dd1.deref();
+//             info!("Loop the devices : [{}]", &dd.get_topic());
+//             if &dd.get_topic() != topic {
+//                 info!("🚀 Device Topic of the loop: [{:?}]", &dd.get_topic());
+//                 dd.consume_message(original_message, &ext_data, &mut client).await;
+//                 info!("🚩 End Device Topic of the loop: [{:?}]", &dd.get_topic());
+//             } else {
+//                  info!("Device ignored : [{}]", &dd.get_topic());
+//             }
+//         }
+//     }
+//
+// }

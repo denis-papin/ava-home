@@ -1,9 +1,9 @@
-use ava_toolkit::device_message::RegulationMap;
+use ava_toolkit::device_message::RegulationMapMsg;
 
 /// Object by enums
 #[derive(Debug, Clone)]
 pub (crate) enum MessageEnum {
-    RegulationMsg(RegulationMap),
+    RegulationMsg(RegulationMapMsg),
 }
 
 impl MessageEnum {

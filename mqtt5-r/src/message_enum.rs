@@ -1,17 +1,18 @@
-use ava_toolkit::device_message::{InterDim, InterSwitch, LampRGB};
+use ava_toolkit::device_message::{InterDim, InterSwitch, LampRgbMsg};
+use ava_toolkit::generic_device::Locality;
 use crate::message_enum::MessageEnum::{INTER_DIMMER, INTER_SWITCH, LAMP_RGB};
 
 /// Object by enums
 #[derive(Debug, Clone)]
 pub (crate) enum MessageEnum {
-    LAMP_RGB(LampRGB),
+    LAMP_RGB(LampRgbMsg),
     INTER_DIMMER(InterDim),
     INTER_SWITCH(InterSwitch),
 }
 
-impl MessageEnum {
+impl Locality for MessageEnum {
 
-    pub (crate) fn query_for_state(&self) -> String {
+    fn query_for_state(&self) -> String {
         match self {
             LAMP_RGB(_) => {
                 let msg =  r#"{"color":{"x":"","y":""}}"#;
@@ -27,8 +28,7 @@ impl MessageEnum {
             }
         }
     }
-
-    pub (crate) fn raw_message(&self) -> String {
+    fn raw_message(&self) -> String {
         match self {
             LAMP_RGB(msg) => {
                 serde_json::to_string(msg).unwrap() // TODO
@@ -42,34 +42,8 @@ impl MessageEnum {
             }
         }
     }
-    pub (crate) fn json_to_local(&self, json_msg: &str) -> Result<MessageEnum, String> {
-        match self {
-            LAMP_RGB(_) => {
-                Ok(LAMP_RGB(LampRGB::from_json(json_msg)?))
-            }
-            INTER_DIMMER(_) => {
-                Ok(INTER_DIMMER(InterDim::from_json(json_msg)?))
-            }
-            INTER_SWITCH(_) => {
-                Ok(INTER_SWITCH(InterSwitch::from_json(json_msg)?))
-            }
-        }
-    }
-
-    pub (crate) fn default_lamp_rgb() -> Self {
-        LAMP_RGB(LampRGB::new())
-    }
-
-    pub (crate) fn default_inter_dim() -> Self {
-        INTER_DIMMER(InterDim::new())
-    }
-
-    pub (crate) fn default_inter_switch() -> Self {
-        INTER_SWITCH(InterSwitch::new())
-    }
-
     /// Convert the original message to the type of the current Self
-    pub (crate) fn to_local(&self, original_message: &MessageEnum, last_message: &MessageEnum) -> Self {
+   fn to_local(&self, original_message: &MessageEnum, last_message: &MessageEnum) -> Self {
         match self {
             LAMP_RGB(_) => {
                 original_message.to_lamp_rgb(&last_message)
@@ -82,6 +56,40 @@ impl MessageEnum {
             }
         }
     }
+
+    fn json_to_local(&self, json_msg: &str) -> Result<MessageEnum, String> {
+        match self {
+            LAMP_RGB(_) => {
+                Ok(LAMP_RGB(LampRgbMsg::from_json(json_msg)?))
+            }
+            INTER_DIMMER(_) => {
+                Ok(INTER_DIMMER(InterDim::from_json(json_msg)?))
+            }
+            INTER_SWITCH(_) => {
+                Ok(INTER_SWITCH(InterSwitch::from_json(json_msg)?))
+            }
+        }
+    }
+
+    async fn process(&self, topic: &str, args: &[String]) {
+        unimplemented!()
+    }
+}
+
+impl MessageEnum {
+
+    pub (crate) fn default_lamp_rgb() -> Self {
+        LAMP_RGB(LampRgbMsg::new())
+    }
+
+    pub (crate) fn default_inter_dim() -> Self {
+        INTER_DIMMER(InterDim::new())
+    }
+
+    pub (crate) fn default_inter_switch() -> Self {
+        INTER_SWITCH(InterSwitch::new())
+    }
+
 
     /// Convert the current type of message to LampRGB
     fn to_lamp_rgb(&self, last_message: &MessageEnum) -> Self {
@@ -97,7 +105,7 @@ impl MessageEnum {
 
         match self {
             LAMP_RGB(msg) => {
-                LAMP_RGB(LampRGB {
+                LAMP_RGB(LampRgbMsg {
                     //color_mode: rgb.color_mode.clone(),
                     color: rgb.color.clone(),
                     brightness: rgb.brightness,
@@ -106,7 +114,7 @@ impl MessageEnum {
 
             }
             INTER_DIMMER(msg) => {
-                LAMP_RGB(LampRGB {
+                LAMP_RGB(LampRgbMsg {
                     //color_mode: rgb.color_mode.clone(),
                     color: rgb.color.clone(),
                     brightness: msg.brightness,
@@ -114,7 +122,7 @@ impl MessageEnum {
                 })
             }
             INTER_SWITCH(msg) => {
-                LAMP_RGB(LampRGB {
+                LAMP_RGB(LampRgbMsg {
                     //color_mode: rgb.color_mode.clone(),
                     color: rgb.color.clone(),
                     brightness: rgb.brightness,

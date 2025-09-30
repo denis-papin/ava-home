@@ -5,7 +5,7 @@ use serde_json::Value;
 use commons_error::*;
 use commons_pg::sql_transaction2::{SQLConnection2, SQLQueryBlock2};
 use commons_pg::sql_transaction::CellValue;
-use ava_toolkit::device_message::RegulationMap;
+use ava_toolkit::device_message::RegulationMapMsg;
 
 
 const CURRENT_REGULATION_MAP_SQL : &str = "SELECT id, starting_time, ending_time, end_the_next_day, boost, regulation_map, ts_created
@@ -27,7 +27,7 @@ AND (
 )
 ORDER BY ts_created DESC";
 
-pub (crate) async fn get_current_regulation_map() -> anyhow::Result<(NaiveTime, NaiveTime, RegulationMap)> {
+pub (crate) async fn get_current_regulation_map() -> anyhow::Result<(NaiveTime, NaiveTime, RegulationMapMsg)> {
 
     let mut params = HashMap::new();
     params.insert("p_localtime".to_owned(), CellValue::from_opt_naivetime(Some(Local::now().time())));
@@ -59,7 +59,7 @@ pub (crate) async fn get_current_regulation_map() -> anyhow::Result<(NaiveTime, 
         let reg = reg.ok_or_else(|| anyhow!("Aucune valeur trouvée pour regulation_map"))?;
 
         // Désérialisation du JSON en RegulationMap
-        let reg_map: RegulationMap = serde_json::from_value(reg)
+        let reg_map: RegulationMapMsg = serde_json::from_value(reg)
             .map_err(|e| anyhow!("Erreur lors de la désérialisation de la regulation_map: {}", e))?;
 
         Ok((starting_time, ending_time, reg_map))

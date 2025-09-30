@@ -4,14 +4,14 @@ use std::sync::Arc;
 
 use log::info;
 
-use crate::generic_device::GenericDevice;
+use ava_toolkit::generic_device::GenericDevice;
 
 pub (crate) const REGULATE_RADIATOR: &str = "regulate_radiator";
 
-pub (crate) fn build_device_repo() -> HashMap<String, Arc<RefCell<GenericDevice>>> {
+pub (crate) fn build_device_repo() -> HashMap<String, Arc<RefCell<GenericDevice<MessageEnum>>>> {
     info!("Inside the Repo Builder");
-    let mut device_repo : HashMap<String, Arc<RefCell<GenericDevice>>> = HashMap::new();
-    let dev_list: Vec<GenericDevice> = vec![
+    let mut device_repo : HashMap<String, Arc<RefCell<GenericDevice<MessageEnum>>>> = HashMap::new();
+    let dev_list: Vec<GenericDevice<MessageEnum>> = vec![
         GenericDevice::new(REGULATE_RADIATOR),
     ];
 
@@ -21,7 +21,7 @@ pub (crate) fn build_device_repo() -> HashMap<String, Arc<RefCell<GenericDevice>
     device_repo
 }
 
-// pub (crate) fn device_to_listen(_device_repo: &HashMap<String, Arc<RefCell<GenericDevice>>>) -> Vec<Arc<RefCell<GenericDevice>>> {
+// pub (crate) fn device_to_listen(_device_repo: &HashMap<String, Arc<RefCell<GenericDevice<MessageEnum>>>>) -> Vec<Arc<RefCell<GenericDevice<MessageEnum>>>> {
 //     vec![
 //     ]
 // }

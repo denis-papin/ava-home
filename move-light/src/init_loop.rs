@@ -9,9 +9,10 @@ use rumqttc::v5::EventLoop;
 use rumqttc::v5::mqttbytes::QoS;
 use crate::device_repo::{KITCHEN_LAMP, MOVE_SENSOR_2};
 
-use crate::generic_device::GenericDevice;
+use ava_toolkit::generic_device::GenericDevice;
+use crate::message_enum::MessageEnum;
 
-pub (crate) fn build_init_list(device_repo : &HashMap<String, Arc<RefCell<GenericDevice>>>) -> Vec<Arc<RefCell<GenericDevice>>> {
+pub (crate) fn build_init_list(device_repo : &HashMap<String, Arc<RefCell<GenericDevice<MessageEnum>>>>) -> Vec<Arc<RefCell<GenericDevice<MessageEnum>>>> {
     vec![
         device_repo.get(KITCHEN_LAMP).unwrap().clone(),
     ]
@@ -21,7 +22,7 @@ pub (crate) fn build_init_list(device_repo : &HashMap<String, Arc<RefCell<Generi
 /// Send an information message for all the device we want to init
 /// Read the responses from mosquitto and run the init routine for the devices.
 ///
-pub (crate) async fn process_initialization_message(mut client: &mut AsyncClient, mut eventloop: &mut EventLoop, device_to_init: &Vec<Arc<RefCell<GenericDevice>>>) -> Result<(), String> {
+pub (crate) async fn process_initialization_message(mut client: &mut AsyncClient, mut eventloop: &mut EventLoop, device_to_init: &Vec<Arc<RefCell<GenericDevice<MessageEnum>>>>) -> Result<(), String> {
 
     info!("Initialisation stage starts");
 
@@ -57,7 +58,7 @@ pub (crate) async fn process_initialization_message(mut client: &mut AsyncClient
     Ok(())
 }
 
-async fn handle_event(event: Event, device_to_init: &Vec<Arc<RefCell<GenericDevice>>>) {
+async fn handle_event(event: Event, device_to_init: &Vec<Arc<RefCell<GenericDevice<MessageEnum>>>>) {
     println!("Message reçu = {:?}", &event);
     match event {
         Event::Incoming(Incoming::Publish(publish)) => {

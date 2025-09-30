@@ -10,9 +10,10 @@ use rumqttc::v5::mqttbytes::QoS;
 use commons_error::*;
 
 use crate::device_repo::{build_device_repo, device_to_listen};
-use crate::generic_device::GenericDevice;
+use ava_toolkit::generic_device::GenericDevice;
 use crate::init_loop::{build_init_list, process_initialization_message};
 use crate::loops::build_loops;
+use crate::message_enum::MessageEnum;
 use crate::processing::process_incoming_message;
 
 
@@ -21,7 +22,7 @@ mod device_repo;
 mod init_loop;
 mod processing;
 mod message_enum;
-mod generic_device;
+
 
 const CLIENT_ID: &str = "ava-event-storage";
 
@@ -34,7 +35,7 @@ pub struct Params {
 }
 
 /// Build the list of channel to listen
-fn parse_params(device_repo: &HashMap<String, Arc<RefCell<GenericDevice>>>) -> Params {
+fn parse_params(device_repo: &HashMap<String, Arc<RefCell<GenericDevice<MessageEnum>>>>) -> Params {
     let client_id = CLIENT_ID.to_string();
 
     let mut channel_filters: Vec<(String, QoS)> = vec![];
@@ -87,10 +88,11 @@ async fn main() {
     let mut init_list = build_init_list(&device_repo);
     let mut all_loops = build_loops(&device_repo);
 
+    let args= vec![];
     match process_initialization_message(&mut client, &mut eventloop, &mut init_list).await {
         Ok(_) => {
             info!("Process incoming messages");
-            let _ = process_incoming_message(&mut client, &mut eventloop, &mut all_loops).await;
+            let _ = process_incoming_message(&mut client, &mut eventloop, &mut all_loops, &args).await;
         }
         Err(e) => {
             panic!("Panic will error : {}", e);
