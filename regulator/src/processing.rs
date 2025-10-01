@@ -4,7 +4,6 @@ use log::{error, info};
 use rumqttc::v5::{AsyncClient, Event, EventLoop, Incoming};
 
 use crate::loops::{find_loops, HardLoop};
-
 ///
 ///
 ///
@@ -27,24 +26,25 @@ pub async fn process_incoming_message(mut client: &mut AsyncClient, eventloop: &
                     Some(dev) => {
                         info!("Receiver device found !");
                         let dd1 = dev.as_ref().borrow();
-                        let dd = dd1.deref();
+                        let current_device = dd1.deref();
                         
                         // Change the msg into the DeviceMessage box of the ad hoc device (the original device)
-                        let original_message = match dd.message_type.json_to_local(msg) {
+                        let original_message = match current_device.message_type.json_to_local(msg) {
                             Ok(om) => {om}
                             Err(e) => {
-                                error!("💀 Cannot parse the message locally for device {}, msg=<{}>, \n e={}", &dd.get_topic().to_uppercase(), msg, e);
+                                error!("💀 Cannot parse the message locally for device {}, msg=<{}>, \n e={}", &current_device.get_topic().to_uppercase(), msg, e);
                                 continue
                             }
                         };
-
+                        
                         // Here we can compute anything that will be used later on in the message consumption
                         let ext_data = original_message.compute().await;
+                        let ext_data2 = ext_data.clone();
 
                         for lp in loops {
                             info!("Before Looping");
-                            if dd.process_and_continue(&original_message, &args).await {
-                                lp.loop_devices(&topic, &original_message, &ext_data, &mut client).await;
+                            if current_device.process_and_continue(&original_message, &args).await {
+                                lp.loop_devices(&topic, &original_message, &ext_data2, &mut client).await;
                             }
                         }
                     }

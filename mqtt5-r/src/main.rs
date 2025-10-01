@@ -1,17 +1,19 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::env;
+use std::{env, fs};
 use std::sync::Arc;
 use std::time::Duration;
 
 use log::info;
+use mlua::{IntoLua, Lua, UserData, Value};
+use mlua::prelude::{LuaFunction, LuaResult};
 use rumqttc::v5::{AsyncClient, MqttOptions};
 use rumqttc::v5::mqttbytes::QoS;
 
 use crate::device_repo::{build_device_repo, device_to_listen};
 use crate::generic_device::GenericDevice;
 use crate::init_loop::{build_init_list, process_initialization_message};
-use crate::loops::build_loops;
+use crate::loops::{build_loops, HardLoop};
 use crate::processing::process_incoming_message;
 
 mod loops;
@@ -50,6 +52,48 @@ fn parse_params(device_repo: &HashMap<String, Arc<RefCell<GenericDevice>>>) -> P
     }
 }
 
+impl UserData for HardLoop {
+    fn add_fields<'lua, F: mlua::UserDataFields<Self>>(fields: &mut F) {
+        fields.add_field_method_get("name", |_, this| Ok(this.name.clone()));
+        fields.add_field_method_get("device_count", |_, this| Ok(this.devices.len()));
+    }
+
+    fn add_methods<'lua, M: mlua::UserDataMethods<Self>>(methods: &mut M) {
+        methods.add_method("list_devices", |lua, this, _: ()| {
+            let tbl = lua.create_table()?;
+            for (i, dev) in this.devices.iter().enumerate() {
+                tbl.set(i + 1, dev.borrow().name.clone())?;
+            }
+            Ok(tbl)
+        });
+    }
+}
+
+async fn call_lua(all_loops: &Vec<HardLoop>) -> LuaResult<()> {
+    // VM Lua en mode async
+    let lua = Lua::new();
+
+    // Charger le script Lua (en synchrone, mais tu peux le faire en async avec tokio::fs si tu veux)
+    let script = fs::read_to_string("/home/denis/Projects/wks-ava-home/ava-home/mqtt5-r/regulator.lua")
+        .expect("Impossible de lire regulator.lua");
+
+    lua.load(&script).exec_async().await?;
+
+    let map_table = lua.create_table()?;
+    map_table.set(1, "one")?;
+    map_table.set("two", 2)?;
+    lua.globals().set("map_table", map_table)?;
+
+    lua.globals().set("all_loops", all_loops.clone())?;
+
+    // Récupérer la fonction Lua
+    let func: LuaFunction = lua.globals().get("process_map")?;
+
+    // Appeler async
+    func.call_async::<_>(()).await?;
+
+    Ok(())
+}
 
 #[tokio::main]
 async fn main() {
@@ -63,7 +107,6 @@ async fn main() {
     let device_repo = build_device_repo();
     let params = parse_params(&device_repo);
 
-    ///
 
     let mut mqttoptions = MqttOptions::new(&params.client_id, &params.server_addr, 1883);
     mqttoptions.set_keep_alive(Duration::from_secs(params.keep_alive as u64));
@@ -79,6 +122,11 @@ async fn main() {
 
     let mut init_list = build_init_list(&device_repo);
     let mut all_loops = build_loops(&device_repo);
+
+    // Test Lua call
+    let r = call_lua(&all_loops).await;
+    info!("Lua Script result {:?}", r);
+    //
 
     match process_initialization_message(&mut client, &mut eventloop, &mut init_list).await {
         Ok(_) => {

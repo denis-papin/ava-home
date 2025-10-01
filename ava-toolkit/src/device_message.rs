@@ -2,6 +2,8 @@ use serde_derive::*;
 
 use crate::device_message::RadiatorMode::FRO;
 
+pub const ZIGBEE_FAMILY : &str = "zigbee2mqtt";
+
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]
 pub struct RegulationMap {
     pub tc_bureau: f32,
@@ -173,7 +175,22 @@ impl LampRGB {
 }
 
 ///
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct SimpleSwitch {
+    pub action: String,
+}
 
+impl SimpleSwitch {
+    pub fn new() -> Self {
+        Self {
+            action: "single".to_string()
+        }
+    }
+
+    pub fn from_json(msg: &str) -> Result<Self, String> {
+        serde_json::from_str(msg).map_err(|e| e.to_string())
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct InterSwitch {

@@ -114,29 +114,29 @@ async fn main() {
 
     let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
 
-    let msg_jour = MessageEnum::RegulationMsg(RegulationMap {
-        tc_bureau: 21.0,
-        tc_salon_1: 23.0,
-        tc_salon_2: 0.0,
-        tc_chambre_1: 19.0,
-        tc_couloir: 23.0,
-    });
-
-    let msg_fin_jour = MessageEnum::RegulationMsg(RegulationMap {
-        tc_bureau: 19.0,
-        tc_salon_1: 23.0,
-        tc_salon_2: 0.0,
-        tc_chambre_1: 23.0,
-        tc_couloir: 23.0,
-    });
-
-    let msg_nuit = MessageEnum::RegulationMsg(RegulationMap {
-        tc_bureau: 19.0,
-        tc_salon_1: 19.0,
-        tc_salon_2: 0.0,
-        tc_chambre_1: 23.0,
-        tc_couloir: 19.0,
-    });
+    // let msg_jour = MessageEnum::RegulationMsg(RegulationMap {
+    //     tc_bureau: 21.0,
+    //     tc_salon_1: 23.0,
+    //     tc_salon_2: 0.0,
+    //     tc_chambre_1: 19.0,
+    //     tc_couloir: 23.0,
+    // });
+    // 
+    // let msg_fin_jour = MessageEnum::RegulationMsg(RegulationMap {
+    //     tc_bureau: 19.0,
+    //     tc_salon_1: 23.0,
+    //     tc_salon_2: 0.0,
+    //     tc_chambre_1: 23.0,
+    //     tc_couloir: 23.0,
+    // });
+    // 
+    // let msg_nuit = MessageEnum::RegulationMsg(RegulationMap {
+    //     tc_bureau: 19.0,
+    //     tc_salon_1: 19.0,
+    //     tc_salon_2: 0.0,
+    //     tc_chambre_1: 23.0,
+    //     tc_couloir: 19.0,
+    // });
 
     //
     const PROJECT_CODE: &str = "dashboard"; // TODO ...

@@ -6,7 +6,7 @@ use std::sync::Arc;
 use log::info;
 use rumqttc::v5::AsyncClient;
 
-use crate::device_repo::{RAD_BUREAU, RAD_CHAMBRE, RAD_COULOIR, RAD_SALON, REGULATE_RADIATOR};
+use crate::device_repo::{LAMP_CHAMBRE, RAD_BUREAU, RAD_CHAMBRE, RAD_COULOIR, RAD_SALON, REGULATE_RADIATOR, SW_CHAMBRE};
 use crate::generic_device::GenericDevice;
 use crate::message_enum::MessageEnum;
 
@@ -46,7 +46,14 @@ pub(crate) fn build_loops(device_repo: &HashMap<String, Arc<RefCell<GenericDevic
                                vec![device_repo.get(REGULATE_RADIATOR).unwrap().clone(),
                                     device_repo.get(RAD_CHAMBRE).unwrap().clone(),
                                ]);
-    vec![loop_1, loop_2, loop_3, loop_4]
+    // Step 1 : Create the new loop
+    let loop_chambre_light = HardLoop::new("loop_chambre_light".to_string(),
+                               vec![device_repo.get(SW_CHAMBRE).unwrap().clone(),
+                                    device_repo.get(LAMP_CHAMBRE).unwrap().clone(),
+                               ]);
+    
+    
+    vec![loop_1, loop_2, loop_3, loop_4, loop_chambre_light]
 }
 
 #[derive(Clone)]

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use log::info;
-
+use ava_toolkit::device_message::ZIGBEE_FAMILY;
 use crate::generic_device::GenericDevice;
 use crate::message_enum::MessageEnum;
 
@@ -28,16 +28,16 @@ pub (crate) fn build_device_repo() -> HashMap<String, Arc<RefCell<GenericDevice>
     info!("Inside the Repo Builder");
     let mut device_repo : HashMap<String, Arc<RefCell<GenericDevice>>> = HashMap::new();
     let dev_list: Vec<GenericDevice> = vec![
-        GenericDevice::new("zigbee2mqtt", TS_SALON_1, MessageEnum::default_temp_sensor()),
-        GenericDevice::new("zigbee2mqtt", TS_SALON_2, MessageEnum::default_temp_sensor()),
-        GenericDevice::new("zigbee2mqtt", TS_BUREAU, MessageEnum::default_temp_sensor()),
-        GenericDevice::new("zigbee2mqtt", TS_CHAMBRE_1, MessageEnum::default_temp_sensor()),
-        GenericDevice::new("zigbee2mqtt", TS_COULOIR, MessageEnum::default_temp_sensor()),
+        GenericDevice::new(ZIGBEE_FAMILY, TS_SALON_1, MessageEnum::default_temp_sensor()),
+        GenericDevice::new(ZIGBEE_FAMILY, TS_SALON_2, MessageEnum::default_temp_sensor()),
+        GenericDevice::new(ZIGBEE_FAMILY, TS_BUREAU, MessageEnum::default_temp_sensor()),
+        GenericDevice::new(ZIGBEE_FAMILY, TS_CHAMBRE_1, MessageEnum::default_temp_sensor()),
+        GenericDevice::new(ZIGBEE_FAMILY, TS_COULOIR, MessageEnum::default_temp_sensor()),
 
-        GenericDevice::new("zigbee2mqtt", SW_CHAMBRE, MessageEnum::default_basic_switch()),
+        GenericDevice::new(ZIGBEE_FAMILY, SW_CHAMBRE, MessageEnum::default_basic_switch()),
 
-        GenericDevice::new("zigbee2mqtt", MOVE_SENSOR_BUREAU, MessageEnum::default_move_sensor()),
-        GenericDevice::new("zigbee2mqtt", MOVE_SENSOR_SALON, MessageEnum::default_move_sensor()),
+        GenericDevice::new(ZIGBEE_FAMILY, MOVE_SENSOR_BUREAU, MessageEnum::default_move_sensor()),
+        GenericDevice::new(ZIGBEE_FAMILY, MOVE_SENSOR_SALON, MessageEnum::default_move_sensor()),
 
         GenericDevice::new("external", RAD_SALON, MessageEnum::default_radiator()),
         GenericDevice::new("external", RAD_BUREAU, MessageEnum::default_radiator()),

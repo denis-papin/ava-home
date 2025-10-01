@@ -53,37 +53,6 @@ fn parse_params(device_repo: &HashMap<String, Arc<RefCell<GenericDevice>>>) -> P
     }
 }
 
-
-// async fn test_db() {
-//
-//     use tokio_postgres::{NoTls, types::ToSql};
-//     // Remplacez ces valeurs par les informations de votre base de données
-//     let db_url = "postgresql://denis:dentece3.X@192.168.0.149/avahome";
-//
-//     // Établissez une connexion à la base de données
-//     let (client, connection) = tokio_postgres::connect(db_url, NoTls).await.unwrap();
-//
-//     // Spawn une tâche pour gérer la processus de connexion en arrière-plan
-//     tokio::spawn(async move {
-//         if let Err(e) = connection.await {
-//             eprintln!("Connection error: {}", e);
-//         }
-//     });
-//
-//     // Exécutez une requête
-//     let rows = client
-//         //query("SELECT $1::TEXT", &[&"hello".to_owned() as &(dyn ToSql + Sync)])
-//         .query("select device_name from temperature_sensor_history order by ts_create desc", &[])
-//         .await
-//         .unwrap();
-//
-//     // Affiche les résultats de la requête
-//     for row in rows {
-//         let value: &str = row.get(0);
-//         println!("Value: {}", value);
-//     }
-// }
-
 #[tokio::main]
 async fn main() {
 
@@ -117,6 +86,8 @@ async fn main() {
 
     let mut init_list = build_init_list(&device_repo);
     let mut all_loops = build_loops(&device_repo);
+
+    /* In fine, we just interact REGULATE_RADIATOR <=> RAD_XXXX */
 
     match process_initialization_message(&mut client, &mut eventloop, &mut init_list).await {
         Ok(_) => {
