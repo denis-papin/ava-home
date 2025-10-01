@@ -2403,19 +2403,14 @@ dependencies = [
  "chrono",
  "commons-error",
  "env_logger 0.11.2",
- "headers",
  "lazy_static",
  "log",
- "mlua",
- "reqwest",
  "rumqttc 0.24.0",
  "serde",
  "serde_derive",
  "serde_json",
  "tokio",
  "tokio-postgres",
- "url",
- "uuid 1.10.0",
 ]
 
 [[package]]
