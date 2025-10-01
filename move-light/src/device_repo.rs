@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use log::info;
 
-use ava_toolkit::generic_device::GenericDevice;
+use ava_toolkit::generic_device::{GenericDevice, ZIGBEE_FAMILY};
 use crate::message_enum::MessageEnum;
 
 pub (crate) const MOVE_SENSOR_2 : &str = "move_sensor_2";
@@ -19,9 +19,9 @@ pub (crate) fn build_device_repo() -> HashMap<String, Arc<RefCell<GenericDevice<
     info!("Inside the Repo Builder");
     let mut device_repo : HashMap<String, Arc<RefCell<GenericDevice<MessageEnum>>>> = HashMap::new();
     let dev_list: Vec<GenericDevice<MessageEnum>> = vec![
-        GenericDevice::new("zigbee2mqtt", KITCHEN_LAMP, MessageEnum::default_lamp_rgb(), false),
-        GenericDevice::new("zigbee2mqtt", MOVE_SENSOR_2, MessageEnum::default_move_sensor(), false),
-        GenericDevice::new("zigbee2mqtt", MOVE_SENSOR_3, MessageEnum::default_move_sensor(), false),
+        GenericDevice::new(ZIGBEE_FAMILY, KITCHEN_LAMP, MessageEnum::default_lamp_rgb(), false),
+        GenericDevice::new(ZIGBEE_FAMILY, MOVE_SENSOR_2, MessageEnum::default_move_sensor(), false),
+        GenericDevice::new(ZIGBEE_FAMILY, MOVE_SENSOR_3, MessageEnum::default_move_sensor(), false),
     ];
 
     for dev in dev_list {

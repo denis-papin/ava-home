@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use log::info;
 
-use ava_toolkit::generic_device::GenericDevice;
+use ava_toolkit::generic_device::{GenericDevice, EXTERNAL_FAMILY, ZIGBEE_FAMILY};
 use crate::message_enum::MessageEnum;
 
 pub (crate) const TS_SALON_1 : &str = "ts_salon_1";
@@ -28,21 +28,21 @@ pub (crate) fn build_device_repo() -> HashMap<String, Arc<RefCell<GenericDevice<
     info!("Inside the Repo Builder");
     let mut device_repo : HashMap<String, Arc<RefCell<GenericDevice<MessageEnum>>>> = HashMap::new();
     let dev_list: Vec<GenericDevice<MessageEnum>> = vec![
-        GenericDevice::new("zigbee2mqtt", TS_SALON_1, MessageEnum::default_temp_sensor(), false),
-        GenericDevice::new("zigbee2mqtt", TS_SALON_2, MessageEnum::default_temp_sensor(), false),
-        GenericDevice::new("zigbee2mqtt", TS_BUREAU, MessageEnum::default_temp_sensor(), false),
-        GenericDevice::new("zigbee2mqtt", TS_CHAMBRE_1, MessageEnum::default_temp_sensor(), false),
-        GenericDevice::new("zigbee2mqtt", TS_COULOIR, MessageEnum::default_temp_sensor(), false),
+        GenericDevice::new(ZIGBEE_FAMILY, TS_SALON_1, MessageEnum::default_temp_sensor(), false),
+        GenericDevice::new(ZIGBEE_FAMILY, TS_SALON_2, MessageEnum::default_temp_sensor(), false),
+        GenericDevice::new(ZIGBEE_FAMILY, TS_BUREAU, MessageEnum::default_temp_sensor(), false),
+        GenericDevice::new(ZIGBEE_FAMILY, TS_CHAMBRE_1, MessageEnum::default_temp_sensor(), false),
+        GenericDevice::new(ZIGBEE_FAMILY, TS_COULOIR, MessageEnum::default_temp_sensor(), false),
 
-        GenericDevice::new("zigbee2mqtt", SW_CHAMBRE, MessageEnum::default_basic_switch(), false),
+        GenericDevice::new(ZIGBEE_FAMILY, SW_CHAMBRE, MessageEnum::default_basic_switch(), false),
 
-        GenericDevice::new("zigbee2mqtt", MOVE_SENSOR_BUREAU, MessageEnum::default_move_sensor(), false),
-        GenericDevice::new("zigbee2mqtt", MOVE_SENSOR_SALON, MessageEnum::default_move_sensor(), false),
+        GenericDevice::new(ZIGBEE_FAMILY, MOVE_SENSOR_BUREAU, MessageEnum::default_move_sensor(), false),
+        GenericDevice::new(ZIGBEE_FAMILY, MOVE_SENSOR_SALON, MessageEnum::default_move_sensor(), false),
 
-        GenericDevice::new("external", RAD_SALON, MessageEnum::default_radiator(), false),
-        GenericDevice::new("external", RAD_BUREAU, MessageEnum::default_radiator(), false),
-        GenericDevice::new("external", RAD_COULOIR, MessageEnum::default_radiator(), false),
-        GenericDevice::new("external", RAD_CHAMBRE, MessageEnum::default_radiator(), false),
+        GenericDevice::new(EXTERNAL_FAMILY, RAD_SALON, MessageEnum::default_radiator(), false),
+        GenericDevice::new(EXTERNAL_FAMILY, RAD_BUREAU, MessageEnum::default_radiator(), false),
+        GenericDevice::new(EXTERNAL_FAMILY, RAD_COULOIR, MessageEnum::default_radiator(), false),
+        GenericDevice::new(EXTERNAL_FAMILY, RAD_CHAMBRE, MessageEnum::default_radiator(), false),
     ];
 
     for dev in dev_list {

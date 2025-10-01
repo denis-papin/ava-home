@@ -1,8 +1,8 @@
 use log::info;
 use rumqttc::v5::AsyncClient;
 use rumqttc::v5::mqttbytes::QoS;
-
-use crate::regulation_message::MessageEnum;
+use ava_toolkit::generic_device::Locality;
+use crate::message_enum::MessageEnum;
 
 #[derive(Debug)]
 pub(crate) struct GenericDevice {

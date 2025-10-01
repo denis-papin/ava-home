@@ -1,7 +1,7 @@
 use log::info;
 use tokio_postgres::{NoTls, types::ToSql};
 
-use ava_toolkit::device_message::{BasicSwitchMsg, MoveSensorMsg, RadiatorMsg, TempSensorMsg};
+use ava_toolkit::device_message::{BasicSwitchMsg, MoveSensorMsg, RadiatorMsgAva, TempSensorMsg};
 use ava_toolkit::generic_device::Locality;
 use crate::message_enum::MessageEnum::{BasicSwitch, MoveSensor, Radiator, TempSensor};
 
@@ -11,7 +11,7 @@ pub (crate) enum MessageEnum {
     TempSensor(TempSensorMsg),
     MoveSensor(MoveSensorMsg),
     BasicSwitch(BasicSwitchMsg),
-    Radiator(RadiatorMsg)
+    Radiator(RadiatorMsgAva)
 }
 
 impl MessageEnum {
@@ -29,7 +29,7 @@ impl MessageEnum {
     }
 
     pub (crate) fn default_radiator() -> Self {
-        Radiator(RadiatorMsg::new())
+        Radiator(RadiatorMsgAva::new())
     }
 
     /// Convert the current type of message to Temperature Sensor
@@ -116,7 +116,7 @@ impl Locality for MessageEnum {
                 Ok(TempSensor(TempSensorMsg::from_json(json_msg)?))
             }
             Radiator(_) => {
-                Ok(Radiator(RadiatorMsg::from_json(json_msg)?))
+                Ok(Radiator(RadiatorMsgAva::from_json(json_msg)?))
             }
             MoveSensor(_) => {
                 Ok(MoveSensor(MoveSensorMsg::from_json(json_msg)?))

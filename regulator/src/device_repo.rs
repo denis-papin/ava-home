@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use log::info;
 
-use ava_toolkit::generic_device::GenericDevice;
+use ava_toolkit::generic_device::{GenericDevice, EXTERNAL_FAMILY, SYSTEM_FAMILY};
 use crate::message_enum::MessageEnum;
 
 pub (crate) const REGULATE_RADIATOR: &str = "regulate_radiator";
@@ -17,11 +17,11 @@ pub (crate) fn build_device_repo() -> HashMap<String, Arc<RefCell<GenericDevice<
     info!("Inside the Repo Builder");
     let mut device_repo : HashMap<String, Arc<RefCell<GenericDevice<MessageEnum>>>> = HashMap::new();
     let dev_list: Vec<GenericDevice<MessageEnum>> = vec![
-        GenericDevice::new("regulator", REGULATE_RADIATOR, MessageEnum::default_regulation_map()),
-        GenericDevice::new("external", RAD_SALON, MessageEnum::default_radiator()),
-        GenericDevice::new("external", RAD_BUREAU, MessageEnum::default_radiator()),
-        GenericDevice::new("external", RAD_COULOIR, MessageEnum::default_radiator()),
-        GenericDevice::new("external", RAD_CHAMBRE, MessageEnum::default_radiator()),
+        GenericDevice::new(SYSTEM_FAMILY, REGULATE_RADIATOR, MessageEnum::default_regulation_map()),
+        GenericDevice::new(EXTERNAL_FAMILY, RAD_SALON, MessageEnum::default_radiator()),
+        GenericDevice::new(EXTERNAL_FAMILY, RAD_BUREAU, MessageEnum::default_radiator()),
+        GenericDevice::new(EXTERNAL_FAMILY, RAD_COULOIR, MessageEnum::default_radiator()),
+        GenericDevice::new(EXTERNAL_FAMILY, RAD_CHAMBRE, MessageEnum::default_radiator()),
     ];
 
     for dev in dev_list {

@@ -113,11 +113,11 @@ pub enum RadiatorMode {
 
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]
-pub struct RadiatorMsg {
+pub struct RadiatorMsgAva {
     pub mode: RadiatorMode
 }
 
-impl RadiatorMsg {
+impl RadiatorMsgAva {
     pub fn new() -> Self {
         Self {
             mode: FRO

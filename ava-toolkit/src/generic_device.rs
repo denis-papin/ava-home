@@ -9,6 +9,9 @@ use rumqttc::v5::mqttbytes::QoS;
 
 use crate::device_lock::DeviceLock;
 
+pub const ZIGBEE_FAMILY : &str = "zigbee2mqtt";
+pub const EXTERNAL_FAMILY: &str = "external";
+pub const SYSTEM_FAMILY: &str = "regulator";
 /// A Locality is a set of features
 /// shared by a group of messages often called a MessageEnum
 pub trait Locality : Clone + Debug {

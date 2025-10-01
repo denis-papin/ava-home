@@ -3,15 +3,16 @@ use std::collections::HashMap;
 use log::info;
 
 use crate::db_last_message::db_get_device_state;
-use ava_toolkit::device_message::{RadiatorMsg, RadiatorMode, RegulationMapMsg};
+use ava_toolkit::device_message::{RadiatorMsgAva, RadiatorMode, RegulationMapMsg};
+use ava_toolkit::generic_device::Locality;
 use crate::external_computing::{compute, determine_action, RadiatorAction};
-use crate::message_enum::MessageEnum::{RadiatorMsg, RegulationMsg};
+use crate::message_enum::MessageEnum::{RegulatorRadiatorMsg, RegulationMsg};
 
 /// Object by enums
 #[derive(Debug, Clone)]
 pub (crate) enum MessageEnum {
     RegulationMsg(RegulationMapMsg),
-    RadiatorMsg(RadiatorMsg)
+    RegulatorRadiatorMsg(RadiatorMsgAva)
 }
 
 impl MessageEnum {
@@ -26,7 +27,7 @@ impl MessageEnum {
             RegulationMsg(_) => {
                 String::from("")
             }
-            RadiatorMsg(_msg) => {
+            RegulatorRadiatorMsg(_msg) => {
                 // for some device, the set topic is "<topic>/set"
                 String::from(topic)
             }
@@ -40,31 +41,22 @@ impl MessageEnum {
                 let msg = r#"{"state":""}"#;
                 msg.to_string()
             }
-            RadiatorMsg(_) => {
+            RegulatorRadiatorMsg(_) => {
                 // TODO : ???
                 let msg = r#"{"state":""}"#;
                 msg.to_string()
             }
         }
     }
-
-    pub (crate) fn raw_message(&self) -> String {
-        match self {
-            RegulationMsg(msg) => {
-                serde_json::to_string(msg).unwrap() // TODO
-            }
-            RadiatorMsg(msg) => {
-                serde_json::to_string(msg).unwrap() // TODO
-            }
-        }
-    }
+    
+    
     pub (crate) fn json_to_local(&self, json_msg: &str) -> Result<MessageEnum, String> {
         match self {
             RegulationMsg(_) => {
                 Ok(RegulationMsg(RegulationMapMsg::from_json(json_msg)?))
             }
-            RadiatorMsg(_) => {
-                Ok(RadiatorMsg(RadiatorMsg::from_json(json_msg)?))
+            RegulatorRadiatorMsg(_) => {
+                Ok(RegulatorRadiatorMsg(RadiatorMsgAva::from_json(json_msg)?))
             }
         }
     }
@@ -74,41 +66,30 @@ impl MessageEnum {
     }
 
     pub (crate) fn default_radiator() -> Self {
-        RadiatorMsg(RadiatorMsg::new())
+        RegulatorRadiatorMsg(RadiatorMsgAva::new())
     }
 
     /// Convert the original message to the type of the current Self
     pub (crate) fn to_local(&self, original_message: &MessageEnum, ext_data: &HashMap<String, f64>, last_message: &MessageEnum, topic: &str) -> Self {
         match self {
             RegulationMsg(_) => {
-                original_message.to_regulation_map(&last_message, &topic)
+                original_message.to_regulation_map(&last_message)
             }
-            RadiatorMsg(_) => {
+            RegulatorRadiatorMsg(_) => {
                 original_message.to_radiator(&last_message, &ext_data, &topic)
             }
         }
     }
 
     /// Convert the current type of message to Temperature Sensor
-    fn to_regulation_map(&self, last_message: &MessageEnum, topic: &str) -> Self {
-        match self {
-            RegulationMsg(_msg) => {
-                self.clone()
-            }
-            RadiatorMsg(_msg) => {
-                info!("Prepare the message to send for the device: [{}]", topic);
-                dbg!(&last_message);
-                dbg!(&self);
-                last_message.clone()
-            }
-        }
-        
+    fn to_regulation_map(&self, last_message: &MessageEnum) -> Self {
+        last_message.clone()
     }
 
     /// Convert the current type of message to Radiator
     fn to_radiator(&self, last_message: &MessageEnum, ext_data: &HashMap<String, f64>, topic: &str) -> Self {
         match (self, last_message) {
-            (RegulationMsg(msg), RadiatorMsg(last_rad)) => {
+            (RegulationMsg(msg), RegulatorRadiatorMsg(last_rad)) => {
 
                 info!("Prepare the message to send for the device: [{}]", topic);
 
@@ -142,12 +123,12 @@ impl MessageEnum {
                 match action {
                     RadiatorAction::On => {
                         info!("\t🔥 Radiator {} must be set to CFT", &topic);
-                        RadiatorMsg(RadiatorMsg::from_mode(RadiatorMode::CFT))
+                        RegulatorRadiatorMsg(RadiatorMsgAva::from_mode(RadiatorMode::CFT))
 
                     }
                     RadiatorAction::Off => {
                         info!("\t❄️ Radiator {} must be set to STOP", &topic);
-                        RadiatorMsg(RadiatorMsg::from_mode(RadiatorMode::STOP))
+                        RegulatorRadiatorMsg(RadiatorMsgAva::from_mode(RadiatorMode::STOP))
                     }
                     RadiatorAction::NoAction => {
                         info!("\tRadiator {} must stay the same", &topic);
@@ -155,7 +136,7 @@ impl MessageEnum {
                     }
                 }
             }
-            (RadiatorMsg(_), _) => {
+            (RegulatorRadiatorMsg(_), _) => {
                 self.clone()
             }
             (_, _) => {
@@ -163,29 +144,77 @@ impl MessageEnum {
             }
         }
     }
-
-    /// Default process for the message
-    pub (crate) async fn process(&self, _topic: &str, _args: &[String]) {
-        match self {
-            RegulationMsg(rm) => {
-                info!("NOW EMPTY PROCESS - Default process for RegulationMap, message=[{:?}]", rm);
-                // regulate_radiators(&topic, &rm, &args).await;
-            }
-            RadiatorMsg(msg) => {
-                info!("NOW EMPTY PROCESS - Default process for Radiator, message=[{:?}]", msg);
-            }
-        }
-    }
-
+    
     pub (crate) async fn compute(&self) -> HashMap<String, f64> {
         match self {
             RegulationMsg(msg) => {
                 info!("External computing for RegulationMap, message=[{:?}]", msg);
                 compute().await
             }
-            RadiatorMsg(msg) => {
+            RegulatorRadiatorMsg(msg) => {
                 info!("External computing for Radiator, message=[{:?}]", msg);
                 HashMap::new()
+            }
+        }
+    }
+
+}
+
+
+impl Locality for MessageEnum {
+    fn query_for_state(&self) -> String {
+        match self {
+            RegulatorRadiatorMsg(_) => {
+                let msg = r#"{"state":""}"#;
+                msg.to_string()
+            }
+            RegulationMsg(_) => {
+                let msg = r#"{"state":""}"#;
+                msg.to_string()
+            }
+        }
+    }
+
+    fn raw_message(&self) -> String {
+        match self {
+            RegulationMsg(msg) => {
+                serde_json::to_string(msg).unwrap() // TODO
+            }
+            RegulatorRadiatorMsg(msg) => {
+                serde_json::to_string(msg).unwrap() // TODO
+            }
+        }
+    }
+
+    /// Convert the original message to the type of the current Self
+    fn to_local(&self, original_message: &MessageEnum, last_message: &MessageEnum) -> Self {
+        match self {
+            RegulatorRadiatorMsg(_) => {
+                original_message.to_radiator(&last_message)
+            }
+            RegulationMsg(_) => {}
+        }
+    }
+
+    fn json_to_local(&self, json_msg: &str) -> Result<MessageEnum, String> {
+        match self {
+            RegulatorRadiatorMsg(_) => {
+                Ok(RegulatorRadiatorMsg(RadiatorMsgAva::from_json(json_msg)?))
+            }
+            RegulationMsg(_) => {}
+        }
+    }
+
+
+    /// Non disponible
+    async fn process(&self, _topic: &str, _args: &[String]) {
+        match self {
+            RegulationMsg(rm) => {
+                info!("NOW EMPTY PROCESS - Default process for RegulationMap, message=[{:?}]", rm);
+                // regulate_radiators(&topic, &rm, &args).await;
+            }
+            RegulatorRadiatorMsg(msg) => {
+                info!("NOW EMPTY PROCESS - Default process for Radiator, message=[{:?}]", msg);
             }
         }
     }

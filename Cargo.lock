@@ -2357,11 +2357,14 @@ dependencies = [
 name = "regulator-heart-beat"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "ava-toolkit",
  "chrono",
  "commons-error",
  "commons-pg",
  "env_logger 0.11.2",
+ "java-properties",
+ "lazy_static",
  "log",
  "rumqttc 0.24.0",
  "serde",

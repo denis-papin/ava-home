@@ -6,7 +6,7 @@ use std::process::exit;
 use std::sync::RwLock;
 use std::time::Duration;
 
-use lazy_static::lazy_static;
+use lazy_static::*;
 use log::info;
 use rumqttc::v5::{AsyncClient, Event, Incoming, MqttOptions};
 use tokio::time::interval;
@@ -18,10 +18,10 @@ use crate::dao::get_current_regulation_map;
 
 use ava_toolkit::device_message::RegulationMapMsg;
 use crate::device_repo::{build_device_repo, REGULATE_RADIATOR};
-use crate::regulation_message::MessageEnum;
+use crate::message_enum::MessageEnum;
 
 mod device_repo;
-mod regulation_message;
+mod message_enum;
 mod generic_device;
 mod dao;
 mod conf_reader;

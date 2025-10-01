@@ -5,15 +5,15 @@ use lazy_static::lazy_static;
 use log::{error, info};
 use reqwest::header;
 
-use ava_toolkit::device_message::{RadiatorMsg, RadiatorMode};
+use ava_toolkit::device_message::{RadiatorMsgAva, RadiatorMode};
 use crate::device_repo::{RAD_BUREAU, RAD_CHAMBRE, RAD_COULOIR, RAD_SALON};
-use ava_toolkit::generic_device::{GenericDevice, Locality};
+use ava_toolkit::generic_device::{GenericDevice, Locality, EXTERNAL_FAMILY};
 use crate::message_enum::MessageEnum::RadiatorMsg;
 
 /// Object by enums
 #[derive(Debug, Clone)]
 pub (crate) enum MessageEnum {
-    RadiatorMsg(RadiatorMsg)
+    RadiatorMsg(RadiatorMsgAva)
 }
 
 impl MessageEnum {
@@ -23,7 +23,7 @@ impl MessageEnum {
     }
 
     pub(crate) fn default_radiator() -> Self {
-        RadiatorMsg(RadiatorMsg::new())
+        RadiatorMsg(RadiatorMsgAva::new())
     }
 }
 
@@ -38,7 +38,7 @@ impl Locality for MessageEnum {
         }
     }
 
-  fn raw_message(&self) -> String {
+    fn raw_message(&self) -> String {
         match self {
             RadiatorMsg(msg) => {
                 serde_json::to_string(msg).unwrap() // TODO
@@ -58,7 +58,7 @@ impl Locality for MessageEnum {
     fn json_to_local(&self, json_msg: &str) -> Result<MessageEnum, String> {
         match self {
             RadiatorMsg(_) => {
-                Ok(RadiatorMsg(RadiatorMsg::from_json(json_msg)?))
+                Ok(RadiatorMsg(RadiatorMsgAva::from_json(json_msg)?))
             }
         }
     }
@@ -80,17 +80,17 @@ impl Locality for MessageEnum {
 lazy_static! {
     static ref DEVICE_DID: HashMap<&'static str, &'static str> = {
         let mut map = HashMap::new();
-        let topic = GenericDevice::<MessageEnum>::make_topic("external", RAD_SALON)
+        let topic = GenericDevice::<MessageEnum>::make_topic("external", RAD_SALON);
         let b_salon : &'static str = Box::leak(topic.into_boxed_str()); // Force the return type
         map.insert(b_salon, "3wHa7Ja50MhfShUxcmOqvT");
-        map.insert(Box::leak(GenericDevice::<MessageEnum>::make_topic("external", RAD_COULOIR).into_boxed_str()), "JUVo7yMFQtdfZhi25Vo4Bu");
-        map.insert(Box::leak(GenericDevice::<MessageEnum>::make_topic("external", RAD_CHAMBRE).into_boxed_str()), "LNENiFG0MeReR9WtxMebYB");
-        map.insert(Box::leak(GenericDevice::<MessageEnum>::make_topic("external", RAD_BUREAU).into_boxed_str()), "mO7E2B49G1BS8R77UmWIjk");
+        map.insert(Box::leak(GenericDevice::<MessageEnum>::make_topic(EXTERNAL_FAMILY, RAD_COULOIR).into_boxed_str()), "JUVo7yMFQtdfZhi25Vo4Bu");
+        map.insert(Box::leak(GenericDevice::<MessageEnum>::make_topic(EXTERNAL_FAMILY, RAD_CHAMBRE).into_boxed_str()), "LNENiFG0MeReR9WtxMebYB");
+        map.insert(Box::leak(GenericDevice::<MessageEnum>::make_topic(EXTERNAL_FAMILY, RAD_BUREAU).into_boxed_str()), "mO7E2B49G1BS8R77UmWIjk");
         map
     };
 }
 
-pub (crate) async fn command_radiator(topic: &str, msg: &RadiatorMsg, args: &[String]) {
+pub (crate) async fn command_radiator(topic: &str, msg: &RadiatorMsgAva, args: &[String]) {
     info!("Command [{}]", &topic);
 
     let heatzy_pass = args.get(1).unwrap();
