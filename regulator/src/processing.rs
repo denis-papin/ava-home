@@ -44,7 +44,7 @@ pub async fn process_incoming_message(mut client: &mut AsyncClient, eventloop: &
                         for lp in loops {
                             info!("Before Looping");
                             if dd.process_and_continue(&original_message, &args).await {
-                                lp.loop_devices(&topic, &original_message, &ext_data, &mut client).await;
+                                lp.loop_devices_with_data(&topic, &original_message, &ext_data, &mut client).await;
                             }
                         }
                     }

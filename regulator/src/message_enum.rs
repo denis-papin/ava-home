@@ -188,11 +188,26 @@ impl Locality for MessageEnum {
 
     /// Convert the original message to the type of the current Self
     fn to_local(&self, original_message: &MessageEnum, last_message: &MessageEnum) -> Self {
+        // match self {
+        //     RegulatorRadiatorMsg(_) => {
+        //         original_message.to_radiator(&last_message)
+        //     }
+        //     RegulationMsg(_) => {}
+        // }
+
+        // TODO 
+        self.to_local_with_data(original_message, HashMap<String,f64>::new, last_message, "")
+    }
+
+    /// Convert the original message to the type of the current Self
+    fn to_local_with_data(&self, original_message: &MessageEnum, ext_data: &HashMap<String, f64>, last_message: &MessageEnum, topic: &str) -> Self {
         match self {
-            RegulatorRadiatorMsg(_) => {
-                original_message.to_radiator(&last_message)
+            RegulationMsg(_) => {
+                original_message.to_regulation_map(&last_message)
             }
-            RegulationMsg(_) => {}
+            RegulatorRadiatorMsg(_) => {
+                original_message.to_radiator(&last_message, &ext_data, &topic)
+            }
         }
     }
 
