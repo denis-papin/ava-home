@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use log::info;
 
-use ava_toolkit::generic_device::{GenericDevice, SYSTEM_FAMILY, ZIGBEE_FAMILY};
+use ava_toolkit::generic_device::{GenericDevice, SYSTEM_FAMILY};
 use crate::message_enum::MessageEnum;
 
 pub (crate) const REGULATE_RADIATOR: &str = "regulate_radiator";

@@ -16,13 +16,11 @@ use crate::loops::build_loops;
 use crate::message_enum::MessageEnum;
 use crate::processing::process_incoming_message;
 
-
 mod loops;
 mod device_repo;
 mod init_loop;
 mod processing;
 mod message_enum;
-
 
 const CLIENT_ID: &str = "ava-event-storage";
 

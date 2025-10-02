@@ -43,7 +43,7 @@ pub async fn process_incoming_message(mut client: &mut AsyncClient, eventloop: &
                             };
 
                             if dd.process_and_continue(&original_message, &args).await {
-                                lp.loop_devices(&topic, &original_message, &mut client).await;
+                                lp.loop_devices(&topic, &original_message, None, &mut client).await;
                             }
                         }
                     }

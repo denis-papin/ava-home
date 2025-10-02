@@ -1,4 +1,5 @@
-use ava_toolkit::device_message::{RadiatorMsgAva, RegulationMapMsg};
+use std::collections::HashMap;
+use ava_toolkit::device_message::{RegulationMapMsg};
 use ava_toolkit::generic_device::Locality;
 use crate::message_enum::MessageEnum::RegulationMsg;
 
@@ -9,14 +10,6 @@ pub (crate) enum MessageEnum {
 }
 
 impl MessageEnum {
-    // pub (crate) fn raw_message(&self) -> String {
-    //     match self {
-    //         RegulationMsg(msg) => {
-    //             serde_json::to_string(msg).unwrap() // TODO
-    //         }
-    //     }
-    // }
-
     /// Convert the current type of message to Temperature Sensor
     fn to_regulation(&self, _last_message: &MessageEnum) -> Self {
         self.clone()
@@ -52,6 +45,10 @@ impl Locality for MessageEnum {
                 original_message.to_regulation(&last_message)
             }
         }
+    }
+
+    fn to_local_with_data(&self, original_message: &Self, last_message: &Self, _o_ext_data: Option<&HashMap<String, f64>>, _o_topic: Option<&str>) -> Self {
+        self.to_local(original_message, last_message)
     }
     
     fn json_to_local(&self, json_msg: &str) -> Result<MessageEnum, String> {

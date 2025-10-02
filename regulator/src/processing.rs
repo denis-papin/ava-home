@@ -2,13 +2,15 @@ use std::ops::Deref;
 
 use log::{error, info};
 use rumqttc::v5::{AsyncClient, Event, EventLoop, Incoming};
+use ava_toolkit::generic_device::Locality;
+use crate::loops::{find_loops};
+use ava_toolkit::hard_loop::{HardLoop};
+use crate::message_enum::MessageEnum;
 
-use crate::loops::{find_loops, HardLoop};
-
 ///
 ///
 ///
-pub async fn process_incoming_message(mut client: &mut AsyncClient, eventloop: &mut EventLoop, mut all_loops: &mut Vec<HardLoop>, args: &[String])  {
+pub async fn process_incoming_message(mut client: &mut AsyncClient, eventloop: &mut EventLoop, mut all_loops: &mut Vec<HardLoop<MessageEnum>>, args: &[String])  {
     info!("Process incoming message");
     while let Ok(notification) = eventloop.poll().await {
         info!("New notification");
@@ -26,14 +28,14 @@ pub async fn process_incoming_message(mut client: &mut AsyncClient, eventloop: &
                     }
                     Some(dev) => {
                         info!("Receiver device found !");
-                        let dd1 = dev.as_ref().borrow();
-                        let dd = dd1.deref();
+                        let ref_device = dev.as_ref().borrow();
+                        let device = ref_device.deref();
                         
                         // Change the msg into the DeviceMessage box of the ad hoc device (the original device)
-                        let original_message = match dd.message_type.json_to_local(msg) {
+                        let original_message = match device.message_type.json_to_local(msg) {
                             Ok(om) => {om}
                             Err(e) => {
-                                error!("💀 Cannot parse the message locally for device {}, msg=<{}>, \n e={}", &dd.get_topic().to_uppercase(), msg, e);
+                                error!("💀 Cannot parse the message locally for device {}, msg=<{}>, \n e={}", &device.get_topic().to_uppercase(), msg, e);
                                 continue
                             }
                         };
@@ -43,8 +45,8 @@ pub async fn process_incoming_message(mut client: &mut AsyncClient, eventloop: &
 
                         for lp in loops {
                             info!("Before Looping");
-                            if dd.process_and_continue(&original_message, &args).await {
-                                lp.loop_devices_with_data(&topic, &original_message, &ext_data, &mut client).await;
+                            if device.process_and_continue(&original_message, &args).await {
+                                lp.loop_devices(&topic, &original_message, Some(&ext_data), &mut client).await;
                             }
                         }
                     }

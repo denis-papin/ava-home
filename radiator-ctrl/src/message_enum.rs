@@ -5,7 +5,7 @@ use lazy_static::lazy_static;
 use log::{error, info};
 use reqwest::header;
 
-use ava_toolkit::device_message::{RadiatorMsgAva, RadiatorMode};
+use ava_toolkit::device_message::{RegulatorRadiatorMsg, RadiatorMode};
 use crate::device_repo::{RAD_BUREAU, RAD_CHAMBRE, RAD_COULOIR, RAD_SALON};
 use ava_toolkit::generic_device::{GenericDevice, Locality, EXTERNAL_FAMILY};
 use crate::message_enum::MessageEnum::RadiatorMsg;
@@ -13,7 +13,7 @@ use crate::message_enum::MessageEnum::RadiatorMsg;
 /// Object by enums
 #[derive(Debug, Clone)]
 pub (crate) enum MessageEnum {
-    RadiatorMsg(RadiatorMsgAva)
+    RadiatorMsg(RegulatorRadiatorMsg)
 }
 
 impl MessageEnum {
@@ -23,7 +23,7 @@ impl MessageEnum {
     }
 
     pub(crate) fn default_radiator() -> Self {
-        RadiatorMsg(RadiatorMsgAva::new())
+        RadiatorMsg(RegulatorRadiatorMsg::new())
     }
 }
 
@@ -55,16 +55,19 @@ impl Locality for MessageEnum {
         }
     }
 
+    fn to_local_with_data(&self, original_message: &Self, last_message: &Self, _ext_data: Option<&HashMap<String, f64>>, _topic: Option<&str>) -> Self {
+        self.to_local(original_message, last_message)
+    }
+    
     fn json_to_local(&self, json_msg: &str) -> Result<MessageEnum, String> {
         match self {
             RadiatorMsg(_) => {
-                Ok(RadiatorMsg(RadiatorMsgAva::from_json(json_msg)?))
+                Ok(RadiatorMsg(RegulatorRadiatorMsg::from_json(json_msg)?))
             }
         }
     }
 
-
-
+    
     /// Default process for the message
     async fn process(&self, topic: &str, args: &[String]) {
         match self {
@@ -90,7 +93,7 @@ lazy_static! {
     };
 }
 
-pub (crate) async fn command_radiator(topic: &str, msg: &RadiatorMsgAva, args: &[String]) {
+pub (crate) async fn command_radiator(topic: &str, msg: &RegulatorRadiatorMsg, args: &[String]) {
     info!("Command [{}]", &topic);
 
     let heatzy_pass = args.get(1).unwrap();

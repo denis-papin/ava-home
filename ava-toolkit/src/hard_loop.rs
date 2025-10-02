@@ -38,28 +38,16 @@ impl <T> HardLoop<T> where T : Locality {
         None
     }
 
-    pub async fn loop_devices(&self, topic: &str, original_message: &T, mut client: &mut AsyncClient) {
-        for dev in self.get_devices() {
-            info!("Loop the devices");
-            let dd1 = dev.as_ref().borrow();
-            let dd = dd1.deref();
-            if &dd.get_topic() != topic {
-                info!("🚀 Device Topic of the loop: [{:?}]", &dd.get_topic());
-                dd.consume_message(original_message, &mut client).await;
-                info!("🚩 End Device Topic of the loop: [{:?}]", &dd.get_topic());
-            }
-        }
-    }
-
-    /// TODO This routine needs to manipulate some external data - it's only use in the regulator...
-    pub async fn loop_devices_with_data(&self, topic: &str, original_message: &T, ext_data: &HashMap<String, f64>, mut client: &mut AsyncClient) {
-        for dev in self.get_devices() {
+    /// This routine may manipulate some external data, like in the regulator project.
+    pub async fn loop_devices(&self, topic: &str, original_message: &T, o_ext_data: Option<&HashMap<String, f64>>, mut client: &mut AsyncClient) {
+        let devices = self.get_devices();
+        for dev in devices.iter() {
             let ref_device = dev.as_ref().borrow();
             let device = ref_device.deref();
             info!("Loop the devices : [{}]", &device.get_topic());
             if &device.get_topic() != topic {
                 info!("🚀 Device Topic of the loop: [{:?}]", &device.get_topic());
-                device.consume_message(original_message, &ext_data, &mut client).await;
+                device.consume_message(original_message, o_ext_data, &mut client).await;
                 info!("🚩 End Device Topic of the loop: [{:?}]", &device.get_topic());
             } else {
                  info!("Device ignored : [{}]", &device.get_topic());

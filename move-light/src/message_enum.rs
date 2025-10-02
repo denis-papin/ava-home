@@ -1,4 +1,4 @@
-use log::info;
+use std::collections::HashMap;
 use ava_toolkit::device_message::{LampRgbMsg, MoveSensorMsg};
 use ava_toolkit::generic_device::Locality;
 use crate::message_enum::MessageEnum::{LampRgb, MoveSensor};
@@ -61,6 +61,10 @@ impl Locality for MessageEnum {
         }
     }
 
+    fn to_local_with_data(&self, _original_message: &Self, _last_message: &Self, _ext_data: Option<&HashMap<String, f64>>, _topic: Option<&str>) -> Self {
+        todo!()
+    }
+    
     fn json_to_local(&self, json_msg: &str) -> Result<MessageEnum, String> {
         match self {
             LampRgb(_) => {
@@ -72,7 +76,7 @@ impl Locality for MessageEnum {
         }
     }
 
-    async fn process(&self, topic: &str, args: &[String]) {
+    async fn process(&self, _topic: &str, _args: &[String]) {
         unreachable!()
     }
 }

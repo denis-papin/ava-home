@@ -100,24 +100,12 @@ pub enum RadiatorMode {
     STOP
 }
 
-// impl RadiatorMode {
-//     pub(crate) fn from_value(value : String) -> Self {
-//         match value.as_str() {
-//             "cft" => CFT,
-//             "eco" => ECO,
-//             "fro" => FRO,
-//             _ => STOP,
-//         }
-//     }
-// }
-
-
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]
-pub struct RadiatorMsgAva {
+pub struct RegulatorRadiatorMsg {
     pub mode: RadiatorMode
 }
 
-impl RadiatorMsgAva {
+impl RegulatorRadiatorMsg {
     pub fn new() -> Self {
         Self {
             mode: FRO
@@ -155,14 +143,14 @@ pub struct LampRgbMsg {
 impl LampRgbMsg {
     pub fn new() -> Self {
         Self {
-            // There are 2 different modes : color xy for RGB and color temp for white lamps
+            // There are 2 different modes : color xy for RGB and color_temp for white lamps
             // color_mode: "xy".to_string(),
             color: LampColorMsg {
-                x: 0.0,
-                y: 0.0
+                x: 0.26712328,
+                y: 0.1369863
             },
             //color_temp: 270,
-            brightness: 40,
+            brightness: 198,
             state: "OFF".to_string()
         }
     }
@@ -172,15 +160,13 @@ impl LampRgbMsg {
     }
 }
 
-///
-
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct InterSwitch {
+pub struct InterSwitchMsg {
     pub state: String,
 }
 
-impl InterSwitch {
+impl InterSwitchMsg {
     pub fn new() -> Self {
         Self {
             state: "OFF".to_string()
@@ -194,12 +180,12 @@ impl InterSwitch {
 
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct InterDim {
+pub struct InterDimMsg {
     pub brightness:u16,
     pub state: String,
 }
 
-impl InterDim {
+impl InterDimMsg {
     pub fn new() -> Self {
         Self {
             brightness: 0,

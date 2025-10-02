@@ -63,9 +63,7 @@ async fn main() {
     info!("Building the device repository");
     let device_repo = build_device_repo();
     let params = parse_params(&device_repo);
-
-    ///
-
+    
     let mut mqttoptions = MqttOptions::new(&params.client_id, &params.server_addr, 1883);
     mqttoptions.set_keep_alive(Duration::from_secs(params.keep_alive as u64));
     mqttoptions.set_clean_start(true);

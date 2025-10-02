@@ -17,11 +17,11 @@ pub (crate) fn build_device_repo() -> HashMap<String, Arc<RefCell<GenericDevice<
     info!("Inside the Repo Builder");
     let mut device_repo : HashMap<String, Arc<RefCell<GenericDevice<MessageEnum>>>> = HashMap::new();
     let dev_list: Vec<GenericDevice<MessageEnum>> = vec![
-        GenericDevice::new(SYSTEM_FAMILY, REGULATE_RADIATOR, MessageEnum::default_regulation_map()),
-        GenericDevice::new(EXTERNAL_FAMILY, RAD_SALON, MessageEnum::default_radiator()),
-        GenericDevice::new(EXTERNAL_FAMILY, RAD_BUREAU, MessageEnum::default_radiator()),
-        GenericDevice::new(EXTERNAL_FAMILY, RAD_COULOIR, MessageEnum::default_radiator()),
-        GenericDevice::new(EXTERNAL_FAMILY, RAD_CHAMBRE, MessageEnum::default_radiator()),
+        GenericDevice::new(SYSTEM_FAMILY, REGULATE_RADIATOR, MessageEnum::default_regulation_map(), true),
+        GenericDevice::new(EXTERNAL_FAMILY, RAD_SALON, MessageEnum::default_radiator(), false),
+        GenericDevice::new(EXTERNAL_FAMILY, RAD_BUREAU, MessageEnum::default_radiator(), false),
+        GenericDevice::new(EXTERNAL_FAMILY, RAD_COULOIR, MessageEnum::default_radiator(), false),
+        GenericDevice::new(EXTERNAL_FAMILY, RAD_CHAMBRE, MessageEnum::default_radiator(), false),
     ];
 
     for dev in dev_list {

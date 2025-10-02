@@ -1,50 +1,17 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::ops::Deref;
+
 use std::sync::Arc;
 
 use log::info;
-use rumqttc::v5::AsyncClient;
+
 use crate::device_repo::{HALL_LAMP, KITCHEN_LAMP, KITCHEN_SWITCH};
 
 use ava_toolkit::generic_device::GenericDevice;
 use ava_toolkit::hard_loop::HardLoop;
 use crate::message_enum::MessageEnum;
 
-pub (crate) const KITCHEN_LOOP : &str = "KITCHEN_LOOP";
 pub (crate) const KITCHEN_LOOP_2 : &str = "KITCHEN_LOOP_2";
-
-pub (crate) const TOO_HOT_LOOP : &str = "TOO_HOT_LOOP";
-pub (crate) const SENSOR_LOOP : &str = "SENSOR_LOOP";
-
-// fn device_to_listen(device_repo: &HashMap<String, Arc<RefCell<dyn DynDevice>>>) -> Vec<Arc<RefCell<dyn DynDevice>>> {
-//     vec![
-//         device_repo.get(KITCHEN_INTER_DIM).unwrap().clone(),
-//         device_repo.get(KITCHEN_LAMP).unwrap().clone(),
-//         device_repo.get(HALL_LAMP).unwrap().clone(),
-//         // device_repo.get(TEMP_BAIE_VITREE).unwrap().clone(),
-//         // device_repo.get(TEMP_MEUBLE_TV).unwrap().clone()
-//         device_repo.get(KITCHEN_SWITCH).unwrap().clone(),
-//     ]
-// }
-
-// pub (crate) fn find_loops(topic: &str, all_loops: &mut Vec<HardLoop>) -> (Vec<HardLoop>, Option<Arc<RefCell<dyn DynDevice>>>)  {
-//     let mut eligible_loops : Vec<HardLoop> = vec![];
-//     let mut output_dev : Option<Arc<RefCell<dyn DynDevice>>> = None;
-//
-//     for lp in all_loops {
-//         match lp.find_device_by_topic(topic) {
-//             None => {}
-//             Some(dev) => {
-//                 info!("Found topic in [{}] loop, topic=[{}]", & lp.get_name(), topic);
-//                 eligible_loops.push(lp.clone());
-//                 output_dev = Some(dev.clone());
-//             }
-//         }
-//
-//     }
-//     (eligible_loops, output_dev)
-// }
 
 pub (crate) fn find_loops(topic: &str, all_loops: &mut Vec<HardLoop<MessageEnum>>) -> (Vec<HardLoop<MessageEnum>>, Option<Arc<RefCell<GenericDevice<MessageEnum>>>>)  {
     let mut eligible_loops : Vec<HardLoop<MessageEnum>> = vec![];
@@ -65,14 +32,7 @@ pub (crate) fn find_loops(topic: &str, all_loops: &mut Vec<HardLoop<MessageEnum>
 }
 
 pub (crate) fn build_loops(device_repo: &HashMap<String, Arc<RefCell<GenericDevice<MessageEnum>>>>) -> Vec<HardLoop<MessageEnum>> {
-
-    // let kitchen_loop = HardLoop::new( KITCHEN_LOOP.to_string(),
-    //                                   vec![
-    //                                       device_repo.get(KITCHEN_INTER_DIM).unwrap().clone(),
-    //                                       device_repo.get(KITCHEN_LAMP).unwrap().clone(),
-    //                                       device_repo.get(HALL_LAMP).unwrap().clone(),
-    //                                   ]);
-
+    
     let kitchen_loop_2 = HardLoop::new( KITCHEN_LOOP_2.to_string(),
                                       vec![
                                           device_repo.get(KITCHEN_SWITCH).unwrap().clone(),

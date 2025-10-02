@@ -1,10 +1,8 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::ops::Deref;
 use std::sync::Arc;
 
 use log::info;
-use rumqttc::v5::AsyncClient;
 
 use crate::device_repo::{RAD_BUREAU, RAD_CHAMBRE, RAD_COULOIR, RAD_SALON};
 use ava_toolkit::generic_device::GenericDevice;

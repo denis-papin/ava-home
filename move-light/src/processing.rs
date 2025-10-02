@@ -10,7 +10,7 @@ use crate::message_enum::MessageEnum;
 ///
 ///
 ///
-pub async fn process_incoming_message(mut client: &mut AsyncClient, mut eventloop: &mut EventLoop, mut all_loops: &mut Vec<HardLoop<MessageEnum>>)  {
+pub async fn process_incoming_message(mut client: &mut AsyncClient, eventloop: &mut EventLoop, mut all_loops: &mut Vec<HardLoop<MessageEnum>>)  {
 
     while let Ok(notification) = eventloop.poll().await {
         info!("New notification, [{:?}]", &notification);
@@ -42,7 +42,7 @@ pub async fn process_incoming_message(mut client: &mut AsyncClient, mut eventloo
                             };
 
                             if dd.process_and_continue(&original_message, & vec![]).await {
-                                lp.loop_devices(&topic, &original_message, &mut client).await;
+                                lp.loop_devices(&topic, &original_message, None, &mut client).await;
                             }
                         }
                     }
@@ -55,8 +55,8 @@ pub async fn process_incoming_message(mut client: &mut AsyncClient, mut eventloo
                     println!("Propriétés de la réponse de connexion: {:?}", properties);
                 }
             }
-            Event::Incoming(Incoming::PubAck(pubAck)) => {
-                info!("PubAck ({:?})", &pubAck);
+            Event::Incoming(Incoming::PubAck(pub_ack)) => {
+                info!("PubAck ({:?})", &pub_ack);
             }
             _ => {
                 info!("Other case!");

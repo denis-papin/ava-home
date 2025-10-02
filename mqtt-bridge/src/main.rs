@@ -10,7 +10,7 @@ use tokio_tungstenite::{accept_async, tungstenite::{Error, Message, Result}, Web
 use uuid::Uuid;
 use serde::{Deserialize, Serialize};
 
-async fn accept_connection_for_writing_ws(peer: SocketAddr, mut stream: SplitSink<WebSocketStream<TcpStream>, Message>, mut eventloop: EventLoop) {
+async fn accept_connection_for_writing_ws(peer: SocketAddr, stream: SplitSink<WebSocketStream<TcpStream>, Message>, eventloop: EventLoop) {
     if let Err(e) = handle_writing_ws(peer, stream, eventloop).await {
         match e {
             Error::ConnectionClosed | Error::Protocol(_) | Error::Utf8 => (),
@@ -19,7 +19,7 @@ async fn accept_connection_for_writing_ws(peer: SocketAddr, mut stream: SplitSin
     }
 }
 
-async fn accept_connection_for_reading_ws(peer: SocketAddr, mut ws_receiver: SplitStream<WebSocketStream<TcpStream>>, mut client: AsyncClient) {
+async fn accept_connection_for_reading_ws(peer: SocketAddr, ws_receiver: SplitStream<WebSocketStream<TcpStream>>, client: AsyncClient) {
     if let Err(e) = handle_reading_ws(peer, ws_receiver, client).await {
         match e {
             Error::ConnectionClosed | Error::Protocol(_) | Error::Utf8 => (),
@@ -30,7 +30,7 @@ async fn accept_connection_for_reading_ws(peer: SocketAddr, mut ws_receiver: Spl
 
 ///
 /// Handle incoming WS messages
-async fn handle_reading_ws(peer: SocketAddr, mut ws_receiver:  SplitStream<WebSocketStream<TcpStream>>, mut client: AsyncClient) -> Result<()> {
+async fn handle_reading_ws(peer: SocketAddr, mut ws_receiver:  SplitStream<WebSocketStream<TcpStream>>, client: AsyncClient) -> Result<()> {
     println!("Send a message");
     loop {
         println!("Loop is spinning");
@@ -75,7 +75,7 @@ async fn mqtt_open(user : &str, pass: &str) -> (AsyncClient, EventLoop) {
     mqttoptions.set_clean_start(true);
     mqttoptions.set_credentials(user, pass);
 
-    let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
+    let (client, eventloop) = AsyncClient::new(mqttoptions, 10);
 
     info!("Subscribe to channels");
     client.subscribe("*", QoS::AtMostOnce).await.unwrap();
@@ -195,13 +195,13 @@ async fn main() {
     let listener = TcpListener::bind(&addr).await.expect("Can't listen");
     info!("Listening on: {}", addr);
 
-    while let Ok((mut stream, _)) = listener.accept().await {
+    while let Ok((stream, _)) = listener.accept().await {
         let peer = stream.peer_addr().expect("connected streams should have a peer address");
         info!("Peer address: {}", peer);
         let ws_stream = accept_async(stream).await.expect("Failed to accept");
         let (ws_sender, ws_receiver) = ws_stream.split();
 
-        let (mut client, mut eventloop) = mqtt_open(&mqtt_user, &mqtt_pass).await;
+        let (client, eventloop) = mqtt_open(&mqtt_user, &mqtt_pass).await;
         tokio::spawn(accept_connection_for_reading_ws(peer, ws_receiver, client));
         tokio::spawn(accept_connection_for_writing_ws(peer, ws_sender, eventloop));
     }

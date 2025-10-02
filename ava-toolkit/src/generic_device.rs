@@ -20,7 +20,7 @@ pub trait Locality : Clone + Debug {
     fn query_for_state(&self) -> String;
     fn raw_message(&self) -> String;
     fn to_local(&self, original_message: &Self, last_message: &Self) -> Self;
-    fn to_local_with_data(&self, original_message: &Self, ext_data: &HashMap<String, f64>, last_message: &Self, topic: &str) -> Self;
+    fn to_local_with_data(&self, original_message: &Self, last_message: &Self, ext_data: Option<&HashMap<String, f64>>, topic: Option<&str>) -> Self;
     fn json_to_local(&self, json_msg: &str) -> Result<Self, String>;
     async fn process(&self, topic: &str, args: &[String]);
 }
@@ -143,10 +143,11 @@ impl <T> GenericDevice<T>  where T : Locality {
                     if self.process_same_message {
                         info!("❌ Device {}, same message, process anyways.", & self.get_topic().to_uppercase());
                         self.process(&original_message, &args).await; // In this case, we process the message even if it's the same as before
+                        allowed = true;    
                     } else {
                         info!("❌ Device {}, same message.", & self.get_topic().to_uppercase());
+                        allowed = false;
                     }
-                    allowed = false;
                 }
                 (false, false) => {
                     info!("👍 Device {}, allowed to process the message.", & self.get_topic().to_uppercase());
@@ -165,7 +166,7 @@ impl <T> GenericDevice<T>  where T : Locality {
     ///
     /// Make the device consume the current message
     ///
-    pub async fn consume_message(&self, original_message : &T, ext_data: &HashMap<String, f64>, mut client: &mut AsyncClient) {
+    pub async fn consume_message(&self, original_message : &T, o_ext_data: Option<&HashMap<String, f64>>, mut client: &mut AsyncClient) {
         info!("The device is consuming the message");
         let new_lock = {
             let lk = self.get_lock();
@@ -180,7 +181,14 @@ impl <T> GenericDevice<T>  where T : Locality {
             // In Generic Mode it's much simplier, we have the last message in the correct format.
             let last_message = &dev_lock.last_object_message;
 
-            let object_message = self.message_type.to_local_with_data(&original_message, &ext_data, &last_message, &self.get_topic() );
+            // TODO : make the get_topic an option here
+            let topic = self.get_topic();
+            let o_topic = match topic.as_str() {
+                "" => None,
+                t => Some(t),
+            };
+            
+            let object_message = self.message_type.to_local_with_data(&original_message, &last_message, o_ext_data, o_topic );
             // let object_message = self.message_type.to_local(&original_message, &last_message);
             // let object_message = self.to_local(&original_message, &last_message);
 
@@ -213,75 +221,23 @@ impl <T> GenericDevice<T>  where T : Locality {
         };
         self.get_lock().replace(new_lock);
     }
-
-
-    ///
-    /// Make the device consume the current message
-    /// TODO make the HashMap<String, f64> generic
-    // pub (crate) async fn consume_message(&self, original_message : &MessageEnum, ext_data: &HashMap<String, f64>,  mut client: &mut AsyncClient) {
-    //     info!("The device is consuming the message");
-    //     let new_lock = {
-    //         let lk = self.get_lock();
-    //         let borr = lk.as_ref().borrow();
-    //         let mut dev_lock = borr.deref().clone();
-    //
-    //         info!("Execute device {}", & self.get_topic().to_uppercase());
-    //
-    //         //if self.get_topic() == "external/rad_salon" {
-    //         // Get the state of the device from the db
-    //         if let Ok(db_last_message) = self.message_type.fetch_device_state(&self.get_topic()).await {
-    //             info!("💾 Found last message in db: {:?}", db_last_message);
-    //             dev_lock.replace(db_last_message);
-    //         }
-    //         //}
-    //
-    //         // Last message est du même format que le message du device.
-    //         // Il permet de récupérer certaines informations.
-    //         // Ex : Incoming inter dim message + last (LampRGB) ---> hall_lamp message (LampRGB)
-    //         // In Generic Mode it's much simplier, we have the last message in the correct format.
-    //         let last_message = &dev_lock.last_object_message;
-    //
-    //         // Should be from MessageEnum ...
-    //
-    //
-    //         let object_message = self.message_type.to_local(&original_message, &ext_data, &last_message, &self.get_topic() );
-    //         // let object_message = self.to_local(&original_message, &last_message);
-    //
-    //         match self.allowed_to_process(&object_message) {
-    //             (true, _) => {
-    //                 info!("⛔ Device {} is locked.", & self.get_topic().to_uppercase());
-    //                 info!("object message : {:?}", &object_message);
-    //                 info!("Last message : {:?}", &dev_lock.last_object_message);
-    //                 dev_lock.dec();
-    //                 // self.unlock(&mut locks);
-    //             }
-    //             (false, true) => {
-    //                 info!("⛔ Device {}, same message.", & self.get_topic().to_uppercase());
-    //                 info!("object message : {:?}", &object_message);
-    //                 info!("Last message : {:?}", &dev_lock.last_object_message);
-    //             }
-    //             (false, false) => {
-    //                 info!("🍺 Device {}, process the message.", & self.get_topic().to_uppercase());
-    //                 info!("object message : {:?}", &object_message);
-    //                 info!("Last message : {:?}", &dev_lock.last_object_message);
-    //                 dev_lock.inc();
-    //                 self.publish_message(&mut client, &object_message).await;
-    //             }
-    //         }
-    //         dev_lock.replace(object_message);
-    //
-    //         let message_locked = &dev_lock.last_object_message;
-    //         info!("Now last : {:?}", &message_locked);
-    //         dev_lock
-    //     };
-    //     self.get_lock().replace(new_lock);
-    // }
-
-
-    async fn publish_message(&self, client: &mut AsyncClient, object_message : &T) {
+    
+    // TODO Should we use get_topic here : see the current 0.7 behavior
+    // TODO There is a generic publish_message in ava toolkit, see the current 0.7 behavior and uniformize
+    pub async fn publish_message(&self, client: &mut AsyncClient, object_message : &T) {
         let message = object_message.raw_message();
         let data = message.as_bytes().to_vec();
-        client.publish(&format!("{}/set", &self.get_topic()), QoS::AtLeastOnce, false, data).await.unwrap(); // TODO unwrap handle
+        // client.publish(&format!("{}/set", &self.get_topic()), QoS::AtLeastOnce, false, data).await.unwrap(); // TODO unwrap handle
+        client.publish(&self.get_topic(), QoS::AtLeastOnce, false, data).await.unwrap(); // TODO
     }
+
+    
+    // pub async fn publish_message_topic(&self, client: &mut AsyncClient, object_message : &T) {
+    //     let message = object_message.raw_message();
+    //     info!("prepare to send :  [{}]", &message);
+    //     let data = message.as_bytes().to_vec();
+    //     info!("Publish on [{}]", &self.get_topic());
+    //     client.publish(&self.get_topic(), QoS::AtLeastOnce, false, data).await.unwrap(); // TODO
+    // }
 
 }

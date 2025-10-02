@@ -77,7 +77,7 @@ pub(crate) fn parse_query<'a>(
             CellValue::Time(t) => {
                 v_params.push(t);
             }
-            CellValue::Json(v) => {
+            CellValue::Json(_) => {
                 log_error!("We cannot use a Json as an input for a query");
             }
         }

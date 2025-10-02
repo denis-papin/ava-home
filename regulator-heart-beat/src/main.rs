@@ -16,13 +16,11 @@ use commons_pg::sql_transaction2::init_db_pool2;
 use crate::conf_reader::read_config;
 use crate::dao::get_current_regulation_map;
 
-use ava_toolkit::device_message::RegulationMapMsg;
 use crate::device_repo::{build_device_repo, REGULATE_RADIATOR};
 use crate::message_enum::MessageEnum;
 
 mod device_repo;
 mod message_enum;
-mod generic_device;
 mod dao;
 mod conf_reader;
 
@@ -113,31 +111,7 @@ async fn main() {
     mqttoptions.set_credentials("ava", "avatece3.X");
 
     let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
-
-    let msg_jour = MessageEnum::RegulationMsg(RegulationMapMsg {
-        tc_bureau: 21.0,
-        tc_salon_1: 23.0,
-        tc_salon_2: 0.0,
-        tc_chambre_1: 19.0,
-        tc_couloir: 23.0,
-    });
-
-    let msg_fin_jour = MessageEnum::RegulationMsg(RegulationMapMsg {
-        tc_bureau: 19.0,
-        tc_salon_1: 23.0,
-        tc_salon_2: 0.0,
-        tc_chambre_1: 23.0,
-        tc_couloir: 23.0,
-    });
-
-    let msg_nuit = MessageEnum::RegulationMsg(RegulationMapMsg {
-        tc_bureau: 19.0,
-        tc_salon_1: 19.0,
-        tc_salon_2: 0.0,
-        tc_chambre_1: 23.0,
-        tc_couloir: 19.0,
-    });
-
+    
     //
     const PROJECT_CODE: &str = "dashboard"; // TODO ...
     const VAR_NAME: &str = "DASH_ENV"; // AVA_ENV ???
@@ -145,7 +119,7 @@ async fn main() {
 
     let props = read_config(PROJECT_CODE, VAR_NAME);
     set_props(props);
-    let port = get_prop_value("server.port").parse::<u16>().unwrap();
+    let _port = get_prop_value("server.port").parse::<u16>().unwrap();
     let log_config: String = get_prop_value("log4rs.config");
     let log_config_path = Path::new(&log_config);
 
@@ -178,7 +152,7 @@ async fn main() {
 
     let device = device_repo.get(REGULATE_RADIATOR).unwrap().as_ref().borrow();
 
-    //  5*60
+    //  5 minutes
     let mut interval = interval(Duration::from_secs(5*60));
     loop {
         interval.tick().await;
@@ -188,7 +162,7 @@ async fn main() {
             let msg = MessageEnum::RegulationMsg(reg_plan.2);
 
             info!("prepare to send :  [{:?}]", &msg);
-            let _ = device.publish_message_topic(&mut client, &msg).await;
+            let _ = device.publish_message(&mut client, &msg).await;
             info!("Sent regulation map notification");
 
             while let Ok(notification) = eventloop.poll().await {

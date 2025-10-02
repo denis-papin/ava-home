@@ -9,7 +9,7 @@ use crate::message_enum::MessageEnum;
 ///
 ///
 ///
-pub async fn process_incoming_message(mut client: &mut AsyncClient, mut eventloop: &mut EventLoop, mut all_loops: &mut Vec<HardLoop<MessageEnum>>)  {
+pub async fn process_incoming_message(mut client: &mut AsyncClient, eventloop: &mut EventLoop, mut all_loops: &mut Vec<HardLoop<MessageEnum>>)  {
 
     while let Ok(notification) = eventloop.poll().await {
         info!("New notification");
@@ -41,16 +41,16 @@ pub async fn process_incoming_message(mut client: &mut AsyncClient, mut eventloo
                             };
 
                             if dd.process_and_continue(&original_message, &vec![]).await {
-                                lp.loop_devices(&topic, &original_message, &mut client).await;
+                                lp.loop_devices(&topic, &original_message, None, &mut client).await;
                             }
                         }
                     }
                 }
             }
-            Event::Incoming(Incoming::ConnAck(connack)) => {
+            Event::Incoming(Incoming::ConnAck(_connack)) => {
 
             }
-            Event::Incoming(Incoming::PubAck(pubAck)) => {
+            Event::Incoming(Incoming::PubAck(_pub_ack)) => {
 
             }
             _ => {}

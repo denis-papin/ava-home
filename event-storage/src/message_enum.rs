@@ -1,7 +1,8 @@
+use std::collections::HashMap;
 use log::info;
 use tokio_postgres::{NoTls, types::ToSql};
 
-use ava_toolkit::device_message::{BasicSwitchMsg, MoveSensorMsg, RadiatorMsgAva, TempSensorMsg};
+use ava_toolkit::device_message::{BasicSwitchMsg, MoveSensorMsg, RegulatorRadiatorMsg, TempSensorMsg};
 use ava_toolkit::generic_device::Locality;
 use crate::message_enum::MessageEnum::{BasicSwitch, MoveSensor, Radiator, TempSensor};
 
@@ -11,7 +12,7 @@ pub (crate) enum MessageEnum {
     TempSensor(TempSensorMsg),
     MoveSensor(MoveSensorMsg),
     BasicSwitch(BasicSwitchMsg),
-    Radiator(RadiatorMsgAva)
+    Radiator(RegulatorRadiatorMsg)
 }
 
 impl MessageEnum {
@@ -29,7 +30,7 @@ impl MessageEnum {
     }
 
     pub (crate) fn default_radiator() -> Self {
-        Radiator(RadiatorMsgAva::new())
+        Radiator(RegulatorRadiatorMsg::new())
     }
 
     /// Convert the current type of message to Temperature Sensor
@@ -110,13 +111,17 @@ impl Locality for MessageEnum {
         }
     }
 
+    fn to_local_with_data(&self,original_message: &Self, last_message: &Self, _ext_data: Option<&HashMap<String, f64>>, _topic: Option<&str>) -> Self {
+        self.to_local(original_message, last_message)
+    }
+    
     fn json_to_local(&self, json_msg: &str) -> Result<MessageEnum, String> {
         match self {
             TempSensor(_) => {
                 Ok(TempSensor(TempSensorMsg::from_json(json_msg)?))
             }
             Radiator(_) => {
-                Ok(Radiator(RadiatorMsgAva::from_json(json_msg)?))
+                Ok(Radiator(RegulatorRadiatorMsg::from_json(json_msg)?))
             }
             MoveSensor(_) => {
                 Ok(MoveSensor(MoveSensorMsg::from_json(json_msg)?))
@@ -127,13 +132,30 @@ impl Locality for MessageEnum {
         }
     }
 
-    /// Non disponible
-    async fn process(&self, _topic: &str, _args: &[String]) {
-        unimplemented!()
+    /// Actions liées à l'arrivée des différents messages à enregistrer
+    async fn process(&self, topic: &str, _args: &[String]) {
+        let json_msg = self.raw_message();
+        match self {
+            TempSensor(msg) => {
+                info!("Default process for TempSensor, message=[{:?}]", msg);
+                insert_temp(&topic, &msg).await;
+            }
+            MoveSensor(msg) => {
+                info!("Default process for MoveSensor, message=[{:?}]", msg);
+                db_put_device_state(&topic, &json_msg).await;
+            }
+            BasicSwitch(msg) => {
+                info!("Default process for BasicSwitch, message=[{:?}]", msg);
+                db_put_device_state(&topic, &json_msg).await;
+            }
+            Radiator(msg) => {
+                info!("Default process for Radiator, message=[{:?}]", msg);
+                db_put_device_state(&topic, &json_msg).await;
+            }
+        }
     }
 
 }
-
 
 /// Insère les données de l'état du périphérique dans la base de données
 pub (crate) async fn db_put_device_state(topic: &str, json_msg: &str) {

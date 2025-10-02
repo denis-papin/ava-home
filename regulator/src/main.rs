@@ -12,6 +12,7 @@ use crate::device_repo::{build_device_repo, device_to_listen};
 use ava_toolkit::generic_device::GenericDevice;
 use crate::init_loop::{build_init_list, process_initialization_message};
 use crate::loops::build_loops;
+use crate::message_enum::MessageEnum;
 use crate::processing::process_incoming_message;
 
 mod loops;
@@ -19,10 +20,8 @@ mod device_repo;
 mod init_loop;
 mod processing;
 mod message_enum;
-mod generic_device;
 mod properties;
 mod external_computing;
-mod db_last_message;
 
 const CLIENT_ID: &str = "ava-regulator";
 
