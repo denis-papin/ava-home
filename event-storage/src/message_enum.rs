@@ -155,6 +155,10 @@ impl Locality for MessageEnum {
         }
     }
 
+    async fn compute(&self) -> Option<HashMap<String, f64>> {
+        None
+    }
+    
 }
 
 /// Insère les données de l'état du périphérique dans la base de données

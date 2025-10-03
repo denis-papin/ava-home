@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::future::Future;
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -22,7 +23,8 @@ pub trait Locality : Clone + Debug {
     fn to_local(&self, original_message: &Self, last_message: &Self) -> Self;
     fn to_local_with_data(&self, original_message: &Self, last_message: &Self, ext_data: Option<&HashMap<String, f64>>, topic: Option<&str>) -> Self;
     fn json_to_local(&self, json_msg: &str) -> Result<Self, String>;
-    async fn process(&self, topic: &str, args: &[String]);
+    fn process(&self, topic: &str, args: &[String]) -> impl Future<Output = ()> + Send;
+    fn compute(&self) -> impl Future<Output = Option<HashMap<String, f64>>> + Send;
 }
 
 
@@ -222,22 +224,9 @@ impl <T> GenericDevice<T>  where T : Locality {
         self.get_lock().replace(new_lock);
     }
     
-    // TODO Should we use get_topic here : see the current 0.7 behavior
-    // TODO There is a generic publish_message in ava toolkit, see the current 0.7 behavior and uniformize
     pub async fn publish_message(&self, client: &mut AsyncClient, object_message : &T) {
         let message = object_message.raw_message();
         let data = message.as_bytes().to_vec();
-        // client.publish(&format!("{}/set", &self.get_topic()), QoS::AtLeastOnce, false, data).await.unwrap(); // TODO unwrap handle
         client.publish(&self.get_topic(), QoS::AtLeastOnce, false, data).await.unwrap(); // TODO
     }
-
-    
-    // pub async fn publish_message_topic(&self, client: &mut AsyncClient, object_message : &T) {
-    //     let message = object_message.raw_message();
-    //     info!("prepare to send :  [{}]", &message);
-    //     let data = message.as_bytes().to_vec();
-    //     info!("Publish on [{}]", &self.get_topic());
-    //     client.publish(&self.get_topic(), QoS::AtLeastOnce, false, data).await.unwrap(); // TODO
-    // }
-
 }

@@ -95,19 +95,6 @@ impl MessageEnum {
         }
     }
     
-    pub (crate) async fn compute(&self) -> HashMap<String, f64> {
-        match self {
-            RegulationMap(msg) => {
-                info!("External computing for RegulationMap, message=[{:?}]", msg);
-                compute().await
-            }
-            RegulatorRadiator(msg) => {
-                info!("External computing for Radiator, message=[{:?}]", msg);
-                HashMap::new()
-            }
-        }
-    }
-
 }
 
 
@@ -176,4 +163,17 @@ impl Locality for MessageEnum {
         }
     }
 
+    async fn compute(&self) -> Option<HashMap<String, f64>> {
+        match self {
+            RegulationMap(msg) => {
+                info!("External computing for RegulationMap, message=[{:?}]", msg);
+                Some(compute().await)
+            }
+            RegulatorRadiator(msg) => {
+                info!("External computing for Radiator, message=[{:?}]", msg);
+                None
+            }
+        }
+    }
+    
 }

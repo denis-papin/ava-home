@@ -20,6 +20,26 @@ impl <T> HardLoop<T> where T : Locality {
         }
     }
 
+    // static
+    pub fn find_loops(topic: &str, all_loops: &Vec<HardLoop<T>>) -> (Vec<HardLoop<T>>, Option<Arc<RefCell<GenericDevice<T>>>>)  {
+        let mut eligible_loops : Vec<HardLoop<T>> = vec![];
+        let mut output_dev : Option<Arc<RefCell<GenericDevice<T>>>> = None;
+
+        for lp in all_loops {
+            match lp.find_device_by_topic(topic) {
+                None => {}
+                Some(dev) => {
+                    info!("Found topic in [{}] loop, topic=[{}]", & lp.get_name(), topic);
+                    eligible_loops.push(lp.clone());
+                    output_dev = Some(dev.clone());
+                }
+            }
+
+        }
+        (eligible_loops, output_dev)
+    }
+
+
     pub fn get_name(&self) -> String {
         self.name.clone()
     }

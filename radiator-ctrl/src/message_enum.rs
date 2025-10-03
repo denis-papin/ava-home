@@ -77,6 +77,10 @@ impl Locality for MessageEnum {
             }
         }
     }
+
+    async fn compute(&self) -> Option<HashMap<String, f64>> {
+        None
+    }
 }
 
 

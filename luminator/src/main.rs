@@ -11,17 +11,15 @@ use uuid::Uuid;
 
 use crate::device_repo::{build_device_repo, device_to_listen};
 use ava_toolkit::generic_device::GenericDevice;
-use crate::init_loop::{build_init_list, process_initialization_message};
-use crate::loops::build_loops;
+use ava_toolkit::hard_loop::HardLoop;
+use ava_toolkit::init_loop::process_initialization_message;
+use ava_toolkit::processing::process_incoming_message;
+use crate::loops::{build_init_list, build_loops};
 use crate::message_enum::MessageEnum;
-use crate::processing::process_incoming_message;
 
 mod loops;
 mod device_repo;
-mod init_loop;
-mod processing;
 mod message_enum;
-mod generic_device;
 
 #[derive(Debug, Clone)]
 pub struct Params {
@@ -60,10 +58,11 @@ async fn main() {
 
     env::set_var("RUST_LOG", env::var_os("RUST_LOG").unwrap_or_else(|| "info".into()));
     env_logger::init();
-
+    
     info!("Starting AVA 0.5.0");
 
     info!("Building the device repository");
+    let args: Vec<String> = vec![];
     let device_repo = build_device_repo();
     let params = parse_params(&device_repo);
     
@@ -80,12 +79,16 @@ async fn main() {
     }
 
     let mut init_list = build_init_list(&device_repo);
-    let mut all_loops = build_loops(&device_repo);
+    let all_loops = build_loops(&device_repo);
 
+    let loop_finder = |topic: &str| {
+        HardLoop::find_loops(topic, &all_loops)
+    };
+    
     match process_initialization_message(&mut client, &mut eventloop, &mut init_list).await {
         Ok(_) => {
             info!("Process incoming messages");
-            let _ = process_incoming_message(&mut client, &mut eventloop, &mut all_loops).await;
+            let _ = process_incoming_message(&mut client, &mut eventloop, &args, loop_finder).await;
         }
         Err(e) => {
             panic!("{}", e);

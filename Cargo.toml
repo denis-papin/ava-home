@@ -6,7 +6,7 @@ members = [
     "regulator",
     "regulator-heart-beat",
     "mqtt5-r",
-    "move-light",
+    "luminator",
     "mqtt-bridge",
     "radiator-ctrl",
     "dashboard", "ava-toolkit",

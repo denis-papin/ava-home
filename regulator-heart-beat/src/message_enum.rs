@@ -64,4 +64,8 @@ impl Locality for MessageEnum {
     async fn process(&self, _topic: &str, _args: &[String]) {
         unimplemented!()
     }
+
+    async fn compute(&self) -> Option<HashMap<String, f64>> {
+        None
+    }
 }

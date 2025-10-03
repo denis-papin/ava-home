@@ -3,8 +3,6 @@ use std::collections::HashMap;
 
 use std::sync::Arc;
 
-use log::info;
-
 use crate::device_repo::{HALL_LAMP, KITCHEN_LAMP, KITCHEN_SWITCH};
 
 use ava_toolkit::generic_device::GenericDevice;
@@ -13,22 +11,13 @@ use crate::message_enum::MessageEnum;
 
 pub (crate) const KITCHEN_LOOP_2 : &str = "KITCHEN_LOOP_2";
 
-pub (crate) fn find_loops(topic: &str, all_loops: &mut Vec<HardLoop<MessageEnum>>) -> (Vec<HardLoop<MessageEnum>>, Option<Arc<RefCell<GenericDevice<MessageEnum>>>>)  {
-    let mut eligible_loops : Vec<HardLoop<MessageEnum>> = vec![];
-    let mut output_dev : Option<Arc<RefCell<GenericDevice<MessageEnum>>>> = None;
-
-    for lp in all_loops {
-        match lp.find_device_by_topic(topic) {
-            None => {}
-            Some(dev) => {
-                info!("Found topic in [{}] loop, topic=[{}]", & lp.get_name(), topic);
-                eligible_loops.push(lp.clone());
-                output_dev = Some(dev.clone());
-            }
-        }
-
+pub (crate) fn build_init_list(device_repo : &HashMap<String, Arc<RefCell<GenericDevice<MessageEnum>>>>) -> Vec<Arc<RefCell<GenericDevice<MessageEnum>>>> {
+    let values = device_repo.values();
+    let mut v = vec![];
+    for a in values {
+        v.push(a.clone());
     }
-    (eligible_loops, output_dev)
+    v
 }
 
 pub (crate) fn build_loops(device_repo: &HashMap<String, Arc<RefCell<GenericDevice<MessageEnum>>>>) -> Vec<HardLoop<MessageEnum>> {
@@ -40,71 +29,5 @@ pub (crate) fn build_loops(device_repo: &HashMap<String, Arc<RefCell<GenericDevi
                                           device_repo.get(HALL_LAMP).unwrap().clone(),
                                       ]);
 
-
-    // let lamp_loop = HardLoop::new( KITCHEN_LOOP.to_string(),
-    //                                vec![
-    //                                    device_repo.get(KITCHEN_INTER_DIM).unwrap().clone(),
-    //                                    device_repo.get(KITCHEN_LAMP).unwrap().clone(),
-    //                                    device_repo.get(HALL_LAMP).unwrap().clone(),
-    //                                ]);
-    //
-    // let too_hot_loop = HardLoop::new( TOO_HOT_LOOP.to_string(),
-    //                                   vec![
-    //                                       device_repo.get(TEMP_BAIE_VITREE).unwrap().clone(),
-    //                                   ]);
-    //
-    // let sensor_loop = HardLoop::new( SENSOR_LOOP.to_string(),
-    //                                  vec![
-    //                                      device_repo.get(TEMP_MEUBLE_TV).unwrap().clone(),
-    //                                  ]);
-
     vec![/*kitchen_loop, */kitchen_loop_2/*, too_hot_loop, sensor_loop, lamp_loop*/]
 }
-
-// #[derive(Clone)]
-// pub (crate) struct HardLoop {
-//     pub name : String,
-//     // pub devices : Vec<Arc<RefCell<dyn DynDevice>>>,
-//     pub devices : Vec<Arc<RefCell<GenericDevice<MessageEnum>>>>,
-// }
-//
-// impl HardLoop {
-//     fn new(name: String, devices : Vec<Arc<RefCell<GenericDevice<MessageEnum>>>>) -> Self {
-//         Self {
-//             name,
-//             devices,
-//         }
-//     }
-//
-//     pub fn get_name(&self) -> String {
-//         self.name.clone()
-//     }
-//
-//     fn get_devices(&self) -> Vec<Arc<RefCell<GenericDevice<MessageEnum>>>> {
-//         self.devices.clone()
-//     }
-//
-//     pub fn find_device_by_topic(&self, topic: &str) -> Option<Arc<RefCell<GenericDevice<MessageEnum>>>> {
-//         for dev in self.get_devices() {
-//             let dd = dev.deref().borrow();
-//             if dd.get_topic() == topic {
-//                 return Some(dev.clone());
-//             }
-//         }
-//         None
-//     }
-//
-//     pub async fn loop_devices(&self, topic: &str, original_message: &MessageEnum, mut client: &mut AsyncClient) {
-//         for dev in self.get_devices() {
-//             info!("Loop the devices");
-//             let dd1 = dev.as_ref().borrow();
-//             let dd = dd1.deref();
-//             if &dd.get_topic() != topic {
-//                 info!("🚀 Device Topic of the loop: [{:?}]", &dd.get_topic());
-//                 dd.consume_message(original_message, &mut client).await;
-//                 info!("🚩 End Device Topic of the loop: [{:?}]", &dd.get_topic());
-//             }
-//         }
-//     }
-//
-// }

@@ -24,10 +24,32 @@ mod message_enum;
 mod dao;
 mod conf_reader;
 
-/// PROPERTIES must be locked when on write, but not locked on read actions
-/// It contains a double map { 0 : { "server.port" : 30040, "app.secret-folder" : "/secret", .... },... }
-/// where only the map[0] is used in our case.
+
 lazy_static! {
+    /// A container for application properties.
+    ///
+    /// This structure maintains a *double map* of configuration values:
+    ///
+    /// ```text
+    /// {
+    ///   0: {
+    ///     "server.port": 30040,
+    ///     "app.secret-folder": "/secret",
+    ///     ...
+    ///   },
+    ///   ...
+    /// }
+    /// ```
+    ///
+    /// In practice, only the entry at key `0` is used.
+    ///
+    /// # Concurrency
+    ///
+    /// - **Write operations** must acquire a lock to ensure thread safety.
+    /// - **Read operations** do **not** require locking, as the underlying
+    ///   structure guarantees safe concurrent reads.
+    ///
+    /// This design makes reads lightweight while keeping writes consistent.
     #[derive(Debug)]
     static ref PROPERTIES : RwLock<HashMap<u32, &'static mut HashMap<String,String>> > = RwLock::new(
         {
