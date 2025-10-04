@@ -72,6 +72,23 @@ impl MoveSensorMsg {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct SimpleSwitchMsg {
+    pub action: String,
+}
+
+impl SimpleSwitchMsg {
+    pub fn new() -> Self {
+        Self {
+            action: "single".to_string()
+        }
+    }
+
+    pub fn from_json(msg: &str) -> Result<Self, String> {
+        serde_json::from_str(msg).map_err(|e| e.to_string())
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct BasicSwitchMsg {
     pub battery: f32,
     pub linkquality: u32,
@@ -146,11 +163,11 @@ impl LampRgbMsg {
             // There are 2 different modes : color xy for RGB and color_temp for white lamps
             // color_mode: "xy".to_string(),
             color: LampColorMsg {
-                x: 0.26712328,
-                y: 0.1369863
+                x: 0.4184782,
+                y: 0.5054347
             },
             //color_temp: 270,
-            brightness: 198,
+            brightness: 147,
             state: "OFF".to_string()
         }
     }

@@ -112,6 +112,10 @@ impl Locality for MessageEnum {
         }
     }
 
+    fn find_set_topic(&self, topic: &str) -> String {
+        topic.to_string()
+    }
+    
     fn raw_message(&self) -> String {
         match self {
             RegulationMap(msg) => {

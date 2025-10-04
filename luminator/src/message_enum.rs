@@ -1,7 +1,8 @@
 use std::collections::HashMap;
-use ava_toolkit::device_message::{LampRgbMsg, MoveSensorMsg};
+use log::info;
+use ava_toolkit::device_message::{LampRgbMsg, SimpleSwitchMsg};
 use ava_toolkit::generic_device::Locality;
-use crate::message_enum::MessageEnum::{LampRgb, MoveSensor};
+use crate::message_enum::MessageEnum::{LampRgb, SimpleSwitch};
 
 #[macro_export]
 macro_rules! ensure_specific_enum {
@@ -21,7 +22,7 @@ macro_rules! ensure_specific_enum {
 #[derive(Debug, Clone)]
 pub (crate) enum MessageEnum {
     LampRgb(LampRgbMsg),
-    MoveSensor(MoveSensorMsg)
+    SimpleSwitch(SimpleSwitchMsg),
 }
 
 impl Locality for MessageEnum {
@@ -32,19 +33,30 @@ impl Locality for MessageEnum {
                 let msg =  r#"{"color":{"x":"","y":""}}"#;
                 msg.to_string()
             }
-            MoveSensor(_) => {
+            SimpleSwitch(_) => {
                 let msg = r#"{"state":""}"#;
                 msg.to_string()
             }
         }
     }
 
+    fn find_set_topic(&self, topic: &str) -> String {
+        match self {
+            LampRgb(_) => {
+                format!("{}/set", topic)
+            }
+            SimpleSwitch(_) => {
+                topic.to_string()
+            }
+        }
+    }
+    
     fn raw_message(&self) -> String {
         match self {
             LampRgb(msg) => {
                 serde_json::to_string(msg).unwrap() // TODO
             }
-            MoveSensor(msg) => {
+            SimpleSwitch(msg) => {
                 serde_json::to_string(msg).unwrap() // TODO
             }
         }
@@ -55,14 +67,14 @@ impl Locality for MessageEnum {
             LampRgb(_) => {
                 original_message.to_lamp_rgb(&last_message)
             }
-            MoveSensor(_) => {
-                original_message.to_move_sensor(&last_message)
+            SimpleSwitch(_) => {
+                original_message.to_simple_switch(&last_message)
             }
         }
     }
 
-    fn to_local_with_data(&self, _original_message: &Self, _last_message: &Self, _ext_data: Option<&HashMap<String, f64>>, _topic: Option<&str>) -> Self {
-        todo!()
+    fn to_local_with_data(&self, original_message: &Self, last_message: &Self, _ext_data: Option<&HashMap<String, f64>>, _topic: Option<&str>) -> Self {
+        self.to_local(original_message, last_message)
     }
     
     fn json_to_local(&self, json_msg: &str) -> Result<MessageEnum, String> {
@@ -70,14 +82,21 @@ impl Locality for MessageEnum {
             LampRgb(_) => {
                 Ok(LampRgb(LampRgbMsg::from_json(json_msg)?))
             }
-            MoveSensor(_) => {
-                Ok(MoveSensor(MoveSensorMsg::from_json(json_msg)?))
+            SimpleSwitch(_) => {
+                Ok(SimpleSwitch(SimpleSwitchMsg::from_json(json_msg)?))
             }
         }
     }
 
     async fn process(&self, _topic: &str, _args: &[String]) {
-        unreachable!()
+        match self {
+            LampRgb(msg) => {
+                info!("Run the default empty process for LampRgbMsg, message=[{:?}]", msg);
+            }
+            SimpleSwitch(msg) => {
+                info!("Run the default empty process for SimpleSwitchMsg, message=[{:?}]", msg);
+            }
+        }
     }
 
     async fn compute(&self) -> Option<HashMap<String, f64>> {
@@ -87,15 +106,7 @@ impl Locality for MessageEnum {
 
 
 impl MessageEnum {
-
-    pub (crate) fn default_lamp_rgb() -> Self {
-        LampRgb(LampRgbMsg::new())
-    }
-
-    pub (crate) fn default_move_sensor() -> Self {
-        MoveSensor(MoveSensorMsg::new())
-    }
-
+    
     /// Convert the current type of message to LampRGB
     fn to_lamp_rgb(&self, last_message: &MessageEnum) -> Self {
         // We know the "last_message" is of type LAMP_RGB
@@ -111,25 +122,16 @@ impl MessageEnum {
         let ret = match self {
             LampRgb(msg) => {
                 LampRgb(LampRgbMsg {
-                    //color_mode: rgb.color_mode.clone(),
                     color: rgb.color.clone(),
                     brightness: rgb.brightness,
                     state: msg.state.clone(),
                 })
             }
-            MoveSensor(msg) => {
-               // MOVE_SENSOR(MoveSensor::new())
-                let state = if msg.occupancy {
-                    "ON".to_string()
-                } else {
-                    "OFF".to_string()
-                };
-
+            SimpleSwitch(_msg) => {
                 LampRgb(LampRgbMsg {
-                    //color_mode: rgb.color_mode.clone(),
                     color: rgb.color.clone(),
                     brightness: rgb.brightness,
-                    state,
+                    state: if rgb.state == "ON" { "OFF" } else { "ON" }.to_string(),
                 })
             }
         };
@@ -137,17 +139,17 @@ impl MessageEnum {
         ret
     }
 
-    fn to_move_sensor(&self, last_message: &MessageEnum) -> Self {
+    fn to_simple_switch(&self, last_message: &MessageEnum) -> Self {
         let move_sensor = match last_message {
-            MoveSensor(move_sensor) => {
-                move_sensor
+            SimpleSwitch(msg) => {
+                msg
             }
             _ => {
-                panic!("last message must be of type MOVE_SENSOR")
+                panic!("last message must be of type SimpleSwitch")
             }
         };
-        let ret = MoveSensor(move_sensor.clone());
-        let ret = ensure_specific_enum!(ret, MoveSensor);
+        let ret = SimpleSwitch(move_sensor.clone());
+        let ret = ensure_specific_enum!(ret, SimpleSwitch);
         ret
     }
 

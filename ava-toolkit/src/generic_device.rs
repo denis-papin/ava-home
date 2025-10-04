@@ -19,6 +19,7 @@ pub const SYSTEM_FAMILY: &str = "regulator";
 pub trait Locality : Clone + Debug {
     // Self is MessageEnum indeed
     fn query_for_state(&self) -> String;
+    fn find_set_topic(&self, topic: &str) -> String;
     fn raw_message(&self) -> String;
     fn to_local(&self, original_message: &Self, last_message: &Self) -> Self;
     fn to_local_with_data(&self, original_message: &Self, last_message: &Self, ext_data: Option<&HashMap<String, f64>>, topic: Option<&str>) -> Self;
@@ -227,6 +228,8 @@ impl <T> GenericDevice<T>  where T : Locality {
     pub async fn publish_message(&self, client: &mut AsyncClient, object_message : &T) {
         let message = object_message.raw_message();
         let data = message.as_bytes().to_vec();
-        client.publish(&self.get_topic(), QoS::AtLeastOnce, false, data).await.unwrap(); // TODO
+        let set_topic = self.message_type.find_set_topic(&self.get_topic());
+        info!("Publishing the message to channel [{}]", & set_topic);
+        client.publish(&set_topic, QoS::AtLeastOnce, false, data).await.unwrap(); // TODO
     }
 }

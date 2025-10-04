@@ -19,7 +19,6 @@ use crate::message_enum::MessageEnum;
 mod loops;
 mod device_repo;
 mod message_enum;
-mod generic_device;
 
 const CLIENT_ID: &str = "ava-0.5.0";
 

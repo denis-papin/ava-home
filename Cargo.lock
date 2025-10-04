@@ -1499,6 +1499,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "luminator"
+version = "0.1.0"
+dependencies = [
+ "ava-toolkit",
+ "chrono",
+ "commons-error",
+ "env_logger",
+ "log",
+ "rumqttc",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "tokio",
+ "tokio-postgres",
+ "uuid 1.10.0",
+]
+
+[[package]]
 name = "matchit"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1569,24 +1587,6 @@ dependencies = [
  "libc",
  "wasi 0.11.0+wasi-snapshot-preview1",
  "windows-sys 0.48.0",
-]
-
-[[package]]
-name = "move-light"
-version = "0.1.0"
-dependencies = [
- "ava-toolkit",
- "chrono",
- "commons-error",
- "env_logger",
- "log",
- "rumqttc",
- "serde",
- "serde_derive",
- "serde_json",
- "tokio",
- "tokio-postgres",
- "uuid 1.10.0",
 ]
 
 [[package]]

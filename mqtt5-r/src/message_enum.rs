@@ -29,6 +29,18 @@ impl Locality for MessageEnum {
             }
         }
     }
+
+    fn find_set_topic(&self, topic: &str) -> String {
+        match self {
+            LampRgb(_) => {
+                format!("{}/set", topic)
+            }
+            _ => {
+                topic.to_string()
+            }
+        }
+    }
+    
     fn raw_message(&self) -> String {
         match self {
             LampRgb(msg) => {

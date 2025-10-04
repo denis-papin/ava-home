@@ -64,7 +64,7 @@ impl <T> HardLoop<T> where T : Locality {
         for dev in devices.iter() {
             let ref_device = dev.as_ref().borrow();
             let device = ref_device.deref();
-            info!("Loop the devices : [{}]", &device.get_topic());
+            info!("Loop the devices : [{}], for the current topic [{}]", &device.get_topic(), topic);
             if &device.get_topic() != topic {
                 info!("🚀 Device Topic of the loop: [{:?}]", &device.get_topic());
                 device.consume_message(original_message, o_ext_data, &mut client).await;
