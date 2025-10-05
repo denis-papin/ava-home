@@ -8,7 +8,7 @@ use std::sync::Arc;
 use log::{error, info};
 use rumqttc::v5::AsyncClient;
 use rumqttc::v5::mqttbytes::QoS;
-
+use serde_derive::Deserialize;
 use crate::device_lock::DeviceLock;
 
 pub const ZIGBEE_FAMILY : &str = "zigbee2mqtt";

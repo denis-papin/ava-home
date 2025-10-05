@@ -18,9 +18,17 @@ pub (crate) const SW_CHAMBRE : &str = "sw_chambre";
 pub (crate) fn build_device_repo() -> HashMap<String, Arc<RefCell<GenericDevice<MessageEnum>>>> {
     info!("Inside the Repo Builder");
     let mut device_repo : HashMap<String, Arc<RefCell<GenericDevice<MessageEnum>>>> = HashMap::new();
+
+    // 1)  Récupérer le Json de SimpleSwitch
+    // let sw = r#"{"action":"single","battery":100,"linkquality":43}"#;
+    let sw = r#"{"SimpleSwitch":{"action":"single","battery":100,"linkquality":43}}"#;
+    let initial_object : MessageEnum =  serde_json::from_str(sw).unwrap();
+    let  sw2= r#"{ "LampRgb" : {"brightness":147,"color":{"x":0.4185,"y":0.5054},"color_mode":"xy","color_temp":255,"linkquality":51,"state":"ON","update":{"state":"idle"}}}"#;
+    let initial_object2 : MessageEnum =  serde_json::from_str(sw2).unwrap();
+    
     let dev_list: Vec<GenericDevice<MessageEnum>> = vec![
-        GenericDevice::new(ZIGBEE_FAMILY, SW_CHAMBRE, SimpleSwitch(SimpleSwitchMsg::new()), true),
-        GenericDevice::new(ZIGBEE_FAMILY, LAMP_CHAMBRE, LampRgb(LampRgbMsg::new()), false),
+        GenericDevice::new(ZIGBEE_FAMILY, SW_CHAMBRE, initial_object, true),
+        GenericDevice::new(ZIGBEE_FAMILY, LAMP_CHAMBRE, initial_object2 , false),
     ];
 
     for dev in dev_list {
