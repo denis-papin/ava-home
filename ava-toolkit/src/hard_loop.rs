@@ -4,6 +4,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 use log::info;
 use rumqttc::v5::AsyncClient;
+use serde::de::DeserializeOwned;
 use crate::generic_device::{GenericDevice, Locality};
 
 #[derive(Clone)]
@@ -12,7 +13,7 @@ pub struct HardLoop<T : Locality> {
     pub devices : Vec<Arc<RefCell<GenericDevice<T>>>>,
 }
 
-impl <T> HardLoop<T> where T : Locality {
+impl <T> HardLoop<T> where T : Locality + DeserializeOwned {
     pub fn new(name: String, devices : Vec<Arc<RefCell<GenericDevice<T>>>>) -> Self {
         Self {
             name,

@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
 use log::info;
-
+use serde_derive::{Deserialize, Serialize};
 use ava_toolkit::device_message::{RegulatorRadiatorMsg, RadiatorMode, RegulationMapMsg};
 use ava_toolkit::generic_device::Locality;
 use crate::external_computing::{compute, determine_action, RadiatorAction};
 use crate::message_enum::MessageEnum::{RegulatorRadiator, RegulationMap};
 
 /// Object by enums
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub (crate) enum MessageEnum {
     RegulationMap(RegulationMapMsg),
     RegulatorRadiator(RegulatorRadiatorMsg)

@@ -1,0 +1,11 @@
+{
+  "devices": [
+    { "family": "zigbee2mqtt", "name": "sw_chambre", "message_type": "SimpleSwitch", "process_same_message": true },
+    { "family": "zigbee2mqtt", "name": "kitchen_lamp", "message_type": "LampRgb", "process_same_message": false }
+  ],
+  "loops": [
+    { "loop_name": "BEDROOM_LIGHT", "devices": ["sw_chambre", "kitchen_lamp"] }
+  ],
+  "devices_to_init": ["kitchen_lamp"],
+  "devices_to_listen": ["sw_chambre", "kitchen_lamp"]
+}

@@ -4,14 +4,14 @@ use anyhow::anyhow;
 use lazy_static::lazy_static;
 use log::{error, info};
 use reqwest::header;
-
+use serde_derive::{Deserialize, Serialize};
 use ava_toolkit::device_message::{RegulatorRadiatorMsg, RadiatorMode};
 use crate::device_repo::{RAD_BUREAU, RAD_CHAMBRE, RAD_COULOIR, RAD_SALON};
 use ava_toolkit::generic_device::{GenericDevice, Locality, EXTERNAL_FAMILY};
 use crate::message_enum::MessageEnum::RadiatorMsg;
 
 /// Object by enums
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub (crate) enum MessageEnum {
     RadiatorMsg(RegulatorRadiatorMsg)
 }

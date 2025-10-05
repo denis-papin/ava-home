@@ -8,7 +8,8 @@ use std::sync::Arc;
 use log::{error, info};
 use rumqttc::v5::AsyncClient;
 use rumqttc::v5::mqttbytes::QoS;
-use serde_derive::Deserialize;
+use serde::de::DeserializeOwned;
+use serde_derive::{Serialize};
 use crate::device_lock::DeviceLock;
 
 pub const ZIGBEE_FAMILY : &str = "zigbee2mqtt";
@@ -16,7 +17,8 @@ pub const EXTERNAL_FAMILY: &str = "external";
 pub const SYSTEM_FAMILY: &str = "regulator";
 /// A Locality is a set of features
 /// shared by a group of messages often called a MessageEnum
-pub trait Locality : Clone + Debug {
+
+pub trait Locality : Clone + Debug  {
     // Self is MessageEnum indeed
     fn query_for_state(&self) -> String;
     fn find_set_topic(&self, topic: &str) -> String;
@@ -39,7 +41,7 @@ pub struct GenericDevice<T: Locality> {
     pub process_same_message: bool,
 }
 
-impl <T> GenericDevice<T>  where T : Locality {
+impl <T> GenericDevice<T>  where T : Locality + DeserializeOwned {
 
     pub fn new(family: &str, name : &str, msg: T, process_same_message: bool) -> Self {
         info!("🌟 New Generic Device, topic = [{}]", &name);

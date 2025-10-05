@@ -1,10 +1,11 @@
 use std::collections::HashMap;
+use serde_derive::{Deserialize, Serialize};
 use ava_toolkit::device_message::{InterDimMsg, InterSwitchMsg, LampRgbMsg};
 use ava_toolkit::generic_device::Locality;
 use crate::message_enum::MessageEnum::{InterDimmer, InterSwitch, LampRgb};
 
 /// Object by enums
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub (crate) enum MessageEnum {
     LampRgb(LampRgbMsg),
     InterDimmer(InterDimMsg),

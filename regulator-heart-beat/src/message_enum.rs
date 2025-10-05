@@ -1,10 +1,11 @@
 use std::collections::HashMap;
+use serde_derive::{Deserialize, Serialize};
 use ava_toolkit::device_message::{RegulationMapMsg};
 use ava_toolkit::generic_device::Locality;
 use crate::message_enum::MessageEnum::RegulationMsg;
 
 /// Object by enums
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub (crate) enum MessageEnum {
     RegulationMsg(RegulationMapMsg),
 }

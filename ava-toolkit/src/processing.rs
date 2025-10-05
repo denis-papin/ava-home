@@ -4,6 +4,7 @@ use std::str;
 use std::sync::Arc;
 use log::{info, error};
 use rumqttc::v5::{AsyncClient, Event, EventLoop, Incoming};
+use serde::de::DeserializeOwned;
 use crate::generic_device::{GenericDevice, Locality};
 use crate::hard_loop::HardLoop;
 
@@ -14,7 +15,7 @@ pub async fn process_incoming_message<T, F>(
     find_loop_fn: F,
 )
 where
-    T: Locality,
+    T: Locality + DeserializeOwned ,
     F: Fn(&str) -> (Vec<HardLoop<T>>, Option<Arc<RefCell<GenericDevice<T>>>>),
 {
     info!("Process incoming message");

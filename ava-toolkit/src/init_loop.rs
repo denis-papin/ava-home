@@ -4,6 +4,7 @@ use std::sync::Arc;
 use log::info;
 use rumqttc::v5::{AsyncClient, Event, EventLoop, Incoming};
 use rumqttc::v5::mqttbytes::QoS;
+use serde::de::DeserializeOwned;
 use crate::generic_device::{GenericDevice, Locality};
 
 /// Send an information request for all devices that need initialization.
@@ -21,7 +22,7 @@ pub async fn process_initialization_message<T>(
     device_to_init: &Vec<Arc<RefCell<GenericDevice<T>>>>,
 ) -> Result<(), String>
 where
-    T: Locality,
+    T: Locality + DeserializeOwned,
 {
     info!("Initialization stage starts");
 
@@ -72,7 +73,7 @@ where
 
 
 pub async fn handle_event<T>(event: Event, device_to_init: &Vec<Arc<RefCell<GenericDevice<T>>>>) 
-where T : Locality  {
+where T : Locality  + DeserializeOwned {
     info!("Message reçu = {:?}", &event);
     match event {
         Event::Incoming(Incoming::Publish(publish)) => {
