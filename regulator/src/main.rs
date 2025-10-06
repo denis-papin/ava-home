@@ -7,7 +7,7 @@ use std::time::Duration;
 use log::info;
 use rumqttc::v5::{AsyncClient, MqttOptions};
 use rumqttc::v5::mqttbytes::QoS;
-
+use ava_toolkit::domotic_factory::DomoticFactory;
 use crate::device_repo::{build_device_repo, device_to_listen};
 use ava_toolkit::generic_device::GenericDevice;
 use ava_toolkit::hard_loop::HardLoop;
@@ -58,36 +58,35 @@ async fn main() {
     env::set_var("RUST_LOG", env::var_os("RUST_LOG").unwrap_or_else(|| "info".into()));
     env_logger::init();
 
-    let args: Vec<String> = vec![];
     info!("Starting AVA regulator 0.5.0");
 
-    // Devices
+    let mut domo_factory: DomoticFactory<MessageEnum> = DomoticFactory::new(r"/home/denis/Projects/wks-ava-home/ava-home/luminator/resources/modules.json");
+    domo_factory.build_devices();
 
-    info!("Building the device repository");
-    let device_repo = build_device_repo();
-    let params = parse_params(&device_repo);
+    // let device_repo = base.repo();
+    let all_loops = domo_factory.build_loops();
+    let init_list = domo_factory.devices_to_init();
+    let device_to_listen = domo_factory.devices_to_listen();
 
-    // Mosquitto
+    let args: Vec<String> = vec![];
+    let channels = DomoticFactory::extract_channel_from_devices(&device_to_listen);
 
-    let mut mqttoptions = MqttOptions::new(&params.client_id, &params.server_addr, 1883);
-    mqttoptions.set_keep_alive(Duration::from_secs(params.keep_alive as u64));
+    let mut mqttoptions = MqttOptions::new(&channels.client_id, &channels.server_addr, 1883);
+    mqttoptions.set_keep_alive(Duration(channels.keep_alive as u64));
     mqttoptions.set_clean_start(true);
     mqttoptions.set_credentials("ava", "avatece3.X");
 
     let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
 
-    for p in &params.channel_filters {
+    for p in &channels.channel_filters {
         info!("Subscribe to [{}]", p.0);
         client.subscribe(p.0.clone(), QoS::AtMostOnce).await.unwrap();
     }
 
-    let mut init_list = build_init_list(&device_repo);
-    let all_loops = build_loops(&device_repo);
-
     let loop_finder = |topic: &str| {
         HardLoop::find_loops(topic, &all_loops)
     };
-    
+
     match process_initialization_message(&mut client, &mut eventloop, &mut init_list).await {
         Ok(_) => {
             info!("Process incoming messages");
