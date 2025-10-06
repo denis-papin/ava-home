@@ -11,7 +11,6 @@ use serde::Deserialize;
 use uuid::Uuid;
 use crate::generic_device::{GenericDevice, Locality};
 use crate::hard_loop::HardLoop;
-use crate::loop_factory::factory;
 
 #[derive(Debug, Deserialize)]
 pub struct DeviceDefinition {
@@ -51,17 +50,13 @@ fn read_json_file<T: for<'de> Deserialize<'de>>(path: &Path) -> std::io::Result<
 
 /// Loads a message object of type `T` (implements Locality) from a
 /// JSON file named `<message_type>.json`.
-pub fn load_message_from_type<T: Locality + DeserializeOwned>(message_type: &str) -> T {
-    // Adjust the base directory as needed (can be made configurable)
-    let base_dir = Path::new("resources");
-    let file = base_dir.join(format!("{}.json", message_type));
-
-    let content = fs::read_to_string(&file)
-        .unwrap_or_else(|_| panic!("Missing or unreadable message file: {:?}", file));
-
-    serde_json::from_str::<T>(&content)
-        .unwrap_or_else(|_| panic!("Invalid message JSON format in {:?}", file))
+pub fn  factory<T>(message_type: &str) -> T where T : Locality + DeserializeOwned {
+    let path_to_json = format!(r"/home/denis/Projects/wks-ava-home/ava-home/ava-toolkit/resources/{}.json", message_type);
+    let  object_json= fs::read_to_string(path_to_json).unwrap();
+    let message : T =  serde_json::from_str(object_json.as_str()).unwrap(); // TODO
+    message
 }
+
 
 #[derive(Debug, Clone)]
 pub struct Channels {

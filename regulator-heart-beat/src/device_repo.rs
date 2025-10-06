@@ -21,8 +21,3 @@ pub (crate) fn build_device_repo() -> HashMap<String, Arc<RefCell<GenericDevice<
     }
     device_repo
 }
-
-// pub (crate) fn device_to_listen(_device_repo: &HashMap<String, Arc<RefCell<GenericDevice<MessageEnum>>>>) -> Vec<Arc<RefCell<GenericDevice<MessageEnum>>>> {
-//     vec![
-//     ]
-// }
