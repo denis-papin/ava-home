@@ -19,14 +19,6 @@ mod external_computing;
 
 const CLIENT_ID: &str = "ava-regulator";
 
-#[derive(Debug, Clone)]
-pub struct Params {
-    pub server_addr : String,
-    pub client_id : String,
-    pub channel_filters: Vec<(String, QoS)>,
-    pub keep_alive :  u16,
-}
-
 #[tokio::main]
 async fn main() {
 
@@ -39,8 +31,7 @@ async fn main() {
 
     let mut domo_factory: DomoticFactory<MessageEnum> = DomoticFactory::new(r"/home/denis/Projects/wks-ava-home/ava-home/regulator/resources/modules.json");
     domo_factory.build_devices();
-
-    // let device_repo = base.repo();
+    
     let all_loops = domo_factory.build_loops();
     let init_list = domo_factory.devices_to_init();
     let device_to_listen = domo_factory.devices_to_listen();

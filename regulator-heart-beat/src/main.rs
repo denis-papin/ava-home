@@ -11,15 +11,13 @@ use log::info;
 use rumqttc::v5::{AsyncClient, Event, Incoming, MqttOptions};
 use tokio::time::interval;
 use log::*;
+use ava_toolkit::domotic_factory::DomoticFactory;
 use commons_error::*;
 use commons_pg::sql_transaction2::init_db_pool2;
 use crate::conf_reader::read_config;
 use crate::dao::get_current_regulation_map;
-
-use crate::device_repo::{build_device_repo, REGULATE_RADIATOR};
 use crate::message_enum::MessageEnum;
 
-mod device_repo;
 mod message_enum;
 mod dao;
 mod conf_reader;
@@ -62,24 +60,6 @@ lazy_static! {
 
 const CLIENT_ID: &str = "ava-regulator-heart-beat";
 
-#[derive(Debug, Clone)]
-pub struct Params {
-    pub server_addr : String,
-    pub client_id : String,
-    pub keep_alive :  u16,
-}
-
-/// Build the list of channel to listen
-fn parse_params() -> Params {
-    let client_id = CLIENT_ID.to_string();
-    Params {
-        server_addr : "192.168.0.149".to_string(),
-        client_id,
-        // channel_filters,
-        keep_alive : 30_000,
-    }
-}
-
 fn set_props(props : HashMap<String, String>) {
     let mut w = PROPERTIES.write().unwrap();
     let item = w.get_mut(&0).unwrap();
@@ -112,6 +92,8 @@ pub fn get_prop_pg_connect_string() -> anyhow::Result<(String,u32)> {
     Ok((cs, db_pool_size))
 }
 
+pub (crate) const REGULATE_RADIATOR: &str = "regulate_radiator";
+
 #[tokio::main]
 async fn main() {
 
@@ -120,15 +102,22 @@ async fn main() {
 
     info!("Starting AVA regulator-heart-beat 0.5.0");
 
+    let mut domo_factory: DomoticFactory<MessageEnum> = DomoticFactory::new(r"/home/denis/Projects/wks-ava-home/ava-home/regulator-heart-beat/resources/modules.json");
+    domo_factory.build_devices();
+    
+    let device_to_listen = domo_factory.devices_to_listen();
+    let device_repo = domo_factory.repo();
+    
+    
+    let args: Vec<String> = vec![];
+    let channels = DomoticFactory::extract_channel_from_devices(&device_to_listen);
+    
+    dbg!(&channels);
+    
     // Devices
     info!("Building the device repository");
-    let device_repo = build_device_repo();
-    let params = parse_params();
-
-    // Mosquitto
-
-    let mut mqttoptions = MqttOptions::new(&params.client_id, &params.server_addr, 1883);
-    mqttoptions.set_keep_alive(Duration::from_secs(params.keep_alive as u64));
+    let mut mqttoptions = MqttOptions::new(&channels.client_id, &channels.server_addr, 1883);
+    mqttoptions.set_keep_alive(Duration::from_secs(channels.keep_alive as u64));
     mqttoptions.set_clean_start(true);
     mqttoptions.set_credentials("ava", "avatece3.X");
 
@@ -146,17 +135,7 @@ async fn main() {
     let log_config_path = Path::new(&log_config);
 
     println!("😎 Read log properties from {:?}", &log_config_path);
-
-    // match log4rs::init_file(&log_config_path, Default::default()) {
-    //     Err(e) => {
-    //         eprintln!("{:?} {:?}", &log_config_path, e);
-    //         exit(-59);
-    //     }
-    //     Ok(_) => {}
-    // }
-    //
-    // log_info!("Init logs ok");
-
+    
     // Init DB pool
     let (connect_string, db_pool_size) = match get_prop_pg_connect_string()
         .map_err(err_fwd!("Cannot read the database connection information"))
@@ -181,7 +160,7 @@ async fn main() {
 
         if let Ok(reg_plan) = get_current_regulation_map().await {
             info!("L'heure actuelle est entre {} et {}.", reg_plan.0, reg_plan.1);
-            let msg = MessageEnum::RegulationMsg(reg_plan.2);
+            let msg = MessageEnum::RegulationMap(reg_plan.2);
 
             info!("prepare to send :  [{:?}]", &msg);
             let _ = device.publish_message(&mut client, &msg).await;

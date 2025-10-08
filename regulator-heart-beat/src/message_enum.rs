@@ -2,12 +2,12 @@ use std::collections::HashMap;
 use serde_derive::{Deserialize, Serialize};
 use ava_toolkit::device_message::{RegulationMapMsg};
 use ava_toolkit::generic_device::Locality;
-use crate::message_enum::MessageEnum::RegulationMsg;
+use crate::message_enum::MessageEnum::RegulationMap;
 
 /// Object by enums
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub (crate) enum MessageEnum {
-    RegulationMsg(RegulationMapMsg),
+    RegulationMap(RegulationMapMsg),
 }
 
 impl MessageEnum {
@@ -17,14 +17,14 @@ impl MessageEnum {
     }
 
     pub(crate) fn default_regulation() -> Self {
-        RegulationMsg(RegulationMapMsg::new())
+        RegulationMap(RegulationMapMsg::new())
     }
 }
 
 impl Locality for MessageEnum {
     fn query_for_state(&self) -> String {
         match self {
-            RegulationMsg(_) => {
+            RegulationMap(_) => {
                 let msg = r#"{"state":""}"#;
                 msg.to_string()
             }
@@ -37,7 +37,7 @@ impl Locality for MessageEnum {
 
     fn raw_message(&self) -> String {
         match self {
-            RegulationMsg(msg) => {
+            RegulationMap(msg) => {
                 serde_json::to_string(msg).unwrap() // TODO
             }
         }
@@ -46,7 +46,7 @@ impl Locality for MessageEnum {
     /// Convert the original message to the type of the current Self
     fn to_local(&self, original_message: &MessageEnum, last_message: &MessageEnum) -> Self {
         match self {
-            RegulationMsg(_) => {
+            RegulationMap(_) => {
                 original_message.to_regulation(&last_message)
             }
         }
@@ -58,8 +58,8 @@ impl Locality for MessageEnum {
     
     fn json_to_local(&self, json_msg: &str) -> Result<MessageEnum, String> {
         match self {
-            RegulationMsg(_) => {
-                Ok(RegulationMsg(RegulationMapMsg::from_json(json_msg)?))
+            RegulationMap(_) => {
+                Ok(RegulationMap(RegulationMapMsg::from_json(json_msg)?))
             }
         }
     }
