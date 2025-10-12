@@ -1,0 +1,26 @@
+{
+  "devices": [
+    { "family": "zigbee2mqtt", "name": "ts_salon_1", "message_type": "TempSensor", "process_same_message": false },
+    { "family": "zigbee2mqtt", "name": "ts_salon_2", "message_type": "TempSensor", "process_same_message": false },
+    { "family": "zigbee2mqtt", "name": "ts_bureau", "message_type": "TempSensor", "process_same_message": false },
+    { "family": "zigbee2mqtt", "name": "ts_chambre_1", "message_type": "TempSensor", "process_same_message": false },
+    { "family": "zigbee2mqtt", "name": "ts_couloir", "message_type": "TempSensor", "process_same_message": false },
+    { "family": "external", "name": "rad_salon", "message_type": "Radiator", "process_same_message": false },
+    { "family": "external", "name": "rad_bureau", "message_type": "Radiator", "process_same_message": false },
+    { "family": "external", "name": "rad_couloir", "message_type": "Radiator", "process_same_message": false },
+    { "family": "external", "name": "rad_chambre", "message_type": "Radiator", "process_same_message": false }
+  ],
+  "loops": [
+    { "loop_name": "loop_1", "devices": ["ts_salon_1"] },
+    { "loop_name": "loop_2", "devices": ["ts_salon_2"] },
+    { "loop_name": "loop_3", "devices": ["ts_bureau"] },
+    { "loop_name": "loop_4", "devices": ["ts_chambre_1"] },
+    { "loop_name": "loop_5", "devices": ["ts_couloir"] },
+    { "loop_name": "loop_6", "devices": ["rad_salon"] },
+    { "loop_name": "loop_7", "devices": ["rad_bureau"] },
+    { "loop_name": "loop_8", "devices": ["rad_couloir"] },
+    { "loop_name": "loop_9", "devices": ["rad_chambre"] }
+  ],
+  "devices_to_init": [],
+  "devices_to_listen": ["ts_salon_1", "ts_salon_2", "ts_bureau", "ts_chambre_1", "ts_couloir", "rad_salon", "rad_bureau", "rad_couloir", "rad_chambre"]
+}

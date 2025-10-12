@@ -54,7 +54,7 @@ async fn main() {
     let loop_finder = |topic: &str| {
         HardLoop::find_loops(topic, &all_loops)
     };
-
+    
     match process_initialization_message(&mut client, &mut eventloop, &init_list).await {
         Ok(_) => {
             info!("Process incoming messages");
