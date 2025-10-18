@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::ops::Deref;
 use std::str;
 use std::sync::Arc;
-use log::{info, error};
+use log::{info, error, debug};
 use rumqttc::v5::{AsyncClient, Event, EventLoop, Incoming};
 use serde::de::DeserializeOwned;
 use crate::generic_device::{GenericDevice, Locality};
@@ -63,16 +63,14 @@ where
             }
             Event::Incoming(Incoming::ConnAck(connack)) => {
                 // Accéder aux métadonnées de la réponse de connexion (Connack)
-                info!("ConnaAck ({:?})", &connack);
-                if let Some(properties) = connack.properties {
-                    println!("Propriétés de la réponse de connexion: {:?}", properties);
-                }
+                info!("Réponse à la connection ack");
+                debug!("ConnaAck ({:?})", &connack);
             }
             Event::Incoming(Incoming::PubAck(pub_ack)) => {
-                info!("PubAck ({:?})", &pub_ack);
+                debug!("PubAck ({:?})", &pub_ack);
             }
             _ => {
-                info!("Other case!");
+                debug!("Other cases!");
             }
         }
     }

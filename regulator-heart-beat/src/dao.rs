@@ -1,11 +1,11 @@
-use std::collections::HashMap;
 use anyhow::anyhow;
-use chrono::{Local, NaiveTime};
-use serde_json::Value;
-use commons_error::*;
-use commons_pg::sql_transaction2::{SQLConnection2, SQLQueryBlock2};
-use commons_pg::sql_transaction::CellValue;
 use ava_toolkit::device_message::RegulationMapMsg;
+use chrono::{Local, NaiveTime};
+use commons_error::*;
+use commons_pg::sql_transaction::CellValue;
+use commons_pg::sql_transaction2::{SQLConnection2, SQLQueryBlock2};
+use serde_json::Value;
+use std::collections::HashMap;
 
 
 const CURRENT_REGULATION_MAP_SQL : &str = "SELECT id, starting_time, ending_time, end_the_next_day, boost, regulation_map, ts_created

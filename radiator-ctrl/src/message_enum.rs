@@ -4,9 +4,11 @@ use anyhow::anyhow;
 use lazy_static::lazy_static;
 use log::{error, info};
 use reqwest::header;
+use reqwest::header::GetAll;
 use serde_derive::{Deserialize, Serialize};
 use ava_toolkit::device_message::{RegulatorRadiatorMsg, RadiatorMode};
 use ava_toolkit::generic_device::{GenericDevice, Locality, EXTERNAL_FAMILY};
+use common_config::properties::get_prop_value;
 use crate::message_enum::MessageEnum::RegulatorRadiator;
 
 /// Object by enums
@@ -108,12 +110,16 @@ lazy_static! {
     ]);
 }
 
+// TODO : we could remove the args param all along the cascade of routines
 pub (crate) async fn command_radiator(topic: &str, msg: &RegulatorRadiatorMsg, args: &[String]) {
     info!("Command [{}]", &topic);
 
-    let heatzy_pass = args.get(1).unwrap();
-    let heatzy_application_id= args.get(2).unwrap();
-    let heatzy_token= args.get(3).unwrap(); // "74067d76317946fca0433f684cf1e0a1"
+    // let heatzy_pass = args.get(1).unwrap();
+    let heatzy_pass = get_prop_value("heatzy.pass").unwrap(); // TODO
+    // let heatzy_application_id= args.get(2).unwrap();
+    let heatzy_application_id = get_prop_value("heatzy.application.id").unwrap();
+    // let heatzy_token= args.get(3).unwrap(); // "74067d76317946fca0433f684cf1e0a1"
+    let heatzy_token= get_prop_value("heatzy.token").unwrap();
 
     let did = DEVICE_DID.get(topic).unwrap();
     set_mode(&msg.mode, &heatzy_application_id,  &heatzy_pass, &heatzy_token, &did).await;
