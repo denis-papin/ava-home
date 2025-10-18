@@ -28,7 +28,6 @@ async fn main() {
     let mut domo_factory: DomoticFactory<MessageEnum> = DomoticFactory::new(r"/home/denis/Projects/wks-ava-home/ava-home/luminator/resources/modules.json");
     domo_factory.build_devices();
     
-    // let device_repo = base.repo();
     let all_loops = domo_factory.build_loops();
     let init_list = domo_factory.devices_to_init();
     let device_to_listen = domo_factory.devices_to_listen();

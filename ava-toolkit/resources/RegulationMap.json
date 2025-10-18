@@ -1,0 +1,9 @@
+{
+  "RegulationMap": {
+    "tc_bureau": 23.0,
+    "tc_salon_1": 23.0,
+    "tc_salon_2": 0.0,
+    "tc_chambre_1": 19.0,
+    "tc_couloir": 23.0
+  }
+}

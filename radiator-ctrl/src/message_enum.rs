@@ -6,14 +6,13 @@ use log::{error, info};
 use reqwest::header;
 use serde_derive::{Deserialize, Serialize};
 use ava_toolkit::device_message::{RegulatorRadiatorMsg, RadiatorMode};
-use crate::device_repo::{RAD_BUREAU, RAD_CHAMBRE, RAD_COULOIR, RAD_SALON};
 use ava_toolkit::generic_device::{GenericDevice, Locality, EXTERNAL_FAMILY};
-use crate::message_enum::MessageEnum::RadiatorMsg;
+use crate::message_enum::MessageEnum::RegulatorRadiator;
 
 /// Object by enums
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub (crate) enum MessageEnum {
-    RadiatorMsg(RegulatorRadiatorMsg)
+    RegulatorRadiator(RegulatorRadiatorMsg)
 }
 
 impl MessageEnum {
@@ -21,17 +20,12 @@ impl MessageEnum {
     fn to_radiator(&self, _last_message: &MessageEnum) -> Self {
         self.clone()
     }
-
-    pub(crate) fn default_radiator() -> Self {
-        RadiatorMsg(RegulatorRadiatorMsg::new())
-    }
 }
-
 
 impl Locality for MessageEnum {
     fn query_for_state(&self) -> String {
         match self {
-            RadiatorMsg(_) => {
+            RegulatorRadiator(_) => {
                 let msg = r#"{"state":""}"#;
                 msg.to_string()
             }
@@ -44,7 +38,7 @@ impl Locality for MessageEnum {
     
     fn raw_message(&self) -> String {
         match self {
-            RadiatorMsg(msg) => {
+            RegulatorRadiator(msg) => {
                 serde_json::to_string(msg).unwrap() // TODO
             }
         }
@@ -53,7 +47,7 @@ impl Locality for MessageEnum {
     /// Convert the original message to the type of the current Self
     fn to_local(&self, original_message: &MessageEnum, last_message: &MessageEnum) -> Self {
         match self {
-            RadiatorMsg(_) => {
+            RegulatorRadiator(_) => {
                 original_message.to_radiator(&last_message)
             }
         }
@@ -65,8 +59,8 @@ impl Locality for MessageEnum {
     
     fn json_to_local(&self, json_msg: &str) -> Result<MessageEnum, String> {
         match self {
-            RadiatorMsg(_) => {
-                Ok(RadiatorMsg(RegulatorRadiatorMsg::from_json(json_msg)?))
+            RegulatorRadiator(_) => {
+                Ok(RegulatorRadiator(RegulatorRadiatorMsg::from_json(json_msg)?))
             }
         }
     }
@@ -75,7 +69,7 @@ impl Locality for MessageEnum {
     /// Default process for the message
     async fn process(&self, topic: &str, args: &[String]) {
         match self {
-            RadiatorMsg(t) => {
+            RegulatorRadiator(t) => {
                 info!("Default process for Radiator, message=[{:?}]", t);
                 command_radiator(&topic, &t, &args).await;
             }
@@ -87,18 +81,31 @@ impl Locality for MessageEnum {
     }
 }
 
+const RAD_SALON: &str = "rad_salon";
+const RAD_BUREAU: &str = "rad_bureau";
+const RAD_COULOIR: &str = "rad_couloir";
+const RAD_CHAMBRE: &str = "rad_chambre";
 
+// TODO  In the general configuration file, setup this mapping and write a global construction from it.
 lazy_static! {
-    static ref DEVICE_DID: HashMap<&'static str, &'static str> = {
-        let mut map = HashMap::new();
-        let topic = GenericDevice::<MessageEnum>::make_topic("external", RAD_SALON);
-        let b_salon : &'static str = Box::leak(topic.into_boxed_str()); // Force the return type
-        map.insert(b_salon, "3wHa7Ja50MhfShUxcmOqvT");
-        map.insert(Box::leak(GenericDevice::<MessageEnum>::make_topic(EXTERNAL_FAMILY, RAD_COULOIR).into_boxed_str()), "JUVo7yMFQtdfZhi25Vo4Bu");
-        map.insert(Box::leak(GenericDevice::<MessageEnum>::make_topic(EXTERNAL_FAMILY, RAD_CHAMBRE).into_boxed_str()), "LNENiFG0MeReR9WtxMebYB");
-        map.insert(Box::leak(GenericDevice::<MessageEnum>::make_topic(EXTERNAL_FAMILY, RAD_BUREAU).into_boxed_str()), "mO7E2B49G1BS8R77UmWIjk");
-        map
-    };
+    static ref DEVICE_DID: HashMap<&'static str, &'static str> = HashMap::from([
+        (
+            &*Box::leak(GenericDevice::<MessageEnum>::make_topic(EXTERNAL_FAMILY, RAD_SALON).into_boxed_str()),
+            "3wHa7Ja50MhfShUxcmOqvT"
+        ),
+        (
+            &*Box::leak(GenericDevice::<MessageEnum>::make_topic(EXTERNAL_FAMILY, RAD_COULOIR).into_boxed_str()),
+            "JUVo7yMFQtdfZhi25Vo4Bu"
+        ),
+        (
+            &*Box::leak(GenericDevice::<MessageEnum>::make_topic(EXTERNAL_FAMILY, RAD_CHAMBRE).into_boxed_str()),
+            "LNENiFG0MeReR9WtxMebYB"
+        ),
+        (
+            &*Box::leak(GenericDevice::<MessageEnum>::make_topic(EXTERNAL_FAMILY, RAD_BUREAU).into_boxed_str()),
+            "mO7E2B49G1BS8R77UmWIjk"
+        ),
+    ]);
 }
 
 pub (crate) async fn command_radiator(topic: &str, msg: &RegulatorRadiatorMsg, args: &[String]) {

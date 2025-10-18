@@ -3,52 +3,24 @@ use log::info;
 use serde_derive::{Deserialize, Serialize};
 use tokio_postgres::{NoTls, types::ToSql};
 
-use ava_toolkit::device_message::{BasicSwitchMsg, MoveSensorMsg, RegulatorRadiatorMsg, TempSensorMsg};
+use ava_toolkit::device_message::{RegulatorRadiatorMsg, TempSensorMsg};
 use ava_toolkit::generic_device::Locality;
-use crate::message_enum::MessageEnum::{BasicSwitch, MoveSensor, Radiator, TempSensor};
+use crate::message_enum::MessageEnum::{Radiator, TempSensor};
 
 /// Object by enums
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub (crate) enum MessageEnum {
     TempSensor(TempSensorMsg),
-    MoveSensor(MoveSensorMsg),
-    BasicSwitch(BasicSwitchMsg),
     Radiator(RegulatorRadiatorMsg)
 }
 
 impl MessageEnum {
-
-    pub (crate) fn default_temp_sensor() -> Self {
-        TempSensor(TempSensorMsg::new())
-    }
-
-    pub (crate) fn default_move_sensor() -> Self {
-        MoveSensor(MoveSensorMsg::new())
-    }
-
-    pub (crate) fn default_basic_switch() -> Self {
-        BasicSwitch(BasicSwitchMsg::new())
-    }
-
-    pub (crate) fn default_radiator() -> Self {
-        Radiator(RegulatorRadiatorMsg::new())
-    }
-
+    
     /// Convert the current type of message to Temperature Sensor
     fn to_temp_sensor(&self, _last_message: &MessageEnum) -> Self {
         self.clone()
     }
-
-    /// Convert the current type of message to Move Sensor
-    fn to_move_sensor(&self, _last_message: &MessageEnum) -> Self {
-        self.clone()
-    }
-
-    /// Convert the current type of message to Basic Switch
-    fn to_basic_switch(&self, _last_message: &MessageEnum) -> Self {
-        self.clone()
-    }
-
+    
     fn to_radiator(&self, _last_message: &MessageEnum) -> Self {
         self.clone()
     }
@@ -67,14 +39,6 @@ impl Locality for MessageEnum {
                 let msg = r#"{"state":""}"#;
                 msg.to_string()
             }
-            MoveSensor(_) => {
-                let msg = r#"{"state":""}"#;
-                msg.to_string()
-            }
-            BasicSwitch(_) => {
-                let msg = r#"{"state":""}"#;
-                msg.to_string()
-            }
         }
     }
 
@@ -90,12 +54,6 @@ impl Locality for MessageEnum {
             Radiator(msg) => {
                 serde_json::to_string(msg).unwrap() // TODO handle error
             }
-            MoveSensor(msg) => {
-                serde_json::to_string(msg).unwrap() // TODO handle error
-            }
-            BasicSwitch(msg) => {
-                serde_json::to_string(msg).unwrap() // TODO handle error
-            }
         }
     }
     /// Convert the original message to the type of the current Self
@@ -106,12 +64,6 @@ impl Locality for MessageEnum {
             }
             Radiator(_) => {
                 original_message.to_radiator(&last_message)
-            }
-            MoveSensor(_) => {
-                original_message.to_move_sensor(&last_message)
-            }
-            BasicSwitch(_) => {
-                original_message.to_basic_switch(&last_message)
             }
         }
     }
@@ -128,12 +80,6 @@ impl Locality for MessageEnum {
             Radiator(_) => {
                 Ok(Radiator(RegulatorRadiatorMsg::from_json(json_msg)?))
             }
-            MoveSensor(_) => {
-                Ok(MoveSensor(MoveSensorMsg::from_json(json_msg)?))
-            }
-            MessageEnum::BasicSwitch(_) => {
-                Ok(BasicSwitch(BasicSwitchMsg::from_json(json_msg)?))
-            }
         }
     }
 
@@ -145,14 +91,14 @@ impl Locality for MessageEnum {
                 info!("Default process for TempSensor, message=[{:?}]", msg);
                 insert_temp(&topic, &msg).await;
             }
-            MoveSensor(msg) => {
-                info!("Default process for MoveSensor, message=[{:?}]", msg);
-                db_put_device_state(&topic, &json_msg).await;
-            }
-            BasicSwitch(msg) => {
-                info!("Default process for BasicSwitch, message=[{:?}]", msg);
-                db_put_device_state(&topic, &json_msg).await;
-            }
+            // MoveSensor(msg) => {
+            //     info!("Default process for MoveSensor, message=[{:?}]", msg);
+            //     db_put_device_state(&topic, &json_msg).await;
+            // }
+            // BasicSwitch(msg) => {
+            //     info!("Default process for BasicSwitch, message=[{:?}]", msg);
+            //     db_put_device_state(&topic, &json_msg).await;
+            // }
             Radiator(msg) => {
                 info!("Default process for Radiator, message=[{:?}]", msg);
                 db_put_device_state(&topic, &json_msg).await;

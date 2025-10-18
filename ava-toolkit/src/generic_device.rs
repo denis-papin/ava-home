@@ -9,7 +9,6 @@ use log::{error, info};
 use rumqttc::v5::AsyncClient;
 use rumqttc::v5::mqttbytes::QoS;
 use serde::de::DeserializeOwned;
-use serde_derive::{Serialize};
 use crate::device_lock::DeviceLock;
 
 pub const ZIGBEE_FAMILY : &str = "zigbee2mqtt";
