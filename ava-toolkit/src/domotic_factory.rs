@@ -50,9 +50,9 @@ fn read_json_file<T: for<'de> Deserialize<'de>>(path: &Path) -> std::io::Result<
 
 /// Loads a message object of type `T` (implements Locality) from a
 /// JSON file named `<message_type>.json`.
-pub fn  factory<T>(message_type: &str) -> T where T : Locality + DeserializeOwned {
+pub fn  factory<T>(message_type: &str, factory_message_dir: &PathBuf) -> T where T : Locality + DeserializeOwned {
     info!(">>> Factory builds [{}]", message_type);
-    let path_to_json = format!(r"/home/denis/Projects/wks-ava-home/ava-home/ava-toolkit/resources/{}.json", message_type);
+    let path_to_json = format!("{}/{}.json", factory_message_dir.to_str().unwrap(), message_type);
     let  object_json= fs::read_to_string(path_to_json).unwrap();
     let message : T =  serde_json::from_str(object_json.as_str()).unwrap(); // TODO
     message
@@ -78,14 +78,16 @@ fn generate_client_id() -> String {
 #[derive(Debug)]
 pub struct DomoticFactory<T: Locality> {
     config_path: PathBuf,
+    factory_message_dir: PathBuf, // folder holding all the message type json
     devices: HashMap<String, Arc<RefCell<GenericDevice<T>>>>,
 }
 
 impl<T: Locality + Clone + DeserializeOwned> DomoticFactory<T> {
     /// Create a new factory bound to a config file (devices + loops + init info)
-    pub fn new(config_path: impl AsRef<Path>) -> Self {
+    pub fn new(config_path: impl AsRef<Path>, factory_message_dir: impl AsRef<Path>) -> Self {
         Self {
             config_path: config_path.as_ref().to_path_buf(),
+            factory_message_dir: factory_message_dir.as_ref().to_path_buf(),
             devices: HashMap::new(),
         }
     }
@@ -116,7 +118,7 @@ impl<T: Locality + Clone + DeserializeOwned> DomoticFactory<T> {
             read_json_file(&self.config_path).expect("Cannot parse configuration");
 
         for def in &config.devices {
-            let msg: T = factory(&def.message_type);
+            let msg: T = factory(&def.message_type, &self.factory_message_dir);
             let dev = GenericDevice::new(&def.family, &def.name, msg, def.process_same_message);
             self.devices.insert(def.name.clone(), Arc::new(RefCell::new(dev)));
         }

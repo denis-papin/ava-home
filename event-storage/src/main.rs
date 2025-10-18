@@ -15,7 +15,6 @@ use common_config::properties::{get_prop_value, set_prop_values};
 
 mod message_enum;
 
-
 fn read_props_or_die(property_name: &str) -> String {
     let value = match get_prop_value(property_name) {
         Ok(file) => file,
@@ -51,12 +50,13 @@ async fn main() {
     let props = read_config(PROJECT_CODE, &o_config_file, &Some("AVA_CLUSTER_PROFILE".to_string()));
     set_prop_values(props);
 
+    let factory_message_dir = read_props_or_die("factory.dir");
     let module_file = read_props_or_die("module");
     let mqtt_port = read_props_or_die("mqtt.port").parse::<u16>().unwrap(); // TODO 
     let mqtt_user = read_props_or_die("mqtt.user");
     let mqtt_password = read_props_or_die("mqtt.password");
     
-    let mut domo_factory: DomoticFactory<MessageEnum> = DomoticFactory::new(module_file);
+    let mut domo_factory: DomoticFactory<MessageEnum> = DomoticFactory::new(module_file, factory_message_dir);
     domo_factory.build_devices();
 
     let all_loops = domo_factory.build_loops();

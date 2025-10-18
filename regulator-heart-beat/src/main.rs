@@ -111,9 +111,7 @@ async fn main() {
     
     let args: Vec<String> = vec![];
     let channels = DomoticFactory::extract_channel_from_devices(&device_to_listen);
-    
-    dbg!(&channels);
-    
+
     // Devices
     info!("Building the device repository");
     let mut mqttoptions = MqttOptions::new(&channels.client_id, &channels.server_addr, 1883);
