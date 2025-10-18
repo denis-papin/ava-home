@@ -2,6 +2,7 @@
 members = [
     "commons-error",
     "commons-pg",
+    "common-config",
     "event-storage",
     "regulator",
     "regulator-heart-beat",
