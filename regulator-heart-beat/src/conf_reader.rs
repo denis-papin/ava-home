@@ -1,10 +1,9 @@
-
+use std::collections::HashMap;
 use std::env;
-use std::path::Path;
-use std::process::exit;
 use std::fs::File;
 use std::io::BufReader;
-use std::collections::HashMap;
+use std::path::Path;
+use std::process::exit;
 
 use java_properties::read;
 

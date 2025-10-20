@@ -1,96 +1,26 @@
 use std::collections::HashMap;
 use std::env;
-use std::ops::Deref;
-use std::path::Path;
 use std::process::exit;
 use std::sync::RwLock;
 use std::time::Duration;
 
-use lazy_static::*;
-use log::info;
-use rumqttc::v5::{AsyncClient, Event, Incoming, MqttOptions};
-use tokio::time::interval;
-use log::*;
-use ava_toolkit::domotic_factory::DomoticFactory;
-use commons_error::*;
-use commons_pg::sql_transaction2::init_db_pool2;
-use crate::conf_reader::read_config;
 use crate::dao::get_current_regulation_map;
 use crate::message_enum::MessageEnum;
+use ava_toolkit::domotic_factory::DomoticFactory;
+use common_config::conf_reader::{read_config, read_env};
+use common_config::properties::{get_prop_pg_connect_string, get_prop_value, set_prop_values};
+use commons_error::*;
+use commons_pg::sql_transaction2::init_db_pool2;
+use lazy_static::*;
+use log::info;
+use log::*;
+use rumqttc::v5::{AsyncClient, Event, Incoming, MqttOptions};
+use tokio::time::interval;
 
 mod message_enum;
 mod dao;
 mod conf_reader;
 
-
-lazy_static! {
-    /// A container for application properties.
-    ///
-    /// This structure maintains a *double map* of configuration values:
-    ///
-    /// ```text
-    /// {
-    ///   0: {
-    ///     "server.port": 30040,
-    ///     "app.secret-folder": "/secret",
-    ///     ...
-    ///   },
-    ///   ...
-    /// }
-    /// ```
-    ///
-    /// In practice, only the entry at key `0` is used.
-    ///
-    /// # Concurrency
-    ///
-    /// - **Write operations** must acquire a lock to ensure thread safety.
-    /// - **Read operations** do **not** require locking, as the underlying
-    ///   structure guarantees safe concurrent reads.
-    ///
-    /// This design makes reads lightweight while keeping writes consistent.
-    #[derive(Debug)]
-    static ref PROPERTIES : RwLock<HashMap<u32, &'static mut HashMap<String,String>> > = RwLock::new(
-        {
-            let mut m = HashMap::new();
-            let props : HashMap<String,String> = HashMap::new();
-            m.insert(0, Box::leak(Box::new( props )));
-            m
-        });
-}
-
-const CLIENT_ID: &str = "ava-regulator-heart-beat";
-
-fn set_props(props : HashMap<String, String>) {
-    let mut w = PROPERTIES.write().unwrap();
-    let item = w.get_mut(&0).unwrap();
-    *item = Box::leak(Box::new(props ));
-}
-
-
-///
-/// Get prop value from the application.properties file
-///
-fn get_prop_value(prop_name : &str) -> String {
-    // https://doc.rust-lang.org/std/sync/struct.RwLock.html
-    PROPERTIES.read().unwrap().deref().get(&0).unwrap().deref()
-        .get(prop_name).unwrap().to_owned()
-}
-
-
-pub fn get_prop_pg_connect_string() -> anyhow::Result<(String,u32)> {
-    let db_hostname = get_prop_value("db.hostname");
-    let db_port = get_prop_value("db.port");
-    let db_name = get_prop_value("db.name");
-    let db_user = get_prop_value("db.user");
-    let db_password = get_prop_value("db.password");
-    let db_pool_size = get_prop_value("db.pool_size").parse::<u32>().map_err(err_fwd!("Cannot read the pool size"))?;
-    // let cs = format!("host={} port={} dbname={} user={} password={}", db_hostname, db_port, db_name, db_user,db_password);
-    let cs = format!(
-        "postgres://{}:{}@{}:{}/{}",
-        db_user, db_password, db_hostname, db_port, db_name
-    );
-    Ok((cs, db_pool_size))
-}
 
 pub (crate) const REGULATE_RADIATOR: &str = "regulate_radiator";
 
@@ -102,38 +32,45 @@ async fn main() {
 
     info!("Starting AVA regulator-heart-beat 0.5.0");
 
-    let mut domo_factory: DomoticFactory<MessageEnum> = DomoticFactory::new(r"/home/denis/Projects/wks-ava-home/ava-home/regulator-heart-beat/resources/modules.json");
+    const PROJECT_CODE: &str = "regulator-heart-beat";
+    const VAR_NAME: &str = "AVA_ENV";
+
+    let o_config_file = read_env(&VAR_NAME);
+
+    // Read the application config's file
+    println!("😎 Config file using PROJECT_CODE={} VAR_NAME={}", PROJECT_CODE, VAR_NAME);
+
+    let props = read_config(PROJECT_CODE, &o_config_file, &Some("AVA_CLUSTER_PROFILE".to_string()));
+    set_prop_values(props);
+
+    let props = common_config::conf_reader::read_config(PROJECT_CODE, &o_config_file, &Some("AVA_CLUSTER_PROFILE".to_string()));
+    set_prop_values(props);
+
+    let factory_message_dir = read_props_or_die("factory.dir");
+    let module_file = read_props_or_die("module");
+    let mqtt_port = read_props_or_die("mqtt.port").parse::<u16>().unwrap(); // TODO
+    let mqtt_user = read_props_or_die("mqtt.user");
+    let mqtt_password = read_props_or_die("mqtt.password");
+    let mqtt_host = read_props_or_die("mqtt.host");
+
+    let mut domo_factory: DomoticFactory<MessageEnum> = DomoticFactory::new(module_file, factory_message_dir);
     domo_factory.build_devices();
     
     let device_to_listen = domo_factory.devices_to_listen();
     let device_repo = domo_factory.repo();
-    
-    
+
     let args: Vec<String> = vec![];
-    let channels = DomoticFactory::extract_channel_from_devices(&device_to_listen);
+    let channels = DomoticFactory::extract_channel_from_devices(&device_to_listen, &mqtt_host);
 
     // Devices
     info!("Building the device repository");
-    let mut mqttoptions = MqttOptions::new(&channels.client_id, &channels.server_addr, 1883);
+    let mut mqttoptions = MqttOptions::new(&channels.client_id, &channels.server_addr, mqtt_port);
     mqttoptions.set_keep_alive(Duration::from_secs(channels.keep_alive as u64));
     mqttoptions.set_clean_start(true);
-    mqttoptions.set_credentials("ava", "avatece3.X");
+    mqttoptions.set_credentials(mqtt_user, mqtt_password);
 
     let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
-    
-    //
-    const PROJECT_CODE: &str = "dashboard"; // TODO ...
-    const VAR_NAME: &str = "DASH_ENV"; // AVA_ENV ???
-    println!("😎 Config file using PROJECT_CODE={} VAR_NAME={}", PROJECT_CODE, VAR_NAME);
 
-    let props = read_config(PROJECT_CODE, VAR_NAME);
-    set_props(props);
-    let _port = get_prop_value("server.port").parse::<u16>().unwrap();
-    let log_config: String = get_prop_value("log4rs.config");
-    let log_config_path = Path::new(&log_config);
-
-    println!("😎 Read log properties from {:?}", &log_config_path);
-    
     // Init DB pool
     let (connect_string, db_pool_size) = match get_prop_pg_connect_string()
         .map_err(err_fwd!("Cannot read the database connection information"))
@@ -179,4 +116,15 @@ async fn main() {
             }
         }
     }
+}
+
+fn read_props_or_die(property_name: &str) -> String {
+    let value = match get_prop_value(property_name) {
+        Ok(file) => file,
+        Err(e) => {
+            error!("{}", e);
+            panic!("Cannot find the property")
+        }
+    };
+    value
 }

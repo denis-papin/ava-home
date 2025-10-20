@@ -17,5 +17,4 @@ tokio-postgres = { workspace = true }
 
 
 ava-toolkit = {path="../ava-toolkit"}
-
 common-config = {path ="../common-config"}

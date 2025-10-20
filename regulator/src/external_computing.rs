@@ -1,8 +1,11 @@
 use std::collections::HashMap;
+use std::process::exit;
 use std::time::SystemTime;
 
 use chrono::{DateTime, Utc};
-use log::info;
+use common_config::properties::get_prop_pg_connect_string;
+use commons_error::{err_fwd, log_error};
+use log::{error, info};
 use serde_derive::{Deserialize, Serialize};
 use tokio_postgres::NoTls;
 
@@ -17,10 +20,17 @@ pub (crate) enum RadiatorAction {
 pub(crate) async fn compute() -> HashMap<String, f64> {
 
     // URL de la base de données PostgreSQL
-    let db_url = "postgresql://denis:dentece3.X@192.168.0.149/avahome";
-
+    let (db_url, db_pool_size) = match get_prop_pg_connect_string()
+    {
+        Ok(x) => x,
+        Err(e) => {
+            error!("{:?}", e);
+            exit(-64);
+        }
+    };
+    
     // Établir une connexion à la base de données
-    let (client, connection) = tokio_postgres::connect(db_url, NoTls).await.unwrap();
+    let (client, connection) = tokio_postgres::connect(&db_url, NoTls).await.unwrap();
 
     // Spawn une tâche pour gérer la processus de connexion en arrière-plan
     tokio::spawn(async move {

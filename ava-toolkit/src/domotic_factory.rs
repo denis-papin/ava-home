@@ -51,7 +51,7 @@ fn read_json_file<T: for<'de> Deserialize<'de>>(path: &Path) -> std::io::Result<
 /// Loads a message object of type `T` (implements Locality) from a
 /// JSON file named `<message_type>.json`.
 pub fn  factory<T>(message_type: &str, factory_message_dir: &PathBuf) -> T where T : Locality + DeserializeOwned {
-    info!(">>> Factory builds [{}]", message_type);
+    info!("Factory builds [{}]", message_type);
     let path_to_json = format!("{}/{}.json", factory_message_dir.to_str().unwrap(), message_type);
     let  object_json= fs::read_to_string(path_to_json).unwrap();
     let message : T =  serde_json::from_str(object_json.as_str()).unwrap(); // TODO
@@ -94,7 +94,7 @@ impl<T: Locality + Clone + DeserializeOwned> DomoticFactory<T> {
 
     /// Static
     /// Extract channel name from devices
-    pub fn extract_channel_from_devices(devices : &Vec<Arc<RefCell<GenericDevice<T>>>>) -> Channels {
+    pub fn extract_channel_from_devices(devices : &Vec<Arc<RefCell<GenericDevice<T>>>>, mqtt_host: &str) -> Channels {
         let client_id = generate_client_id(); // CLIENT_ID.to_string();
 
         let mut channel_filters: Vec<(String, QoS)> = vec![];
@@ -105,7 +105,7 @@ impl<T: Locality + Clone + DeserializeOwned> DomoticFactory<T> {
         }
 
         Channels {
-            server_addr : "raspberrypi.local".to_string(),
+            server_addr : mqtt_host.to_string(),
             client_id,
             channel_filters,
             keep_alive : 30_000,

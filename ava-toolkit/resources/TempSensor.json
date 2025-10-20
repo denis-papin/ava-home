@@ -1,8 +1,0 @@
-{
-  "TempSensor": {
-    "battery": 0.0,
-    "humidity": 0.0,
-    "linkquality": 0,
-    "temperature": 0.0
-  }
-}
