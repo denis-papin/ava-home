@@ -25,7 +25,7 @@ pub trait Locality : Clone + Debug  {
     fn to_local(&self, original_message: &Self, last_message: &Self) -> Self;
     fn to_local_with_data(&self, original_message: &Self, last_message: &Self, ext_data: Option<&HashMap<String, f64>>, topic: Option<&str>) -> Self;
     fn json_to_local(&self, json_msg: &str) -> Result<Self, String>;
-    fn process(&self, topic: &str, args: &[String]) -> impl Future<Output = ()> + Send;
+    fn process(&self, topic: &str, _args: &[String]) -> impl Future<Output = ()> + Send;
     fn compute(&self) -> impl Future<Output = Option<HashMap<String, f64>>> + Send;
 }
 

@@ -1,7 +1,6 @@
-use std::collections::HashMap;
+
 use std::env;
 use std::process::exit;
-use std::sync::RwLock;
 use std::time::Duration;
 
 use crate::dao::get_current_regulation_map;
@@ -11,7 +10,6 @@ use common_config::conf_reader::{read_config, read_env};
 use common_config::properties::{get_prop_pg_connect_string, get_prop_value, set_prop_values};
 use commons_error::*;
 use commons_pg::sql_transaction2::init_db_pool2;
-use lazy_static::*;
 use log::info;
 use log::*;
 use rumqttc::v5::{AsyncClient, Event, Incoming, MqttOptions};
@@ -19,7 +17,6 @@ use tokio::time::interval;
 
 mod message_enum;
 mod dao;
-mod conf_reader;
 
 
 pub (crate) const REGULATE_RADIATOR: &str = "regulate_radiator";
@@ -59,7 +56,6 @@ async fn main() {
     let device_to_listen = domo_factory.devices_to_listen();
     let device_repo = domo_factory.repo();
 
-    let args: Vec<String> = vec![];
     let channels = DomoticFactory::extract_channel_from_devices(&device_to_listen, &mqtt_host);
 
     // Devices

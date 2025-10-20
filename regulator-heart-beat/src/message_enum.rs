@@ -15,10 +15,6 @@ impl MessageEnum {
     fn to_regulation(&self, _last_message: &MessageEnum) -> Self {
         self.clone()
     }
-
-    pub(crate) fn default_regulation() -> Self {
-        RegulationMap(RegulationMapMsg::new())
-    }
 }
 
 impl Locality for MessageEnum {

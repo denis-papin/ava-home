@@ -16,13 +16,13 @@ pub (crate) enum MessageEnum {
 
 impl MessageEnum {
     
-    pub (crate) fn default_regulation_map() -> Self {
-        RegulationMap(RegulationMapMsg::new())
-    }
-
-    pub (crate) fn default_radiator() -> Self {
-        RegulatorRadiator(RegulatorRadiatorMsg::new())
-    }
+    // pub (crate) fn default_regulation_map() -> Self {
+    //     RegulationMap(RegulationMapMsg::new())
+    // }
+    //
+    // pub (crate) fn default_radiator() -> Self {
+    //     RegulatorRadiator(RegulatorRadiatorMsg::new())
+    // }
 
 
     /// Convert the current type of message to Temperature Sensor

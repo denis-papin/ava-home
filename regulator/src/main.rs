@@ -1,12 +1,11 @@
-use std::cell::RefCell;
-use std::collections::HashMap;
+
+
 use std::env;
-use std::sync::Arc;
 use std::time::Duration;
 
 use crate::message_enum::MessageEnum;
 use ava_toolkit::domotic_factory::DomoticFactory;
-use ava_toolkit::generic_device::GenericDevice;
+
 use ava_toolkit::hard_loop::HardLoop;
 use ava_toolkit::init_loop::process_initialization_message;
 use ava_toolkit::processing::process_incoming_message;
@@ -19,12 +18,10 @@ use rumqttc::v5::{AsyncClient, MqttOptions};
 mod message_enum;
 mod external_computing;
 
-const CLIENT_ID: &str = "ava-regulator";
-
 #[tokio::main]
 async fn main() {
 
-    // run --package regulator --bin regulator -- <heatzy_pass>   <heatzy_key>
+    // run --package regulator --bin regulator -- --cluster-profile ava_home_01
 
     env::set_var("RUST_LOG", env::var_os("RUST_LOG").unwrap_or_else(|| "info".into()));
     env_logger::init();

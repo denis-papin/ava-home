@@ -4,7 +4,6 @@ use std::time::SystemTime;
 
 use chrono::{DateTime, Utc};
 use common_config::properties::get_prop_pg_connect_string;
-use commons_error::{err_fwd, log_error};
 use log::{error, info};
 use serde_derive::{Deserialize, Serialize};
 use tokio_postgres::NoTls;
@@ -20,7 +19,7 @@ pub (crate) enum RadiatorAction {
 pub(crate) async fn compute() -> HashMap<String, f64> {
 
     // URL de la base de données PostgreSQL
-    let (db_url, db_pool_size) = match get_prop_pg_connect_string()
+    let (db_url, _db_pool_size) = match get_prop_pg_connect_string()
     {
         Ok(x) => x,
         Err(e) => {
