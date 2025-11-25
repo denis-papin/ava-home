@@ -1,5 +1,3 @@
-
-
 use std::env;
 use std::time::Duration;
 
@@ -15,15 +13,17 @@ use log::{error, info};
 use rumqttc::v5::mqttbytes::QoS;
 use rumqttc::v5::{AsyncClient, MqttOptions};
 
-mod message_enum;
 mod external_computing;
+mod message_enum;
 
 #[tokio::main]
 async fn main() {
-
     // run --package regulator --bin regulator -- --cluster-profile ava_home_01
 
-    env::set_var("RUST_LOG", env::var_os("RUST_LOG").unwrap_or_else(|| "info".into()));
+    env::set_var(
+        "RUST_LOG",
+        env::var_os("RUST_LOG").unwrap_or_else(|| "info".into()),
+    );
     env_logger::init();
 
     info!("Starting AVA regulator 0.5.0");
@@ -34,9 +34,16 @@ async fn main() {
     let o_config_file = read_env(&VAR_NAME);
 
     // Read the application config's file
-    println!("😎 Config file using PROJECT_CODE={} VAR_NAME={}", PROJECT_CODE, VAR_NAME);
+    println!(
+        "😎 Config file using PROJECT_CODE={} VAR_NAME={}",
+        PROJECT_CODE, VAR_NAME
+    );
 
-    let props = read_config(PROJECT_CODE, &o_config_file, &Some("AVA_CLUSTER_PROFILE".to_string()));
+    let props = read_config(
+        PROJECT_CODE,
+        &o_config_file,
+        &Some("AVA_CLUSTER_PROFILE".to_string()),
+    );
     set_prop_values(props);
 
     let factory_message_dir = read_props_or_die("factory.dir");
@@ -46,7 +53,8 @@ async fn main() {
     let mqtt_password = read_props_or_die("mqtt.password");
     let mqtt_host = read_props_or_die("mqtt.host");
 
-    let mut domo_factory: DomoticFactory<MessageEnum> = DomoticFactory::new(module_file, factory_message_dir);
+    let mut domo_factory: DomoticFactory<MessageEnum> =
+        DomoticFactory::new(module_file, factory_message_dir);
     domo_factory.build_devices();
 
     let all_loops = domo_factory.build_loops();
@@ -61,17 +69,18 @@ async fn main() {
     mqttoptions.set_clean_start(true);
     mqttoptions.set_credentials(mqtt_user, mqtt_password);
 
-    let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
+    let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 100);
 
     for p in &channels.channel_filters {
         info!("Subscribe to [{}]", p.0);
-        client.subscribe(p.0.clone(), QoS::AtMostOnce).await.unwrap();
+        client
+            .subscribe(p.0.clone(), QoS::AtLeastOnce)
+            .await
+            .unwrap();
     }
 
-    let loop_finder = |topic: &str| {
-        HardLoop::find_loops(topic, &all_loops)
-    };
-    
+    let loop_finder = |topic: &str| HardLoop::find_loops(topic, &all_loops);
+
     match process_initialization_message(&mut client, &mut eventloop, &init_list).await {
         Ok(_) => {
             info!("Process incoming messages");
@@ -94,5 +103,3 @@ fn read_props_or_die(property_name: &str) -> String {
     };
     value
 }
-
-
