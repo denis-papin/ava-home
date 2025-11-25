@@ -1,4 +1,3 @@
-
 use std::env;
 use std::process::exit;
 use std::time::Duration;
@@ -15,16 +14,17 @@ use log::*;
 use rumqttc::v5::{AsyncClient, Event, Incoming, MqttOptions};
 use tokio::time::interval;
 
-mod message_enum;
 mod dao;
+mod message_enum;
 
-
-pub (crate) const REGULATE_RADIATOR: &str = "regulate_radiator";
+pub(crate) const REGULATE_RADIATOR: &str = "regulate_radiator";
 
 #[tokio::main]
 async fn main() {
-
-    env::set_var("RUST_LOG", env::var_os("RUST_LOG").unwrap_or_else(|| "info".into()));
+    env::set_var(
+        "RUST_LOG",
+        env::var_os("RUST_LOG").unwrap_or_else(|| "info".into()),
+    );
     env_logger::init();
 
     info!("Starting AVA regulator-heart-beat 0.5.0");
@@ -35,12 +35,23 @@ async fn main() {
     let o_config_file = read_env(&VAR_NAME);
 
     // Read the application config's file
-    println!("😎 Config file using PROJECT_CODE={} VAR_NAME={}", PROJECT_CODE, VAR_NAME);
+    println!(
+        "😎 Config file using PROJECT_CODE={} VAR_NAME={}",
+        PROJECT_CODE, VAR_NAME
+    );
 
-    let props = read_config(PROJECT_CODE, &o_config_file, &Some("AVA_CLUSTER_PROFILE".to_string()));
+    let props = read_config(
+        PROJECT_CODE,
+        &o_config_file,
+        &Some("AVA_CLUSTER_PROFILE".to_string()),
+    );
     set_prop_values(props);
 
-    let props = common_config::conf_reader::read_config(PROJECT_CODE, &o_config_file, &Some("AVA_CLUSTER_PROFILE".to_string()));
+    let props = common_config::conf_reader::read_config(
+        PROJECT_CODE,
+        &o_config_file,
+        &Some("AVA_CLUSTER_PROFILE".to_string()),
+    );
     set_prop_values(props);
 
     let factory_message_dir = read_props_or_die("factory.dir");
@@ -50,9 +61,10 @@ async fn main() {
     let mqtt_password = read_props_or_die("mqtt.password");
     let mqtt_host = read_props_or_die("mqtt.host");
 
-    let mut domo_factory: DomoticFactory<MessageEnum> = DomoticFactory::new(module_file, factory_message_dir);
+    let mut domo_factory: DomoticFactory<MessageEnum> =
+        DomoticFactory::new(module_file, factory_message_dir);
     domo_factory.build_devices();
-    
+
     let device_to_listen = domo_factory.devices_to_listen();
     let device_repo = domo_factory.repo();
 
@@ -65,7 +77,7 @@ async fn main() {
     mqttoptions.set_clean_start(true);
     mqttoptions.set_credentials(mqtt_user, mqtt_password);
 
-    let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
+    let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 100);
 
     // Init DB pool
     let (connect_string, db_pool_size) = match get_prop_pg_connect_string()
@@ -82,15 +94,22 @@ async fn main() {
 
     let _r = init_db_pool2(&connect_string, db_pool_size).await;
 
-    let device = device_repo.get(REGULATE_RADIATOR).unwrap().as_ref().borrow();
+    let device = device_repo
+        .get(REGULATE_RADIATOR)
+        .unwrap()
+        .as_ref()
+        .borrow();
 
     //  5 minutes
-    let mut interval = interval(Duration::from_secs(5*60));
+    let mut interval = interval(Duration::from_secs(5 * 60));
     loop {
         interval.tick().await;
 
         if let Ok(reg_plan) = get_current_regulation_map().await {
-            info!("L'heure actuelle est entre {} et {}.", reg_plan.0, reg_plan.1);
+            info!(
+                "L'heure actuelle est entre {} et {}.",
+                reg_plan.0, reg_plan.1
+            );
             let msg = MessageEnum::RegulationMap(reg_plan.2);
 
             info!("prepare to send :  [{:?}]", &msg);
