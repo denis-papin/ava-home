@@ -68,7 +68,7 @@ async fn main() {
     mqttoptions.set_clean_start(true);
     mqttoptions.set_credentials(mqtt_user, mqtt_password);
 
-    let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 100);
+    let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 15);
 
     for p in &channels.channel_filters {
         info!("Subscribe to [{}]", p.0);

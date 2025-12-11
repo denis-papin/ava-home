@@ -90,7 +90,7 @@ async fn mqtt_open(user: &str, pass: &str) -> (AsyncClient, EventLoop) {
     mqttoptions.set_clean_start(true);
     mqttoptions.set_credentials(user, pass);
 
-    let (client, eventloop) = AsyncClient::new(mqttoptions, 100);
+    let (client, eventloop) = AsyncClient::new(mqttoptions, 15);
 
     info!("Subscribe to channels");
     client.subscribe("*", QoS::AtLeastOnce).await.unwrap();

@@ -69,7 +69,7 @@ async fn main() {
     mqttoptions.set_clean_start(true);
     mqttoptions.set_credentials("ava", "avatece3.X");
 
-    let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 100);
+    let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 15);
 
     for p in &params.channel_filters {
         info!("Subscribe to [{}]", p.0);

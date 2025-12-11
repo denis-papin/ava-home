@@ -77,7 +77,7 @@ async fn main() {
     mqttoptions.set_clean_start(true);
     mqttoptions.set_credentials(mqtt_user, mqtt_password);
 
-    let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 100);
+    let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 15);
 
     // Init DB pool
     let (connect_string, db_pool_size) = match get_prop_pg_connect_string()
