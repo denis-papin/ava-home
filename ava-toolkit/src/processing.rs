@@ -5,6 +5,7 @@ use std::sync::Arc;
 use log::{info, error, debug};
 use rumqttc::v5::{AsyncClient, Event, EventLoop, Incoming};
 use serde::de::DeserializeOwned;
+use tokio::time::{sleep, Duration};
 use crate::generic_device::{GenericDevice, Locality};
 use crate::hard_loop::HardLoop;
 
@@ -20,8 +21,9 @@ where
 {
     info!("Process incoming message");
 
-    while let Ok(notification) = eventloop.poll().await {
-        match notification {
+    loop {
+        match eventloop.poll().await {
+            Ok(notification) => match notification {
             Event::Incoming(Incoming::Publish(publish)) => {
                 let msg = std::str::from_utf8(&publish.payload).unwrap();
                 let topic = std::str::from_utf8(publish.topic.as_ref()).unwrap();
@@ -72,7 +74,11 @@ where
             _ => {
                 debug!("Other cases!");
             }
+            },
+            Err(e) => {
+                error!("MQTT event loop error: {}", e);
+                sleep(Duration::from_millis(500)).await;
+            }
         }
     }
 }
-

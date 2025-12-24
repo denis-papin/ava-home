@@ -5,6 +5,7 @@ use log::info;
 use rumqttc::v5::{AsyncClient, Event, EventLoop, Incoming};
 use rumqttc::v5::mqttbytes::QoS;
 use serde::de::DeserializeOwned;
+use tokio::time::{timeout, Duration, Instant};
 use crate::generic_device::{GenericDevice, Locality};
 
 /// Send an information request for all devices that need initialization.
@@ -39,11 +40,23 @@ where
                 .map_err(|e| format!("Publish failed: {}", e))?;
         }
 
+        let deadline = Instant::now() + Duration::from_secs(60);
+
         // Wait for all devices to acknowledge initialization
-        while let Ok(notification) = eventloop.poll().await {
+        while Instant::now() < deadline {
             let mut end_loop = true;
 
-            handle_event(notification, device_to_init).await;
+            match timeout(Duration::from_secs(5), eventloop.poll()).await {
+                Ok(Ok(notification)) => {
+                    handle_event(notification, device_to_init).await;
+                }
+                Ok(Err(e)) => {
+                    info!("Init loop event error: {}", e);
+                }
+                Err(_) => {
+                    info!("Init loop timeout while waiting for devices");
+                }
+            }
 
             for dev in device_to_init {
                 let borr = dev.as_ref().borrow();
@@ -61,6 +74,10 @@ where
             if end_loop {
                 break;
             }
+        }
+
+        if Instant::now() >= deadline {
+            info!("Initialization stage timeout; continuing without full init");
         }
     } else {
         info!("No devices to initialize");
