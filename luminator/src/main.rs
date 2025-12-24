@@ -52,18 +52,22 @@ async fn main() {
     let device_to_listen = domo_factory.devices_to_listen();
 
     let args: Vec<String> = vec![];
-    let channels = DomoticFactory::extract_channel_from_devices(&device_to_listen, mqtt_host.as_str());
+    let channels = DomoticFactory::extract_channel_from_devices(
+        &device_to_listen,
+        mqtt_host.as_str(),
+        PROJECT_CODE,
+    );
     
     let mut mqttoptions = MqttOptions::new(&channels.client_id, &channels.server_addr, mqtt_port);
     mqttoptions.set_keep_alive(Duration::from_secs(channels.keep_alive as u64));
-    mqttoptions.set_clean_start(true);
+    mqttoptions.set_clean_start(false);
     mqttoptions.set_credentials(mqtt_user, mqtt_password);
 
     let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
 
     for p in &channels.channel_filters {
         info!("Subscribe to [{}]", p.0);
-        client.subscribe(p.0.clone(), QoS::AtMostOnce).await.unwrap();
+        client.subscribe(p.0.clone(), QoS::AtLeastOnce).await.unwrap();
     }
     
     let loop_finder = |topic: &str| {
@@ -92,4 +96,3 @@ fn read_props_or_die(property_name: &str) -> String {
     };
     value
 }
-

@@ -67,8 +67,8 @@ pub struct Channels {
     pub keep_alive :  u16,
 }
 
-fn generate_client_id() -> String {
-    format!("{}", Uuid::new_v4())
+fn generate_client_id(prefix: &str) -> String {
+    format!("{}-{}", prefix, Uuid::new_v4())
 }
 
 
@@ -94,14 +94,18 @@ impl<T: Locality + Clone + DeserializeOwned> DomoticFactory<T> {
 
     /// Static
     /// Extract channel name from devices
-    pub fn extract_channel_from_devices(devices : &Vec<Arc<RefCell<GenericDevice<T>>>>, mqtt_host: &str) -> Channels {
-        let client_id = generate_client_id(); // CLIENT_ID.to_string();
+    pub fn extract_channel_from_devices(
+        devices: &Vec<Arc<RefCell<GenericDevice<T>>>>,
+        mqtt_host: &str,
+        client_id: &str,
+    ) -> Channels {
+        let client_id = client_id.to_string();
 
         let mut channel_filters: Vec<(String, QoS)> = vec![];
         for dev in devices {
             let dd = dev.as_ref().borrow();
             let topic = dd.get_topic();
-            channel_filters.push((topic, QoS::AtMostOnce));
+            channel_filters.push((topic, QoS::AtLeastOnce));
         }
 
         Channels {
