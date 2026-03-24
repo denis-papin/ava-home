@@ -6,7 +6,7 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::Json;
 use chrono::{Local, NaiveTime};
-use log::error;
+use log::{error, info};
 use reqwest::header;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Value;
@@ -98,6 +98,8 @@ pub async fn update_radiator(
     State(state): State<AppState>,
     Json(payload): Json<UpdateRadiatorRequest>,
 ) -> Result<Json<UpdateRadiatorResponse>, (StatusCode, String)> {
+    info!("🚀 Process radiator update request: {:?}", payload);
+
     // 1) Open a dedicated DB connection for this request.
     let (client, connection) = tokio_postgres::connect(&state.db_url, NoTls)
         .await
@@ -113,11 +115,13 @@ pub async fn update_radiator(
     let regulation_map = get_current_regulation_map(&client)
         .await
         .map_err(internal_error)?;
+    info!("✅ Current regulation map: {:?}", regulation_map);
 
     // 3) Load latest persisted radiator states to avoid unnecessary calls.
     let current_states = get_latest_radiator_states(&client)
         .await
         .map_err(internal_error)?;
+    info!("✅ Latest radiator states: {:?}", current_states);
 
     let room_temperatures = HashMap::from([
         (RAD_BUREAU.to_string(), payload.bureau),
@@ -145,6 +149,8 @@ pub async fn update_radiator(
 
     // 4) For each room: compute action, call Heatzy only when needed, then persist new state.
     for radiator in [RAD_BUREAU, RAD_CHAMBRE, RAD_COULOIR, RAD_SALON] {
+        info!("Prepare the message to send for the device: [{}]", radiator);
+
         let current_mode = current_states
             .get(radiator)
             .ok_or_else(|| {
@@ -157,6 +163,7 @@ pub async fn update_radiator(
 
         // Business rule inherited from regulator: ECO mode is manually forced and must not be overridden.
         if current_mode == RadiatorMode::ECO {
+            info!("\t🧊 Radiator {} is in ECO mode, no override will be applied", radiator);
             continue;
         }
 
@@ -174,7 +181,14 @@ pub async fn update_radiator(
             )
         })?;
 
+        info!(
+            "For device {}, current [{}], target: [{}]",
+            radiator, t_current, t_target
+        );
+
         let action = determine_action(t_current, t_target);
+        info!("The action to perform is: [{:?}]", action);
+
         let next_mode = match action {
             RadiatorAction::On => Some(RadiatorMode::CFT),
             RadiatorAction::Off => Some(RadiatorMode::STOP),
@@ -183,10 +197,18 @@ pub async fn update_radiator(
 
         if let Some(next_mode) = next_mode {
             if next_mode != current_mode {
+                info!(
+                    "\t✅ Radiator {} current mode [{}], next mode [{}]",
+                    radiator,
+                    mode_as_str(current_mode),
+                    mode_as_str(next_mode)
+                );
+
                 let did = did_by_radiator
                     .get(radiator)
                     .ok_or_else(|| internal_error(anyhow!("Missing DID mapping")))?;
 
+                info!("\t📡 Send Heatzy command for radiator {} with DID {}", radiator, did);
                 set_heatzy_mode(
                     &state.heatzy_application_id,
                     &state.heatzy_token,
@@ -199,15 +221,29 @@ pub async fn update_radiator(
                 save_radiator_state(&client, radiator, next_mode)
                     .await
                     .map_err(internal_error)?;
+                info!(
+                    "\t📝 Persisted new state for radiator {} as [{}]",
+                    radiator,
+                    mode_as_str(next_mode)
+                );
 
                 updated_radiators.push(UpdatedRadiator {
                     radiator: radiator.to_string(),
                     status: mode_as_str(next_mode).to_string(),
                 });
+            } else {
+                info!(
+                    "\t✅ Radiator {} already in mode [{}], no update needed",
+                    radiator,
+                    mode_as_str(current_mode)
+                );
             }
+        } else {
+            info!("\t✅ Radiator {} must stay the same", radiator);
         }
     }
 
+    info!("🏁 Updated radiators response: {:?}", updated_radiators);
     Ok(Json(UpdateRadiatorResponse { updated_radiators }))
 }
 
