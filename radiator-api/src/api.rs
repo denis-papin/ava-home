@@ -5,7 +5,7 @@ use ava_toolkit::device_message::RadiatorMode;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::Json;
-use chrono::Local;
+use chrono::{Local, NaiveTime};
 use log::error;
 use reqwest::header;
 use serde_derive::{Deserialize, Serialize};
@@ -215,7 +215,7 @@ pub async fn update_radiator(
 async fn get_current_regulation_map(
     client: &tokio_postgres::Client,
 ) -> anyhow::Result<RegulationMap> {
-    let local_time = Local::now().time().format("%H:%M:%S").to_string();
+    let local_time: NaiveTime = Local::now().time();
 
     let row = client
         .query_opt(CURRENT_REGULATION_MAP_SQL, &[&local_time])

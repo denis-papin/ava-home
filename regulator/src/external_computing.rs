@@ -5,7 +5,6 @@ use std::time::SystemTime;
 use chrono::{DateTime, Utc};
 use common_config::properties::get_prop_pg_connect_string;
 use log::{error, info};
-use serde_derive::{Deserialize, Serialize};
 use tokio_postgres::NoTls;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -88,18 +87,6 @@ pub (crate) fn determine_action(t_current: f64, tc: f32) -> RadiatorAction {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-struct Attribute {
-    mode: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct DevData {
-    did: String,
-    updated_at: u32,
-    attr: Attribute,
-}
-
 // async fn get_mode(heatzy_application_id: &str,  heatzy_token: &str, did: &str) -> anyhow::Result<RadiatorMode> {
 //     let mut custom_header = header::HeaderMap::new();
 //     custom_header.insert(header::USER_AGENT, header::HeaderValue::from_static("reqwest"));
@@ -141,4 +128,3 @@ struct DevData {
 //         Err(anyhow!("{:?}", response))
 //     }
 // }
-
