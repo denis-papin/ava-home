@@ -14,7 +14,7 @@ serde_derive = "1.0"
 base64 = "0.12.0"
 rs-uuid = "0.3.1"
 log = "0.4"
-log4rs = "0.11.0"
+log4rs = { workspace = true }
 okapi = { version = "0.4", features = ["derive_json_schema"] }
 java-properties = "1.2.0"
 obfstr = "0.2"
@@ -46,7 +46,6 @@ chrono = { workspace = true }
 commons-error = {path= "../commons-error"}
 commons-pg = {path= "../commons-pg" }
 ava-toolkit = {path="../ava-toolkit"}
-
 
 
 
