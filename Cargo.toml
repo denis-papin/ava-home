@@ -11,6 +11,7 @@ members = [
     "mqtt-bridge",
     "radiator-ctrl",
     "dashboard", "ava-toolkit",
+    "radiator-api",
 ]
 
 [workspace.dependencies]
