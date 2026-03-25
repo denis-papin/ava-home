@@ -16,6 +16,10 @@ const RAD_SALON: &str = "external/rad_salon";
 const RAD_BUREAU: &str = "external/rad_bureau";
 const RAD_COULOIR: &str = "external/rad_couloir";
 const RAD_CHAMBRE: &str = "external/rad_chambre";
+const TS_SALON: &str = "homey/ts_salon_1";
+const TS_BUREAU: &str = "homey/ts_bureau";
+const TS_COULOIR: &str = "homey/ts_couloir";
+const TS_CHAMBRE: &str = "homey/ts_chambre_1";
 
 const CURRENT_REGULATION_MAP_SQL: &str = r"SELECT id, starting_time, ending_time, end_the_next_day, boost, regulation_map::text AS regulation_map_json, ts_created
 FROM public.heating_plan
@@ -110,6 +114,11 @@ pub async fn update_radiator(
             error!("Database connection error: {}", e);
         }
     });
+
+    save_input_temperatures(&client, &payload)
+        .await
+        .map_err(internal_error)?;
+    info!("📝 Stored incoming temperatures into temperature_sensor_history");
 
     // 2) Load target temperatures from the currently active heating plan.
     let regulation_map = get_current_regulation_map(&client)
@@ -245,6 +254,31 @@ pub async fn update_radiator(
 
     info!("🏁 Updated radiators response: {:?}", updated_radiators);
     Ok(Json(UpdateRadiatorResponse { updated_radiators }))
+}
+
+async fn save_input_temperatures(
+    client: &tokio_postgres::Client,
+    payload: &UpdateRadiatorRequest,
+) -> anyhow::Result<()> {
+    let readings = [
+        (TS_BUREAU, payload.bureau),
+        (TS_CHAMBRE, payload.chambre),
+        (TS_COULOIR, payload.couloir),
+        (TS_SALON, payload.salon),
+    ];
+
+    let query = r#"INSERT INTO temperature_sensor_history (device_name, temperature, ts_create)
+VALUES ($1, $2, timezone('UTC', current_timestamp))"#;
+
+    for (device_name, temperature) in readings {
+        client.execute(query, &[&device_name, &temperature]).await?;
+        info!(
+            "\t📝 Stored input temperature for sensor {} = [{}]",
+            device_name, temperature
+        );
+    }
+
+    Ok(())
 }
 
 /// Load the active heating plan according to local time.
