@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use log::info;
 use serde_derive::{Deserialize, Serialize};
-use tokio_postgres::{NoTls, types::ToSql};
 
 use ava_toolkit::device_message::{RegulatorRadiatorMsg, TempSensorMsg};
 use ava_toolkit::generic_device::Locality;
@@ -113,54 +112,11 @@ impl Locality for MessageEnum {
 }
 
 /// Insère les données de l'état du périphérique dans la base de données
-pub (crate) async fn db_put_device_state(topic: &str, json_msg: &str) {
-    let db_url = "postgresql://denis:dentece3.X@192.168.0.149/avahome"; // TODO ...
-
-    // Établissez une connexion à la base de données
-    let (client, connection) = tokio_postgres::connect(db_url, NoTls).await.unwrap();
-
-    // Spawn une tâche pour gérer la processus de connexion en arrière-plan
-    tokio::spawn(async move {
-        if let Err(e) = connection.await {
-            eprintln!("Connection error: {}", e);
-        }
-    });
-
-    let query =  r#"INSERT INTO public.device_state_history
-                                (device_name, state, ts_create)
-                                VALUES($1, $2, timezone('UTC', current_timestamp))"#;
-
-    let values: &[&(dyn ToSql + Sync)] = &[&topic, &json_msg];
-    let _ = client.execute(query, values).await.unwrap();
-
-    println!("Données insérées avec succès!");
+pub (crate) async fn db_put_device_state(_topic: &str, _json_msg: &str) {
+    panic!("Please, grab the db information from the config file !!");
 }
 
 /// Insère les données de température dans la base de données
-pub (crate) async fn insert_temp(topic: &str, temp: &TempSensorMsg) {
-    // Remplacez ces valeurs par les informations de votre base de données
-    let db_url = "postgresql://denis:dentece3.X@192.168.0.149/avahome";
-
-    // Établissez une connexion à la base de données
-    let (client, connection) = tokio_postgres::connect(db_url, NoTls).await.unwrap();
-
-    // Spawn une tâche pour gérer la processus de connexion en arrière-plan
-    tokio::spawn(async move {
-        if let Err(e) = connection.await {
-            eprintln!("Connection error: {}", e);
-        }
-    });
-
-    // Données à insérer
-    let device_name = topic;
-    let temperature = temp.temperature as f64;
-    // let ts_create = chrono::Utc::now();
-
-    // Exécutez une requête d'insertion
-    let query = "INSERT INTO temperature_sensor_history (device_name, temperature, ts_create) VALUES ($1, $2, timezone('UTC', current_timestamp))";
-    let values: &[&(dyn ToSql + Sync)] = &[&device_name, &temperature];
-
-    let _ = client.execute(query, values).await.unwrap();
-
-    println!("Données insérées avec succès!");
+pub (crate) async fn insert_temp(_topic: &str, _temp: &TempSensorMsg) {
+    panic!("Please, grab the db information from the config file !!");
 }
