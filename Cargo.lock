@@ -2019,6 +2019,7 @@ dependencies = [
  "common-config",
  "env_logger",
  "log",
+ "radiator-toolkit",
  "reqwest",
  "serde",
  "serde_derive",
@@ -2038,12 +2039,24 @@ dependencies = [
  "env_logger",
  "lazy_static",
  "log",
- "reqwest",
+ "radiator-toolkit",
  "rumqttc",
  "serde",
  "serde_derive",
  "serde_json",
  "tokio",
+]
+
+[[package]]
+name = "radiator-toolkit"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ava-toolkit",
+ "log",
+ "reqwest",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

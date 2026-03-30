@@ -8,7 +8,7 @@ use axum::Json;
 use chrono::{Local, NaiveTime};
 use common_config::properties::set_prop_value;
 use log::{error, info};
-use reqwest::header;
+use radiator_toolkit::HeatzyClient;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::{Arc, RwLock};
@@ -353,159 +353,22 @@ async fn set_heatzy_mode(
     did: &str,
     mode: RadiatorMode,
 ) -> anyhow::Result<()> {
-    let current_token = {
-        let guard = heatzy_token
-            .read()
-            .map_err(|_| anyhow!("Cannot read current Heatzy token"))?;
-        guard.clone()
-    };
+    let client = HeatzyClient::new(
+        heatzy_application_id,
+        heatzy_username,
+        heatzy_password,
+        heatzy_token,
+    );
+    let previous_token = client.current_token()?;
 
-    info!("Using existing Heatzy token for control API call");
-    match set_heatzy_mode_with_token(heatzy_application_id, &current_token, did, mode).await {
-        Ok(()) => Ok(()),
-        Err(HeatzyCallError::HttpStatus(status)) if is_auth_error(status) => {
-            info!("🔄 Reconnecting to Heatzy to refresh token");
-            info!(
-                "Heatzy token rejected with status {}, trying login before retrying command",
-                status
-            );
-            let refreshed_token =
-                login_heatzy(heatzy_application_id, heatzy_username, heatzy_password).await?;
+    client.set_mode(did, mode).await?;
 
-            {
-                let mut guard = heatzy_token
-                    .write()
-                    .map_err(|_| anyhow!("Cannot update Heatzy token"))?;
-                *guard = refreshed_token.clone();
-            }
-            set_prop_value("heatzy.token", &refreshed_token);
-            info!("Heatzy token refreshed and saved into runtime configuration");
-
-            set_heatzy_mode_with_token(heatzy_application_id, &refreshed_token, did, mode)
-                .await
-                .map_err(|e| anyhow!("Heatzy error after relogin: {}", e))
-        }
-        Err(e) => Err(anyhow!("Heatzy error: {}", e)),
+    let current_token = client.current_token()?;
+    if current_token != previous_token {
+        set_prop_value("heatzy.token", &current_token);
+        info!("Heatzy token refreshed and saved into runtime configuration");
     }
-}
-
-async fn set_heatzy_mode_with_token(
-    heatzy_application_id: &str,
-    heatzy_token: &str,
-    did: &str,
-    mode: RadiatorMode,
-) -> Result<(), HeatzyCallError> {
-    let h_mode = match mode {
-        RadiatorMode::CFT => 0,
-        RadiatorMode::ECO => 1,
-        RadiatorMode::FRO => 2,
-        RadiatorMode::STOP => 3,
-    };
-
-    let data = serde_json::json!({
-        "attrs": {
-            "mode": h_mode
-        }
-    });
-
-    let url = format!("https://euapi.gizwits.com/app/control/{}", did);
-
-    let mut custom_header = header::HeaderMap::new();
-    custom_header.insert(
-        header::USER_AGENT,
-        header::HeaderValue::from_static("reqwest"),
-    );
-    custom_header.insert(
-        header::CONTENT_TYPE,
-        header::HeaderValue::from_static("application/json"),
-    );
-    custom_header.insert(
-        "X-Gizwits-Application-Id",
-        heatzy_application_id.parse().unwrap(),
-    );
-    custom_header.insert("X-Gizwits-User-token", heatzy_token.parse().unwrap());
-
-    let client = reqwest::Client::new();
-    let response = client
-        .post(url)
-        .headers(custom_header)
-        .json(&data)
-        .send()
-        .await
-        .map_err(HeatzyCallError::Request)?;
-
-    if response.status().is_success() {
-        Ok(())
-    } else {
-        Err(HeatzyCallError::HttpStatus(response.status()))
-    }
-}
-
-async fn login_heatzy(
-    heatzy_application_id: &str,
-    heatzy_username: &str,
-    heatzy_password: &str,
-) -> anyhow::Result<String> {
-    let url = "https://api.gizwits.com/app/login";
-    let body = serde_json::json!({
-        "username": heatzy_username,
-        "password": heatzy_password,
-    });
-
-    let mut custom_header = header::HeaderMap::new();
-    custom_header.insert(
-        header::USER_AGENT,
-        header::HeaderValue::from_static("reqwest"),
-    );
-    custom_header.insert(
-        header::CONTENT_TYPE,
-        header::HeaderValue::from_static("application/json"),
-    );
-    custom_header.insert(
-        "X-Gizwits-Application-Id",
-        heatzy_application_id.parse().unwrap(),
-    );
-
-    #[derive(Debug, Deserialize)]
-    struct LoginResponse {
-        token: String,
-    }
-
-    let client = reqwest::Client::new();
-    let response = client
-        .post(url)
-        .headers(custom_header)
-        .json(&body)
-        .send()
-        .await?;
-
-    if !response.status().is_success() {
-        return Err(anyhow!(
-            "Heatzy login failed with status {}",
-            response.status()
-        ));
-    }
-
-    let login_response: LoginResponse = response.json().await?;
-    Ok(login_response.token)
-}
-
-fn is_auth_error(status: reqwest::StatusCode) -> bool {
-    status == reqwest::StatusCode::UNAUTHORIZED || status == reqwest::StatusCode::FORBIDDEN
-}
-
-enum HeatzyCallError {
-    Request(reqwest::Error),
-    HttpStatus(reqwest::StatusCode),
-}
-
-impl std::fmt::Display for HeatzyCallError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            HeatzyCallError::Request(e) => write!(f, "request error: {}", e),
-            HeatzyCallError::HttpStatus(status) => write!(f, "status {}", status),
-        }
-    }
+    Ok(())
 }
 
 /// Hysteresis copied from existing regulator logic.

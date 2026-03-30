@@ -1,14 +1,13 @@
 use std::collections::HashMap;
 
-use anyhow::anyhow;
 use lazy_static::lazy_static;
 use log::{error, info};
-use reqwest::header;
-
-use serde_derive::{Deserialize, Serialize};
 use ava_toolkit::device_message::{RegulatorRadiatorMsg, RadiatorMode};
 use ava_toolkit::generic_device::{GenericDevice, Locality, EXTERNAL_FAMILY};
-use common_config::properties::get_prop_value;
+use common_config::properties::{get_prop_value, set_prop_value};
+use radiator_toolkit::HeatzyClient;
+use serde_derive::{Deserialize, Serialize};
+use std::sync::{Arc, RwLock};
 use crate::message_enum::MessageEnum::RegulatorRadiator;
 
 /// Object by enums
@@ -108,76 +107,58 @@ lazy_static! {
             "mO7E2B49G1BS8R77UmWIjk"
         ),
     ]);
+    static ref HEATZY_TOKEN: Arc<RwLock<String>> = Arc::new(RwLock::new(
+        get_prop_value("heatzy.token").expect("Cannot read heatzy.token")
+    ));
 }
 
 // TODO : we could remove the args param all along the cascade of routines
 pub (crate) async fn command_radiator(topic: &str, msg: &RegulatorRadiatorMsg, _args: &[String]) {
     info!("Command [{}]", &topic);
 
-    // let heatzy_pass = args.get(1).unwrap();
-    let heatzy_pass = get_prop_value("heatzy.pass").unwrap(); // TODO
-    // let heatzy_application_id= args.get(2).unwrap();
+    let heatzy_username = get_prop_value("heatzy.username").unwrap();
+    let heatzy_password = get_prop_value("heatzy.password").unwrap();
     let heatzy_application_id = get_prop_value("heatzy.application.id").unwrap();
-    // let heatzy_token= args.get(3).unwrap(); // "74067d76317946fca0433f684cf1e0a1"
-    let heatzy_token= get_prop_value("heatzy.token").unwrap();
 
     let did = DEVICE_DID.get(topic).unwrap();
-    set_mode(&msg.mode, &heatzy_application_id,  &heatzy_pass, &heatzy_token, &did).await;
-    info!("Radiator status changed!");
+    match set_mode(
+        &msg.mode,
+        &heatzy_application_id,
+        &heatzy_username,
+        &heatzy_password,
+        did,
+    )
+    .await
+    {
+        Ok(()) => info!("Radiator status changed!"),
+        Err(e) => error!("Erreur lors de la requête : {}", e),
+    }
 }
 
 
 ///  Les modes sont  0 CONFORT,  1 ECO, 2 HORS GEL, 3 OFF
-async fn set_mode(mode: &RadiatorMode, heatzy_application_id: &str, _heatzy_pass: &str, heatzy_token: &str, did: &str) {
+async fn set_mode(
+    mode: &RadiatorMode,
+    heatzy_application_id: &str,
+    heatzy_username: &str,
+    heatzy_password: &str,
+    did: &str,
+) -> anyhow::Result<()> {
+    let client = HeatzyClient::new(
+        heatzy_application_id,
+        heatzy_username,
+        heatzy_password,
+        HEATZY_TOKEN.clone(),
+    );
+    let previous_token = client.current_token()?;
 
-    let h_mode = match mode {
-        RadiatorMode::CFT => 0,
-        RadiatorMode::ECO => 1,
-        RadiatorMode::FRO => 2,
-        RadiatorMode::STOP => 3,
-    };
+    client.set_mode(did, *mode).await?;
 
-    let data = serde_json::json!({
-         "attrs": {
-            "mode": h_mode
-         }
-    });
-
-    let url = format!("https://euapi.gizwits.com/app/control/{}", did); // device did
-
-    let mut custom_header = header::HeaderMap::new();
-    custom_header.insert(header::USER_AGENT, header::HeaderValue::from_static("reqwest"));
-    custom_header.insert(header::CONTENT_TYPE, header::HeaderValue::from_static("application/json"));
-    custom_header.insert("X-Gizwits-Application-Id", heatzy_application_id.parse().unwrap());
-    custom_header.insert("X-Gizwits-User-token", heatzy_token.parse().unwrap());
-
-    match post_data(&url, data, custom_header).await {
-        Ok(response) => {
-            info!("Réponse: {}", response);
-        }
-        Err(e) => {
-            error!("Erreur lors de la requête : {}", e);
-        }
+    let current_token = client.current_token()?;
+    if current_token != previous_token {
+        set_prop_value("heatzy.token", &current_token);
+        info!("Heatzy token refreshed and saved into runtime configuration");
     }
-}
-
-async fn post_data(url: &str, data: serde_json::Value, headers: header::HeaderMap) -> anyhow::Result<String> {
-    // Créer une nouvelle session Reqwest
-    let client = reqwest::Client::new();
-
-    // Effectuer la requête POST
-    let response = client.post(url)
-        .headers(headers)
-        .json(&data)
-        .send()
-        .await?;
-
-    // Vérifier la réponse HTTP
-    if response.status().is_success() {
-        // Récupérer le corps de la réponse comme chaîne de caractères
-        let body = response.text().await?;
-        Ok(body)
-    } else {
-        Err(anyhow!("{:?}", response))
-    }
+    info!("Commande radiateur envoyée avec succès");
+    Ok(())
 }

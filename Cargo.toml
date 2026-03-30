@@ -13,6 +13,7 @@ members = [
     "radiator-ctrl",
     "dashboard", "ava-toolkit",
     "radiator-api",
+    "radiator-toolkit",
 ]
 
 [workspace.dependencies]
