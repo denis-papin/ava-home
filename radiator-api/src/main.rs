@@ -7,6 +7,7 @@ use axum::Router;
 use common_config::conf_reader::{read_config, read_env};
 use common_config::properties::{get_prop_pg_connect_string, get_prop_value, set_prop_values};
 use log::{error, info};
+use std::sync::{Arc, RwLock};
 
 mod api;
 
@@ -49,7 +50,9 @@ async fn main() {
     let app_state = api::AppState {
         db_url,
         heatzy_application_id: read_props_or_die("heatzy.application.id"),
-        heatzy_token: read_props_or_die("heatzy.token"),
+        heatzy_token: Arc::new(RwLock::new(read_props_or_die("heatzy.token"))),
+        heatzy_username: read_props_or_die("heatzy.username"),
+        heatzy_password: read_props_or_die("heatzy.password"),
     };
 
     // 4) Start HTTP server with a single business endpoint.
