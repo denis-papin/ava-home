@@ -6,10 +6,12 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::Json;
 use chrono::{Local, NaiveTime};
+use common_config::properties::set_prop_value;
 use log::{error, info};
 use reqwest::header;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Value;
+use std::sync::{Arc, RwLock};
 use tokio_postgres::NoTls;
 
 const RAD_SALON: &str = "external/rad_salon";
@@ -51,7 +53,9 @@ ORDER BY device_name, ts_create DESC";
 pub struct AppState {
     pub db_url: String,
     pub heatzy_application_id: String,
-    pub heatzy_token: String,
+    pub heatzy_token: Arc<RwLock<String>>,
+    pub heatzy_username: String,
+    pub heatzy_password: String,
 }
 
 /// Payload expected by POST /update-radiator.
@@ -172,7 +176,10 @@ pub async fn update_radiator(
 
         // Business rule inherited from regulator: ECO mode is manually forced and must not be overridden.
         if current_mode == RadiatorMode::ECO {
-            info!("\t🧊 Radiator {} is in ECO mode, no override will be applied", radiator);
+            info!(
+                "\t🧊 Radiator {} is in ECO mode, no override will be applied",
+                radiator
+            );
             continue;
         }
 
@@ -217,10 +224,15 @@ pub async fn update_radiator(
                     .get(radiator)
                     .ok_or_else(|| internal_error(anyhow!("Missing DID mapping")))?;
 
-                info!("\t📡 Send Heatzy command for radiator {} with DID {}", radiator, did);
+                info!(
+                    "\t📡 Send Heatzy command for radiator {} with DID {}",
+                    radiator, did
+                );
                 set_heatzy_mode(
                     &state.heatzy_application_id,
-                    &state.heatzy_token,
+                    &state.heatzy_username,
+                    &state.heatzy_password,
+                    state.heatzy_token.clone(),
                     did,
                     next_mode,
                 )
@@ -335,10 +347,54 @@ VALUES($1, $2, timezone('UTC', current_timestamp))"#;
 /// Call Heatzy control API to switch the radiator mode.
 async fn set_heatzy_mode(
     heatzy_application_id: &str,
-    heatzy_token: &str,
+    heatzy_username: &str,
+    heatzy_password: &str,
+    heatzy_token: Arc<RwLock<String>>,
     did: &str,
     mode: RadiatorMode,
 ) -> anyhow::Result<()> {
+    let current_token = {
+        let guard = heatzy_token
+            .read()
+            .map_err(|_| anyhow!("Cannot read current Heatzy token"))?;
+        guard.clone()
+    };
+
+    info!("Using existing Heatzy token for control API call");
+    match set_heatzy_mode_with_token(heatzy_application_id, &current_token, did, mode).await {
+        Ok(()) => Ok(()),
+        Err(HeatzyCallError::HttpStatus(status)) if is_auth_error(status) => {
+            info!("🔄 Reconnecting to Heatzy to refresh token");
+            info!(
+                "Heatzy token rejected with status {}, trying login before retrying command",
+                status
+            );
+            let refreshed_token =
+                login_heatzy(heatzy_application_id, heatzy_username, heatzy_password).await?;
+
+            {
+                let mut guard = heatzy_token
+                    .write()
+                    .map_err(|_| anyhow!("Cannot update Heatzy token"))?;
+                *guard = refreshed_token.clone();
+            }
+            set_prop_value("heatzy.token", &refreshed_token);
+            info!("Heatzy token refreshed and saved into runtime configuration");
+
+            set_heatzy_mode_with_token(heatzy_application_id, &refreshed_token, did, mode)
+                .await
+                .map_err(|e| anyhow!("Heatzy error after relogin: {}", e))
+        }
+        Err(e) => Err(anyhow!("Heatzy error: {}", e)),
+    }
+}
+
+async fn set_heatzy_mode_with_token(
+    heatzy_application_id: &str,
+    heatzy_token: &str,
+    did: &str,
+    mode: RadiatorMode,
+) -> Result<(), HeatzyCallError> {
     let h_mode = match mode {
         RadiatorMode::CFT => 0,
         RadiatorMode::ECO => 1,
@@ -375,12 +431,80 @@ async fn set_heatzy_mode(
         .headers(custom_header)
         .json(&data)
         .send()
-        .await?;
+        .await
+        .map_err(HeatzyCallError::Request)?;
 
     if response.status().is_success() {
         Ok(())
     } else {
-        Err(anyhow!("Heatzy error status: {}", response.status()))
+        Err(HeatzyCallError::HttpStatus(response.status()))
+    }
+}
+
+async fn login_heatzy(
+    heatzy_application_id: &str,
+    heatzy_username: &str,
+    heatzy_password: &str,
+) -> anyhow::Result<String> {
+    let url = "https://api.gizwits.com/app/login";
+    let body = serde_json::json!({
+        "username": heatzy_username,
+        "password": heatzy_password,
+    });
+
+    let mut custom_header = header::HeaderMap::new();
+    custom_header.insert(
+        header::USER_AGENT,
+        header::HeaderValue::from_static("reqwest"),
+    );
+    custom_header.insert(
+        header::CONTENT_TYPE,
+        header::HeaderValue::from_static("application/json"),
+    );
+    custom_header.insert(
+        "X-Gizwits-Application-Id",
+        heatzy_application_id.parse().unwrap(),
+    );
+
+    #[derive(Debug, Deserialize)]
+    struct LoginResponse {
+        token: String,
+    }
+
+    let client = reqwest::Client::new();
+    let response = client
+        .post(url)
+        .headers(custom_header)
+        .json(&body)
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        return Err(anyhow!(
+            "Heatzy login failed with status {}",
+            response.status()
+        ));
+    }
+
+    let login_response: LoginResponse = response.json().await?;
+    Ok(login_response.token)
+}
+
+fn is_auth_error(status: reqwest::StatusCode) -> bool {
+    status == reqwest::StatusCode::UNAUTHORIZED || status == reqwest::StatusCode::FORBIDDEN
+}
+
+enum HeatzyCallError {
+    Request(reqwest::Error),
+    HttpStatus(reqwest::StatusCode),
+}
+
+impl std::fmt::Display for HeatzyCallError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            HeatzyCallError::Request(e) => write!(f, "request error: {}", e),
+            HeatzyCallError::HttpStatus(status) => write!(f, "status {}", status),
+        }
     }
 }
 
