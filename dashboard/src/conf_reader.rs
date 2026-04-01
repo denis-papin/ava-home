@@ -1,10 +1,9 @@
-
+use std::collections::HashMap;
 use std::env;
-use std::path::Path;
-use std::process::exit;
 use std::fs::File;
 use std::io::BufReader;
-use std::collections::HashMap;
+use std::path::Path;
+use std::process::exit;
 
 use java_properties::read;
 
@@ -12,8 +11,7 @@ use java_properties::read;
 /// Read the configuration file whose path is stored in an environment variable.
 /// The config file must be in a java properties file format.
 ///
-pub fn read_config( project_code : &str, var_name : &str ) -> HashMap<String, String> {
-
+pub fn read_config(project_code: &str, var_name: &str) -> HashMap<String, String> {
     println!("Read the conf");
 
     let doka_env = match env::var(var_name) {
@@ -21,12 +19,17 @@ pub fn read_config( project_code : &str, var_name : &str ) -> HashMap<String, St
         Err(e) => {
             eprintln!("💣 Cannot find the [{}] system variable, {}", &var_name, e);
             exit(-99);
-        },
+        }
     };
 
-    let config_path = Path::new(&doka_env).join(project_code).join("config/application.properties");
+    let config_path = Path::new(&doka_env)
+        .join(project_code)
+        .join("config/application.properties");
 
-    println!("Read the config file at [{}]", config_path.to_str().unwrap());
+    println!(
+        "Read the config file at [{}]",
+        config_path.to_str().unwrap()
+    );
 
     let f = match File::open(&config_path) {
         Ok(o) => o,

@@ -1,18 +1,154 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Page de connexion</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <style>
+    body {
+      background-color: #f5f5f5;
+    }
   </style>
+  <title>Temperature Dashboard 2</title>
+  <script src="/dashboard/static/js/index2.js" defer></script>
 </head>
-<body>
-<div class="login-box">
-  <h2>Connexion</h2>
-  <form>
-    <input type="text" id="username" placeholder="Nom d'utilisateur" required><br>
-    <input type="password" id="password" placeholder="Mot de passe" required><br>
-    <input type="button" value="Se connecter" onclick="login(event)">
-  </form>
-</div>
+<body
+  class="font-sans"
+  data-dashboard-data-url="/dashboard/index2/data"
+>
+  <header class="bg-gray-800 text-white py-4 text-center">
+    <h1 class="text-2xl">Temperature Dashboard</h1>
+    <p class="text-sm text-gray-300">Mise a jour automatique toutes les 30 secondes</p>
+  </header>
+
+  <main class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
+    <!-- Salon -->
+    <div class="bg-white rounded-md shadow-md transition-transform hover:scale-105 hover:shadow-lg">
+      <div class="widget p-6 relative flex items-center">
+        <div>
+          <h2 class="text-xl font-semibold mb-2">Salon</h2>
+          <div class="flex items-baseline">
+            <p class="text-gray-600 text-xl mr-4">
+              <span id="salon_temperature">{{salon_temperature}}</span>
+              <span>°C</span>
+            </p>
+            <p class="text-gray-400">
+              <span id="salon_elapse" data-ts-create="{{salon_ts_create}}">{{salon_elapse}}</span>
+              <span>min</span>
+            </p>
+          </div>
+        </div>
+        <img class="logo absolute top-1/2 right-6 transform -translate-y-1/2 w-12 h-12" src="https://www.creativefabrica.com/wp-content/uploads/2019/12/18/Thermometer-icon-design-Graphics-1-1-580x387.png" alt="Thermometer">
+      </div>
+
+      <div class="banner right-0 bg-gray-200 p-2 rounded-b-md cursor-pointer" onclick="spinStatus('salon')">
+        <p class="text-lg text-gray-600">
+          <span>Temperature cible:</span>
+          <span id="tc_salon_1">{{tc_salon}}</span><span>°C</span><span id="tc_salon_1_ts" class="ml-2 text-sm text-gray-400">le 1 jan. à 05:00</span>
+        </p>
+        <div class="flex items-center">
+          <span class="mr-2">Statut:</span>
+          <div id="salon_rad_icon" class="w-3 h-3 rounded-full {{salon_status_bg_class}}" data-status="{{salon_status}}"></div>
+          <span id="salon_rad_message" class="ml-1 {{salon_status_text_class}}">{{salon_status_label}}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bureau -->
+    <div class="bg-white rounded-md shadow-md transition-transform hover:scale-105 hover:shadow-lg">
+      <div class="widget p-6 relative flex items-center">
+        <div>
+          <h2 class="text-xl font-semibold mb-2">Bureau</h2>
+          <div class="flex items-baseline">
+            <p class="text-gray-600 text-xl mr-4">
+              <span id="bureau_temperature">{{bureau_temperature}}</span>
+              <span>°C</span>
+            </p>
+            <p class="text-gray-400">
+              <span id="bureau_elapse" data-ts-create="{{bureau_ts_create}}">{{bureau_elapse}}</span>
+              <span>min</span>
+            </p>
+          </div>
+        </div>
+        <img class="logo absolute top-1/2 right-6 transform -translate-y-1/2 w-12 h-12" src="https://www.creativefabrica.com/wp-content/uploads/2019/12/18/Thermometer-icon-design-Graphics-1-1-580x387.png" alt="Thermometer">
+      </div>
+
+      <div class="banner right-0 bg-gray-200 p-2 rounded-b-md cursor-pointer" onclick="spinStatus('bureau')">
+        <p class="text-lg text-gray-600">
+          <span>Temperature cible:</span>
+          <span id="tc_bureau">{{tc_bureau}}</span><span>°C</span><span id="tc_bureau_ts" class="ml-2 text-sm text-gray-400">le 1 jan. à 05:00</span>
+        </p>
+        <div class="flex items-center">
+          <span class="mr-2">Statut:</span>
+          <div id="bureau_rad_icon" class="w-3 h-3 rounded-full {{bureau_status_bg_class}}" data-status="{{bureau_status}}"></div>
+          <span id="bureau_rad_message" class="ml-1 {{bureau_status_text_class}}">{{bureau_status_label}}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chambre -->
+    <div class="bg-white rounded-md shadow-md transition-transform hover:scale-105 hover:shadow-lg">
+      <div class="widget p-6 relative flex items-center">
+        <div>
+          <h2 class="text-xl font-semibold mb-2">Chambre</h2>
+          <div class="flex items-baseline">
+            <p class="text-gray-600 text-xl mr-4">
+              <span id="chambre_temperature">{{chambre_temperature}}</span>
+              <span>°C</span>
+            </p>
+            <p class="text-gray-400">
+              <span id="chambre_elapse" data-ts-create="{{chambre_ts_create}}">{{chambre_elapse}}</span>
+              <span>min</span>
+            </p>
+          </div>
+        </div>
+        <img class="logo absolute top-1/2 right-6 transform -translate-y-1/2 w-12 h-12" src="https://www.creativefabrica.com/wp-content/uploads/2019/12/18/Thermometer-icon-design-Graphics-1-1-580x387.png" alt="Thermometer">
+      </div>
+
+      <div class="banner right-0 bg-gray-200 p-2 rounded-b-md cursor-pointer" onclick="spinStatus('chambre')">
+        <p class="text-lg text-gray-600">
+          <span>Temperature cible:</span>
+          <span id="tc_chambre">{{tc_chambre}}</span><span>°C</span><span id="tc_chambre_ts" class="ml-2 text-sm text-gray-400">le 1 jan. à 05:00</span>
+        </p>
+        <div class="flex items-center">
+          <span class="mr-2">Statut:</span>
+          <div id="chambre_rad_icon" class="w-3 h-3 rounded-full {{chambre_status_bg_class}}" data-status="{{chambre_status}}"></div>
+          <span id="chambre_rad_message" class="ml-1 {{chambre_status_text_class}}">{{chambre_status_label}}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Couloir -->
+    <div class="bg-white rounded-md shadow-md transition-transform hover:scale-105 hover:shadow-lg">
+      <div class="widget p-6 relative flex items-center">
+        <div>
+          <h2 class="text-xl font-semibold mb-2">Couloir</h2>
+          <div class="flex items-baseline">
+            <p class="text-gray-600 text-xl mr-4">
+              <span id="couloir_temperature">{{couloir_temperature}}</span>
+              <span>°C</span>
+            </p>
+            <p class="text-gray-400">
+              <span id="couloir_elapse" data-ts-create="{{couloir_ts_create}}">{{couloir_elapse}}</span>
+              <span>min</span>
+            </p>
+          </div>
+        </div>
+        <img class="logo absolute top-1/2 right-6 transform -translate-y-1/2 w-12 h-12" src="https://www.creativefabrica.com/wp-content/uploads/2019/12/18/Thermometer-icon-design-Graphics-1-1-580x387.png" alt="Thermometer">
+      </div>
+
+      <div class="banner right-0 bg-gray-200 p-2 rounded-b-md cursor-pointer" onclick="spinStatus('couloir')">
+        <p class="text-lg text-gray-600">
+          <span>Temperature cible:</span>
+          <span id="tc_couloir">{{tc_couloir}}</span><span>°C</span><span id="tc_couloir_ts" class="ml-2 text-sm text-gray-400">le 1 jan. à 05:00</span>
+        </p>
+        <div class="flex items-center">
+          <span class="mr-2">Statut:</span>
+          <div id="couloir_rad_icon" class="w-3 h-3 rounded-full {{couloir_status_bg_class}}" data-status="{{couloir_status}}"></div>
+          <span id="couloir_rad_message" class="ml-1 {{couloir_status_text_class}}">{{couloir_status_label}}</span>
+        </div>
+      </div>
+    </div>
+  </main>
 </body>
 </html>
