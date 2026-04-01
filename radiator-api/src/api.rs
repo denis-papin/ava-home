@@ -1,8 +1,9 @@
 use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 
 use anyhow::anyhow;
 use ava_toolkit::device_message::RadiatorMode;
-use axum::extract::State;
+use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Json;
 use chrono::{Local, NaiveTime};
@@ -11,7 +12,6 @@ use log::{error, info};
 use radiator_toolkit::HeatzyClient;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Value;
-use std::sync::{Arc, RwLock};
 use tokio_postgres::NoTls;
 
 const RAD_SALON: &str = "external/rad_salon";
@@ -48,6 +48,39 @@ FROM public.device_state_history
 WHERE device_name LIKE 'external/rad_%'
 ORDER BY device_name, ts_create DESC";
 
+const SUPPORTED_ROOMS: &str = "bureau, chambre, couloir, salon";
+const SUPPORTED_DIRECT_MODES: &str = "CFT, STOP, ECO";
+
+#[derive(Clone, Copy, Debug)]
+struct RadiatorConfig {
+    room: &'static str,
+    radiator: &'static str,
+    did: &'static str,
+}
+
+const RADIATORS: [RadiatorConfig; 4] = [
+    RadiatorConfig {
+        room: "bureau",
+        radiator: "external/rad_bureau",
+        did: "mO7E2B49G1BS8R77UmWIjk",
+    },
+    RadiatorConfig {
+        room: "chambre",
+        radiator: "external/rad_chambre",
+        did: "LNENiFG0MeReR9WtxMebYB",
+    },
+    RadiatorConfig {
+        room: "couloir",
+        radiator: "external/rad_couloir",
+        did: "JUVo7yMFQtdfZhi25Vo4Bu",
+    },
+    RadiatorConfig {
+        room: "salon",
+        radiator: "external/rad_salon",
+        did: "3wHa7Ja50MhfShUxcmOqvT",
+    },
+];
+
 /// Shared application state injected in Axum handlers.
 #[derive(Clone)]
 pub struct AppState {
@@ -79,6 +112,18 @@ pub struct UpdatedRadiator {
     pub status: String,
 }
 
+/// Payload expected by POST /radiator/:room.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SetRadiatorModeRequest {
+    pub mode: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct SetRadiatorModeResponse {
+    pub radiator: String,
+    pub status: String,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 struct RadiatorState {
     mode: String,
@@ -101,6 +146,47 @@ enum RadiatorAction {
     NoAction,
 }
 
+/// Direct command endpoint: set one radiator mode without using temperature-based computation.
+pub async fn set_radiator_mode(
+    Path(room): Path<String>,
+    State(state): State<AppState>,
+    Json(payload): Json<SetRadiatorModeRequest>,
+) -> Result<Json<SetRadiatorModeResponse>, (StatusCode, String)> {
+    info!(
+        "🚀 Process direct radiator mode request for room [{}] and mode [{}]",
+        room, payload.mode
+    );
+
+    let radiator = find_radiator_by_room(&room)?;
+    let requested_mode = parse_direct_mode(&payload.mode)?;
+
+    let (client, _connection) = open_db_connection(&state).await.map_err(internal_error)?;
+    let current_states = get_latest_radiator_states(&client)
+        .await
+        .map_err(internal_error)?;
+
+    if current_states.get(radiator.radiator) == Some(&requested_mode) {
+        info!(
+            "\t✅ Radiator {} already in direct mode [{}], no update needed",
+            radiator.radiator,
+            mode_as_str(requested_mode)
+        );
+        return Ok(Json(SetRadiatorModeResponse {
+            radiator: radiator.radiator.to_string(),
+            status: mode_as_str(requested_mode).to_string(),
+        }));
+    }
+
+    apply_radiator_mode_change(&client, &state, radiator, requested_mode)
+        .await
+        .map_err(internal_error)?;
+
+    Ok(Json(SetRadiatorModeResponse {
+        radiator: radiator.radiator.to_string(),
+        status: mode_as_str(requested_mode).to_string(),
+    }))
+}
+
 /// Main endpoint: compute required changes, call Heatzy, then persist state changes.
 pub async fn update_radiator(
     State(state): State<AppState>,
@@ -109,15 +195,7 @@ pub async fn update_radiator(
     info!("🚀 Process radiator update request: {:?}", payload);
 
     // 1) Open a dedicated DB connection for this request.
-    let (client, connection) = tokio_postgres::connect(&state.db_url, NoTls)
-        .await
-        .map_err(internal_error)?;
-
-    tokio::spawn(async move {
-        if let Err(e) = connection.await {
-            error!("Database connection error: {}", e);
-        }
-    });
+    let (client, _connection) = open_db_connection(&state).await.map_err(internal_error)?;
 
     save_input_temperatures(&client, &payload)
         .await
@@ -150,26 +228,24 @@ pub async fn update_radiator(
         (RAD_SALON.to_string(), regulation_map.tc_salon_1),
     ]);
 
-    // Mapping between logical radiator topic and Heatzy DID.
-    let did_by_radiator = HashMap::from([
-        (RAD_SALON.to_string(), "3wHa7Ja50MhfShUxcmOqvT"),
-        (RAD_COULOIR.to_string(), "JUVo7yMFQtdfZhi25Vo4Bu"),
-        (RAD_CHAMBRE.to_string(), "LNENiFG0MeReR9WtxMebYB"),
-        (RAD_BUREAU.to_string(), "mO7E2B49G1BS8R77UmWIjk"),
-    ]);
-
     let mut updated_radiators = Vec::new();
 
     // 4) For each room: compute action, call Heatzy only when needed, then persist new state.
-    for radiator in [RAD_BUREAU, RAD_CHAMBRE, RAD_COULOIR, RAD_SALON] {
-        info!("Prepare the message to send for the device: [{}]", radiator);
+    for radiator in RADIATORS {
+        info!(
+            "Prepare the message to send for the device: [{}]",
+            radiator.radiator
+        );
 
         let current_mode = current_states
-            .get(radiator)
+            .get(radiator.radiator)
             .ok_or_else(|| {
                 (
                     StatusCode::BAD_REQUEST,
-                    format!("Missing current state in DB for radiator [{}]", radiator),
+                    format!(
+                        "Missing current state in DB for radiator [{}]",
+                        radiator.radiator
+                    ),
                 )
             })?
             .clone();
@@ -178,28 +254,28 @@ pub async fn update_radiator(
         if current_mode == RadiatorMode::ECO {
             info!(
                 "\t🧊 Radiator {} is in ECO mode, no override will be applied",
-                radiator
+                radiator.radiator
             );
             continue;
         }
 
-        let t_current = *room_temperatures.get(radiator).ok_or_else(|| {
+        let t_current = *room_temperatures.get(radiator.radiator).ok_or_else(|| {
             (
                 StatusCode::BAD_REQUEST,
-                format!("Missing temperature for radiator [{}]", radiator),
+                format!("Missing temperature for radiator [{}]", radiator.radiator),
             )
         })?;
 
-        let t_target = *room_targets.get(radiator).ok_or_else(|| {
+        let t_target = *room_targets.get(radiator.radiator).ok_or_else(|| {
             (
                 StatusCode::BAD_REQUEST,
-                format!("Missing target temperature for radiator [{}]", radiator),
+                format!("Missing target temperature for radiator [{}]", radiator.radiator),
             )
         })?;
 
         info!(
             "For device {}, current [{}], target: [{}]",
-            radiator, t_current, t_target
+            radiator.radiator, t_current, t_target
         );
 
         let action = determine_action(t_current, t_target);
@@ -215,57 +291,78 @@ pub async fn update_radiator(
             if next_mode != current_mode {
                 info!(
                     "\t✅ Radiator {} current mode [{}], next mode [{}]",
-                    radiator,
+                    radiator.radiator,
                     mode_as_str(current_mode),
                     mode_as_str(next_mode)
                 );
 
-                let did = did_by_radiator
-                    .get(radiator)
-                    .ok_or_else(|| internal_error(anyhow!("Missing DID mapping")))?;
-
-                info!(
-                    "\t📡 Send Heatzy command for radiator {} with DID {}",
-                    radiator, did
-                );
-                set_heatzy_mode(
-                    &state.heatzy_application_id,
-                    &state.heatzy_username,
-                    &state.heatzy_password,
-                    state.heatzy_token.clone(),
-                    did,
-                    next_mode,
-                )
-                .await
-                .map_err(internal_error)?;
-
-                save_radiator_state(&client, radiator, next_mode)
+                apply_radiator_mode_change(&client, &state, radiator, next_mode)
                     .await
                     .map_err(internal_error)?;
-                info!(
-                    "\t📝 Persisted new state for radiator {} as [{}]",
-                    radiator,
-                    mode_as_str(next_mode)
-                );
 
                 updated_radiators.push(UpdatedRadiator {
-                    radiator: radiator.to_string(),
+                    radiator: radiator.radiator.to_string(),
                     status: mode_as_str(next_mode).to_string(),
                 });
             } else {
                 info!(
                     "\t✅ Radiator {} already in mode [{}], no update needed",
-                    radiator,
+                    radiator.radiator,
                     mode_as_str(current_mode)
                 );
             }
         } else {
-            info!("\t✅ Radiator {} must stay the same", radiator);
+            info!("\t✅ Radiator {} must stay the same", radiator.radiator);
         }
     }
 
     info!("🏁 Updated radiators response: {:?}", updated_radiators);
     Ok(Json(UpdateRadiatorResponse { updated_radiators }))
+}
+
+async fn open_db_connection(
+    state: &AppState,
+) -> anyhow::Result<(tokio_postgres::Client, tokio::task::JoinHandle<()>)> {
+    let (client, connection) = tokio_postgres::connect(&state.db_url, NoTls).await?;
+
+    let join_handle = tokio::spawn(async move {
+        if let Err(e) = connection.await {
+            error!("Database connection error: {}", e);
+        }
+    });
+
+    Ok((client, join_handle))
+}
+
+async fn apply_radiator_mode_change(
+    client: &tokio_postgres::Client,
+    state: &AppState,
+    radiator: RadiatorConfig,
+    mode: RadiatorMode,
+) -> anyhow::Result<()> {
+    info!(
+        "\t📡 Send Heatzy command for radiator {} with DID {}",
+        radiator.radiator, radiator.did
+    );
+
+    set_heatzy_mode(
+        &state.heatzy_application_id,
+        &state.heatzy_username,
+        &state.heatzy_password,
+        state.heatzy_token.clone(),
+        radiator.did,
+        mode,
+    )
+    .await?;
+
+    save_radiator_state(client, radiator.radiator, mode).await?;
+    info!(
+        "\t📝 Persisted new state for radiator {} as [{}]",
+        radiator.radiator,
+        mode_as_str(mode)
+    );
+
+    Ok(())
 }
 
 async fn save_input_temperatures(
@@ -371,6 +468,45 @@ async fn set_heatzy_mode(
     Ok(())
 }
 
+fn find_radiator_by_room(room: &str) -> Result<RadiatorConfig, (StatusCode, String)> {
+    RADIATORS
+        .iter()
+        .find(|radiator| radiator.room == room)
+        .copied()
+        .ok_or_else(|| {
+            (
+                StatusCode::BAD_REQUEST,
+                format!(
+                    "Unknown room [{}]. Supported rooms: {}",
+                    room, SUPPORTED_ROOMS
+                ),
+            )
+        })
+}
+
+fn parse_direct_mode(mode: &str) -> Result<RadiatorMode, (StatusCode, String)> {
+    let parsed = mode_from_str(mode).map_err(|_| {
+        (
+            StatusCode::BAD_REQUEST,
+            format!(
+                "Unsupported direct mode [{}]. Supported modes: {}",
+                mode, SUPPORTED_DIRECT_MODES
+            ),
+        )
+    })?;
+
+    match parsed {
+        RadiatorMode::CFT | RadiatorMode::STOP | RadiatorMode::ECO => Ok(parsed),
+        _ => Err((
+            StatusCode::BAD_REQUEST,
+            format!(
+                "Unsupported direct mode [{}]. Supported modes: {}",
+                mode, SUPPORTED_DIRECT_MODES
+            ),
+        )),
+    }
+}
+
 /// Hysteresis copied from existing regulator logic.
 fn determine_action(t_current: f64, tc: f32) -> RadiatorAction {
     if t_current < tc as f64 - 0.3f64 {
@@ -403,4 +539,121 @@ fn mode_as_str(mode: RadiatorMode) -> &'static str {
 
 fn internal_error<E: std::fmt::Display>(err: E) -> (StatusCode, String) {
     (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::{to_bytes, Body};
+    use axum::http::{Request, StatusCode};
+    use axum::routing::post;
+    use axum::Router;
+    use tower::util::ServiceExt;
+
+    fn test_state() -> AppState {
+        AppState {
+            db_url: "postgres://invalid".to_string(),
+            heatzy_application_id: "app".to_string(),
+            heatzy_token: Arc::new(RwLock::new("token".to_string())),
+            heatzy_username: "user".to_string(),
+            heatzy_password: "password".to_string(),
+        }
+    }
+
+    #[test]
+    fn mode_from_str_supports_known_values() {
+        assert_eq!(mode_from_str("CFT").unwrap(), RadiatorMode::CFT);
+        assert_eq!(mode_from_str("STOP").unwrap(), RadiatorMode::STOP);
+        assert_eq!(mode_from_str("ECO").unwrap(), RadiatorMode::ECO);
+        assert_eq!(mode_from_str("FRO").unwrap(), RadiatorMode::FRO);
+        assert!(mode_from_str("INVALID").is_err());
+    }
+
+    #[test]
+    fn parse_direct_mode_rejects_unsupported_modes() {
+        assert_eq!(parse_direct_mode("CFT").unwrap(), RadiatorMode::CFT);
+        assert_eq!(parse_direct_mode("STOP").unwrap(), RadiatorMode::STOP);
+        assert_eq!(parse_direct_mode("ECO").unwrap(), RadiatorMode::ECO);
+        assert_eq!(
+            parse_direct_mode("FRO").unwrap_err().0,
+            StatusCode::BAD_REQUEST
+        );
+    }
+
+    #[test]
+    fn find_radiator_by_room_supports_public_rooms() {
+        assert_eq!(
+            find_radiator_by_room("bureau").unwrap().radiator,
+            "external/rad_bureau"
+        );
+        assert_eq!(
+            find_radiator_by_room("chambre").unwrap().radiator,
+            "external/rad_chambre"
+        );
+        assert_eq!(
+            find_radiator_by_room("couloir").unwrap().radiator,
+            "external/rad_couloir"
+        );
+        assert_eq!(
+            find_radiator_by_room("salon").unwrap().radiator,
+            "external/rad_salon"
+        );
+        assert_eq!(
+            find_radiator_by_room("garage").unwrap_err().0,
+            StatusCode::BAD_REQUEST
+        );
+    }
+
+    #[test]
+    fn determine_action_preserves_hysteresis() {
+        assert_eq!(determine_action(18.0, 19.0), RadiatorAction::On);
+        assert_eq!(determine_action(20.0, 19.0), RadiatorAction::Off);
+        assert_eq!(determine_action(19.1, 19.0), RadiatorAction::NoAction);
+    }
+
+    #[tokio::test]
+    async fn direct_mode_endpoint_rejects_invalid_room() {
+        let app = Router::new()
+            .route("/radiator/:room", post(set_radiator_mode))
+            .with_state(test_state());
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/radiator/garage")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"mode":"CFT"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn direct_mode_endpoint_rejects_invalid_mode() {
+        let app = Router::new()
+            .route("/radiator/:room", post(set_radiator_mode))
+            .with_state(test_state());
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/radiator/bureau")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"mode":"FRO"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        assert!(String::from_utf8(body.to_vec())
+            .unwrap()
+            .contains("Supported modes: CFT, STOP, ECO"));
+    }
 }

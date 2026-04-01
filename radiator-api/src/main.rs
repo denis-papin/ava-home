@@ -2,12 +2,14 @@ use std::env;
 use std::net::SocketAddr;
 use std::process::exit;
 
+use axum::http::Method;
 use axum::routing::post;
 use axum::Router;
 use common_config::conf_reader::{read_config, read_env};
 use common_config::properties::{get_prop_pg_connect_string, get_prop_value, set_prop_values};
 use log::{error, info};
 use std::sync::{Arc, RwLock};
+use tower_http::cors::{Any, CorsLayer};
 
 mod api;
 
@@ -55,10 +57,17 @@ async fn main() {
         heatzy_password: read_props_or_die("heatzy.password"),
     };
 
-    // 4) Start HTTP server with a single business endpoint.
+    let cors = CorsLayer::new()
+        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_origin(Any)
+        .allow_headers(Any);
+
+    // 4) Start HTTP server with business endpoints.
     let app = Router::new()
+        .route("/radiator/:room", post(api::set_radiator_mode))
         .route("/update-radiator", post(api::update_radiator))
-        .with_state(app_state);
+        .with_state(app_state)
+        .layer(cors);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();

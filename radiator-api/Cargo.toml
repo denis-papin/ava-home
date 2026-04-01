@@ -15,7 +15,11 @@ serde_json = { workspace = true }
 serde_derive = { workspace = true }
 tokio = { workspace = true }
 tokio-postgres = { workspace = true }
+tower-http = { version = "^0.6", features = ["cors"] }
 
 ava-toolkit = { path = "../ava-toolkit" }
 common-config = { path = "../common-config" }
 radiator-toolkit = { path = "../radiator-toolkit" }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
