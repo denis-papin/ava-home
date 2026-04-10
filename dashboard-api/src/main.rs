@@ -11,7 +11,6 @@ use std::path::Path as FsPath;
 use std::process::exit;
 use std::sync::RwLock;
 
-use axum::response::Html;
 use axum::routing::{get, post};
 use axum::Json;
 use axum::Router;
@@ -50,65 +49,6 @@ lazy_static! {
 
 lazy_static! {
     static ref FILE_LOCKER: Mutex<u16> = Mutex::new(0);
-}
-
-// #[get("/index_old")]
-async fn index_old() -> Html<String> {
-    let mut context = build_dashboard_context().await;
-    context.insert("ws_hostname".to_string(), get_prop_value("ws.hostname"));
-    context.insert("ws_port".to_string(), get_prop_value("ws.port"));
-    context.insert("dashboard_base_url".to_string(), "/dashboard".to_string());
-    context.insert(
-        "dashboard_static_base_url".to_string(),
-        "/dashboard/static".to_string(),
-    );
-
-    let template_str = include_str!("../templates/index_old.hbs");
-
-    let mut handlebars = handlebars::Handlebars::new();
-    handlebars
-        .register_template_string("index_old", template_str)
-        .expect("Failed to register template");
-
-    Html(
-        handlebars
-            .render("index_old", &context)
-            .expect("Failed to render template"),
-    )
-}
-
-async fn index() -> Html<String> {
-    let mut context = build_dashboard_context().await;
-    context.insert("dashboard_base_url".to_string(), "/dashboard".to_string());
-    context.insert(
-        "dashboard_static_base_url".to_string(),
-        "/dashboard/static".to_string(),
-    );
-    context.insert(
-        "dashboard_index_data_url".to_string(),
-        "/dashboard/index/data".to_string(),
-    );
-    context.insert(
-        "dashboard_index_radiator_base_url".to_string(),
-        "/dashboard/index/radiator".to_string(),
-    );
-    context.insert(
-        "radiator_api_base_url".to_string(),
-        get_optional_prop_value("radiator-api.base-url").unwrap_or_default(),
-    );
-
-    let template_str = include_str!("../templates/index.hbs");
-
-    let mut handlebars = handlebars::Handlebars::new();
-    handlebars
-        .register_template_string("index", template_str)
-        .expect("Failed to register template");
-
-    Html(
-        handlebars
-            .render("index", &context)
-            .expect("Failed to render template"),
-    )
 }
 
 async fn index2_data() -> Json<HashMap<String, String>> {
@@ -237,10 +177,10 @@ pub fn get_prop_pg_connect_string() -> anyhow::Result<(String, u32)> {
 
 #[tokio::main]
 async fn main() {
-    const PROGRAM_NAME: &str = "DASH - Tha Ava Home Dashboard";
+    const PROGRAM_NAME: &str = "DASH - The Ava Home Dashboard API";
     println!("😎 Init {}", PROGRAM_NAME);
 
-    const PROJECT_CODE: &str = "dashboard";
+    const PROJECT_CODE: &str = "dashboard-api";
     const VAR_NAME: &str = "DASH_ENV";
     println!(
         "😎 Config file using PROJECT_CODE={} VAR_NAME={}",
@@ -290,13 +230,11 @@ async fn main() {
     // Build our application with some routes
     let base_url = format!("/{}", PROJECT_CODE);
     let key_routes = Router::new()
-        .route("/index_old", get(index_old))
-        .route("/index", get(index))
         .route("/index/data", get(index2_data))
         .route("/index/radiator/:room", post(index2_radiator))
         .route("/index2/data", get(index2_data))
         .route("/index2/radiator/:room", post(index2_radiator))
-        .nest_service("/static", ServeDir::new("dashboard/static"))
+        .nest_service("/static", ServeDir::new("dashboard-api/static"))
         .layer(cors);
 
     let app = Router::new().nest(&base_url, key_routes);

@@ -11,7 +11,7 @@ members = [
     "luminator",
     "mqtt-bridge",
     "radiator-ctrl",
-    "dashboard", "ava-toolkit",
+    "dashboard-api", "ava-toolkit",
     "radiator-api",
     "radiator-toolkit",
 ]
