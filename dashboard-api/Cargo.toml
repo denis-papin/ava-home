@@ -30,7 +30,7 @@ csv = "1.1.3"
 reqwest = { version = "^0.11", features = ["blocking", "json"] }
 async-trait = "0.1.81"
 axum = { version = "^0.7", features = ["multipart"] }
-tower-http = { version = "^0.6", features = ["fs", "trace", "cors"] }
+tower-http = { version = "^0.6", features = ["trace", "cors"] }
 
 postgres = { workspace = true }
 postgres-types = { workspace = true }
@@ -45,4 +45,3 @@ chrono = { workspace = true }
 commons-error = {path= "../commons-error"}
 commons-pg = {path= "../commons-pg" }
 ava-toolkit = {path="../ava-toolkit"}
-

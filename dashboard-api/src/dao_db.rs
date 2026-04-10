@@ -16,7 +16,6 @@ pub(crate) async fn build_current_radiator_state_context(
 ) -> anyhow::Result<HashMap<String, String>> {
     let mut context = HashMap::new();
     let query = SQLQueryBlock2 {
-        // TODO find a better way to filter the device_name; use different table ?
         sql_query: r"select DISTINCT ON (device_name) device_name, state, ts_create
                     from device_state_history dsh where device_name like 'external/rad_%'
                     order by device_name, ts_create DESC"

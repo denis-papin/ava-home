@@ -1,7 +1,3 @@
-// ============================================================================
-// TODO : Reecrire ce module en React / ReScript
-// ============================================================================
-
 use axum::extract::Path as AxumPath;
 use axum::extract::Query;
 use axum::http::{Method, StatusCode};
@@ -20,7 +16,6 @@ use log::*;
 use serde_derive::*;
 use tokio::sync::Mutex;
 use tower_http::cors::{Any, CorsLayer};
-use tower_http::services::ServeDir;
 
 use crate::clairdelune_api::{
     get_heating_plan, get_heating_plan_by_room, get_room_temperature_by_mode,
@@ -297,7 +292,6 @@ async fn main() {
         .route("/heating_plan", get(heating_plan))
         .route("/heating_plan_by_room", get(heating_plan_by_room))
         .route("/room_temperature_by_mode", get(room_temperature_by_mode))
-        .nest_service("/static", ServeDir::new("dashboard-api/static"))
         .layer(cors);
 
     let app = Router::new().nest(&base_url, key_routes);
