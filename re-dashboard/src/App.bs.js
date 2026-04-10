@@ -3,6 +3,7 @@
 import * as React from "react";
 import * as DashboardApi from "./DashboardApi.bs.js";
 import * as Stdlib_Promise from "@rescript/runtime/lib/es6/Stdlib_Promise.js";
+import * as TimelineHelpers from "./TimelineHelpers.bs.js";
 import * as Primitive_object from "@rescript/runtime/lib/es6/Primitive_object.js";
 import * as Primitive_option from "@rescript/runtime/lib/es6/Primitive_option.js";
 import * as JsxRuntime from "react/jsx-runtime";
@@ -19,20 +20,47 @@ function pendingMatches(pendingRoomId, roomId) {
   }
 }
 
+function timelineLegendToneClass(mode) {
+  switch (mode) {
+    case "CFT" :
+    case "CRF" :
+      return "timelineLegend__swatch--heat";
+    case "ECO" :
+      return "timelineLegend__swatch--eco";
+    case "FRO" :
+      return "timelineLegend__swatch--frost";
+    case "STOP" :
+      return "timelineLegend__swatch--stop";
+    default:
+      return "timelineLegend__swatch--neutral";
+  }
+}
+
+let defaultTimelineFilters = TimelineHelpers.makeDefaultTimelineFilters();
+
 function App(props) {
   let apiBaseUrl = DashboardApi.getApiBaseUrl();
   let match = React.useState(() => DashboardApi.createPlaceholderRooms());
   let setRooms = match[1];
-  let match$1 = React.useState(() => 0);
-  let setTick = match$1[1];
-  let match$2 = React.useState(() => true);
-  let setIsLoading = match$2[1];
+  let match$1 = React.useState(() => true);
+  let setIsLoading = match$1[1];
+  let match$2 = React.useState(() => {});
+  let setErrorMessage = match$2[1];
+  let errorMessage = match$2[0];
   let match$3 = React.useState(() => {});
-  let setErrorMessage = match$3[1];
-  let errorMessage = match$3[0];
-  let match$4 = React.useState(() => {});
-  let setPendingRoomId = match$4[1];
-  let pendingRoomId = match$4[0];
+  let setPendingRoomId = match$3[1];
+  let pendingRoomId = match$3[0];
+  let match$4 = React.useState(() => true);
+  let setTimelineLoading = match$4[1];
+  let match$5 = React.useState(() => false);
+  let setTimelineSubmitPending = match$5[1];
+  let timelineSubmitPending = match$5[0];
+  let match$6 = React.useState(() => {});
+  let setTimelineError = match$6[1];
+  let timelineError = match$6[0];
+  let match$7 = React.useState(() => {});
+  let setTimelineViewModel = match$7[1];
+  let timelineViewModel = match$7[0];
   let loadDashboard = () => {
     Stdlib_Promise.$$catch(DashboardApi.fetchDashboardRooms(apiBaseUrl).then(nextRooms => {
       setRooms(_previous => nextRooms);
@@ -45,16 +73,32 @@ function App(props) {
       return Promise.resolve();
     });
   };
+  let loadTimeline = (room, startDateTime, endDateTime, showButtonLoading) => {
+    setTimelineLoading(_previous => true);
+    if (showButtonLoading) {
+      setTimelineSubmitPending(_previous => true);
+    }
+    Stdlib_Promise.$$catch(TimelineHelpers.fetchRoomTemperatureByMode(apiBaseUrl, room, startDateTime, endDateTime).then(response => {
+      setTimelineViewModel(_previous => Primitive_option.some(TimelineHelpers.buildTimelineViewModel(response)));
+      setTimelineError(_previous => {});
+      setTimelineLoading(_previous => false);
+      setTimelineSubmitPending(_previous => false);
+      return Promise.resolve();
+    }), _error => {
+      setTimelineError(_previous => "Impossible de charger l'historique de temperature.");
+      setTimelineLoading(_previous => false);
+      setTimelineSubmitPending(_previous => false);
+      return Promise.resolve();
+    });
+  };
   React.useEffect(() => {
     loadDashboard();
-    let intervalId = setInterval(() => {
-      setTick(previous => previous + 1 | 0);
-      loadDashboard();
-    }, 30000);
+    loadTimeline(defaultTimelineFilters.room, defaultTimelineFilters.startDateTime, defaultTimelineFilters.endDateTime, false);
+    let intervalId = setInterval(() => loadDashboard(), 30000);
     return () => {
       clearInterval(intervalId);
     };
-  }, undefined);
+  }, []);
   let roomCards = match[0].map(room => {
     let roomId = room.id;
     let status = room.status;
@@ -162,6 +206,305 @@ function App(props) {
       className: "roomCard"
     }, roomId);
   });
+  let timelineSection;
+  if (timelineViewModel !== undefined) {
+    let viewModel = Primitive_option.valFromOption(timelineViewModel);
+    let chartModel = viewModel.chart;
+    let tmp;
+    if (chartModel == null) {
+      let message = viewModel.emptyMessage;
+      tmp = JsxRuntime.jsx("div", {
+        children: (message == null) ? "Aucune mesure disponible." : message,
+        className: "timelineEmpty"
+      });
+    } else {
+      tmp = JsxRuntime.jsxs("svg", {
+        children: [
+          JsxRuntime.jsx("defs", {
+            children: JsxRuntime.jsxs("linearGradient", {
+              children: [
+                JsxRuntime.jsx("stop", {
+                  offset: "0%",
+                  stopColor: "#ffd7b0"
+                }),
+                JsxRuntime.jsx("stop", {
+                  offset: "100%",
+                  stopColor: "#d36744"
+                })
+              ],
+              id: "lineGlow",
+              x1: "0%",
+              x2: "100%",
+              y1: "0%",
+              y2: "0%"
+            })
+          }),
+          JsxRuntime.jsx("rect", {
+            height: "520",
+            width: "1100",
+            fill: "rgba(10, 14, 18, 0.18)",
+            rx: "18",
+            x: "0",
+            y: "0"
+          }),
+          chartModel.rects.map((item, index) => JsxRuntime.jsx("rect", {
+            height: item.height.toString(),
+            width: item.width.toString(),
+            fill: item.fill,
+            x: item.x.toString(),
+            y: item.y.toString()
+          }, "rect-" + index.toString())),
+          chartModel.yGuides.map((guide, index) => JsxRuntime.jsxs(React.Fragment, {
+            children: [
+              JsxRuntime.jsx("line", {
+                stroke: "rgba(245, 237, 226, 0.14)",
+                strokeWidth: "1",
+                x1: guide.lineX1.toString(),
+                x2: guide.lineX2.toString(),
+                y1: guide.lineY1.toString(),
+                y2: guide.lineY2.toString()
+              }),
+              JsxRuntime.jsx("text", {
+                children: guide.label,
+                className: "gridLabel",
+                textAnchor: guide.textAnchor,
+                x: guide.labelX.toString(),
+                y: guide.labelY.toString()
+              })
+            ]
+          }, "yg-" + index.toString())),
+          chartModel.xGuides.map((guide, index) => JsxRuntime.jsxs(React.Fragment, {
+            children: [
+              JsxRuntime.jsx("line", {
+                stroke: "rgba(245, 237, 226, 0.14)",
+                strokeWidth: "1",
+                x1: guide.lineX1.toString(),
+                x2: guide.lineX2.toString(),
+                y1: guide.lineY1.toString(),
+                y2: guide.lineY2.toString()
+              }),
+              JsxRuntime.jsx("text", {
+                children: guide.label,
+                className: "tickLabel",
+                textAnchor: guide.textAnchor,
+                x: guide.labelX.toString(),
+                y: guide.labelY.toString()
+              })
+            ]
+          }, "xg-" + index.toString())),
+          JsxRuntime.jsx("line", {
+            stroke: "rgba(247, 241, 232, 0.36)",
+            x1: chartModel.axisLeftX.toString(),
+            x2: chartModel.axisRightX.toString(),
+            y1: chartModel.axisBottomY.toString(),
+            y2: chartModel.axisBottomY.toString()
+          }),
+          JsxRuntime.jsx("line", {
+            stroke: "rgba(247, 241, 232, 0.36)",
+            x1: chartModel.axisLeftX.toString(),
+            x2: chartModel.axisLeftX.toString(),
+            y1: chartModel.axisTopY.toString(),
+            y2: chartModel.axisBottomY.toString()
+          }),
+          JsxRuntime.jsx("path", {
+            d: chartModel.linePath,
+            fill: "none",
+            stroke: "url(#lineGlow)",
+            strokeLinecap: "round",
+            strokeLinejoin: "round",
+            strokeWidth: "4"
+          }),
+          chartModel.points.map((point, index) => JsxRuntime.jsx("circle", {
+            cx: point.cx.toString(),
+            cy: point.cy.toString(),
+            fill: "#fff6ec",
+            r: "4",
+            stroke: "#d36744",
+            strokeWidth: "2"
+          }, "pt-" + index.toString())),
+          JsxRuntime.jsx("text", {
+            children: chartModel.axisLabelX,
+            className: "axisLabel",
+            textAnchor: "middle",
+            x: chartModel.axisLabelXPosX.toString(),
+            y: chartModel.axisLabelXPosY.toString()
+          }),
+          JsxRuntime.jsx("text", {
+            children: chartModel.axisLabelY,
+            className: "axisLabel",
+            textAnchor: "middle",
+            transform: chartModel.axisLabelYRotate,
+            x: chartModel.axisLabelYPosX.toString(),
+            y: chartModel.axisLabelYPosY.toString()
+          })
+        ],
+        "aria-label": "Temperature chart",
+        className: "chartSvg",
+        role: "img",
+        viewBox: chartModel.viewBox
+      });
+    }
+    timelineSection = JsxRuntime.jsxs("section", {
+      children: [
+        JsxRuntime.jsxs("div", {
+          children: [
+            JsxRuntime.jsxs("div", {
+              children: [
+                JsxRuntime.jsx("p", {
+                  children: "ClairDeLune",
+                  className: "timelineCard__eyebrow"
+                }),
+                JsxRuntime.jsx("h2", {
+                  children: "Temperature par mode radiateur"
+                }),
+                JsxRuntime.jsx("p", {
+                  children: "Explore l'evolution de la temperature dans une piece, coloree selon le mode actif du radiateur."
+                })
+              ],
+              className: "timelineCard__copy"
+            }),
+            JsxRuntime.jsxs("form", {
+              children: [
+                JsxRuntime.jsxs("label", {
+                  children: [
+                    JsxRuntime.jsx("span", {
+                      children: "Piece"
+                    }),
+                    JsxRuntime.jsxs("select", {
+                      children: [
+                        JsxRuntime.jsx("option", {
+                          children: "Bureau",
+                          value: "bureau"
+                        }),
+                        JsxRuntime.jsx("option", {
+                          children: "Chambre",
+                          value: "chambre"
+                        }),
+                        JsxRuntime.jsx("option", {
+                          children: "Salon",
+                          value: "salon"
+                        }),
+                        JsxRuntime.jsx("option", {
+                          children: "Couloir",
+                          value: "couloir"
+                        })
+                      ],
+                      defaultValue: defaultTimelineFilters.room,
+                      name: "room"
+                    })
+                  ],
+                  className: "field"
+                }),
+                JsxRuntime.jsxs("label", {
+                  children: [
+                    JsxRuntime.jsx("span", {
+                      children: "Debut"
+                    }),
+                    JsxRuntime.jsx("input", {
+                      defaultValue: defaultTimelineFilters.startDateTime,
+                      name: "startDateTime",
+                      step: 60,
+                      type: "datetime-local"
+                    })
+                  ],
+                  className: "field"
+                }),
+                JsxRuntime.jsxs("label", {
+                  children: [
+                    JsxRuntime.jsx("span", {
+                      children: "Fin"
+                    }),
+                    JsxRuntime.jsx("input", {
+                      defaultValue: defaultTimelineFilters.endDateTime,
+                      name: "endDateTime",
+                      step: 60,
+                      type: "datetime-local"
+                    })
+                  ],
+                  className: "field"
+                }),
+                JsxRuntime.jsx("button", {
+                  children: timelineSubmitPending ? "Chargement..." : "Tracer la timeline",
+                  className: "primaryButton",
+                  disabled: timelineSubmitPending,
+                  type: "submit"
+                })
+              ],
+              className: "timelineFilters",
+              onSubmit: event => {
+                event.preventDefault();
+                let filters = TimelineHelpers.readTimelineFilters(event.currentTarget);
+                loadTimeline(filters.room, filters.startDateTime, filters.endDateTime, true);
+              }
+            })
+          ],
+          className: "timelineCard__controls"
+        }),
+        JsxRuntime.jsxs("div", {
+          children: [
+            JsxRuntime.jsxs("div", {
+              children: [
+                JsxRuntime.jsxs("div", {
+                  children: [
+                    JsxRuntime.jsx("h3", {
+                      children: viewModel.title
+                    }),
+                    JsxRuntime.jsx("p", {
+                      children: viewModel.subtitle
+                    })
+                  ]
+                }),
+                JsxRuntime.jsx("div", {
+                  children: viewModel.legend.map(item => JsxRuntime.jsxs("span", {
+                    children: [
+                      JsxRuntime.jsx("span", {
+                        className: "timelineLegend__swatch " + timelineLegendToneClass(item.mode)
+                      }),
+                      JsxRuntime.jsx("span", {
+                        children: item.mode
+                      })
+                    ],
+                    className: "timelineLegend__item"
+                  }, item.mode)),
+                  className: "timelineLegend"
+                })
+              ],
+              className: "timelineMeta"
+            }),
+            JsxRuntime.jsx("p", {
+              children: timelineError !== undefined ? timelineError : viewModel.status,
+              className: "timelineStatus"
+            }),
+            JsxRuntime.jsx("div", {
+              children: tmp,
+              className: "timelineHost"
+            }),
+            JsxRuntime.jsx("div", {
+              children: viewModel.stats.map(item => JsxRuntime.jsxs("div", {
+                children: [
+                  JsxRuntime.jsx("span", {
+                    children: item.label
+                  }),
+                  JsxRuntime.jsx("strong", {
+                    children: item.value
+                  })
+                ],
+                className: "timelineStatCard"
+              }, item.label)),
+              className: "timelineStats"
+            })
+          ],
+          className: "timelineCard__panel"
+        })
+      ],
+      className: "timelineCard"
+    });
+  } else {
+    timelineSection = JsxRuntime.jsx("div", {
+      children: match$4[0] ? "Chargement de l'historique..." : "Aucune donnee de timeline disponible.",
+      className: "timelineEmpty"
+    });
+  }
   return JsxRuntime.jsxs("main", {
     children: [
       JsxRuntime.jsxs("section", {
@@ -176,7 +519,7 @@ function App(props) {
                 children: "Dashboard chauffage"
               }),
               JsxRuntime.jsx("p", {
-                children: "Le frontend React / ReScript consomme maintenant les endpoints exposes par dashboard-api.",
+                children: "Le dashboard principal conserve la vue temps reel et integre maintenant l'ecran d'analyse type ClairDeLune.",
                 className: "lead"
               })
             ]
@@ -184,7 +527,7 @@ function App(props) {
           JsxRuntime.jsxs("div", {
             children: [
               JsxRuntime.jsx("span", {
-                children: match$2[0] ? "Chargement..." : "Synchro toutes les 30 s",
+                children: match$1[0] ? "Chargement..." : "Synchro toutes les 30 s",
                 className: "badge"
               }),
               JsxRuntime.jsx("span", {
@@ -211,7 +554,8 @@ function App(props) {
       JsxRuntime.jsx("section", {
         children: roomCards,
         className: "roomGrid"
-      })
+      }),
+      timelineSection
     ],
     className: "dashboardPage"
   });
@@ -222,6 +566,8 @@ let make = App;
 export {
   readErrorMessage,
   pendingMatches,
+  timelineLegendToneClass,
+  defaultTimelineFilters,
   make,
 }
-/* react Not a pure module */
+/* defaultTimelineFilters Not a pure module */

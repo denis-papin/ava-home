@@ -97,8 +97,8 @@ pub(crate) async fn build_current_temp_context() -> anyhow::Result<HashMap<Strin
         )
         ORDER BY device_name, ts_create DESC"
             .to_string(),
-        start : 0,
-        length : None,
+        start: 0,
+        length: None,
         params,
     };
 
@@ -194,7 +194,10 @@ fn insert_radiator_status_presentation(context: &mut HashMap<String, String>, ro
 
     context.insert(format!("{}_status_label", room), label.to_string());
     context.insert(format!("{}_status_bg_class", room), bg_class.to_string());
-    context.insert(format!("{}_status_text_class", room), text_class.to_string());
+    context.insert(
+        format!("{}_status_text_class", room),
+        text_class.to_string(),
+    );
 }
 
 fn sensor_name_to_room(device_name: &str) -> Option<&'static str> {

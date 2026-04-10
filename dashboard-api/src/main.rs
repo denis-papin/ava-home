@@ -3,6 +3,7 @@
 // ============================================================================
 
 use axum::extract::Path as AxumPath;
+use axum::extract::Query;
 use axum::http::{Method, StatusCode};
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -21,6 +22,10 @@ use tokio::sync::Mutex;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 
+use crate::clairdelune_api::{
+    get_heating_plan, get_heating_plan_by_room, get_room_temperature_by_mode,
+    RoomTemperatureByModeQuery,
+};
 use crate::dao::get_current_regulation_map;
 use crate::dao_db::RadiatorStatus;
 use commons_error::*;
@@ -29,6 +34,7 @@ use conf_reader::*;
 
 use crate::dao_db::build_current_temp_context;
 
+mod clairdelune_api;
 mod conf_reader;
 mod dao;
 mod dao_db;
@@ -55,6 +61,65 @@ async fn index2_data() -> Json<HashMap<String, String>> {
     Json(build_dashboard_context().await)
 }
 
+async fn heating_plan() -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let payload = get_heating_plan().await.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Unable to load heating_plan from PostgreSQL: {}", e),
+        )
+    })?;
+
+    Ok(Json(serde_json::to_value(payload).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Unable to serialize heating_plan response: {}", e),
+        )
+    })?))
+}
+
+async fn heating_plan_by_room() -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let payload = get_heating_plan_by_room().await.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Unable to load heating_plan from PostgreSQL: {}", e),
+        )
+    })?;
+
+    Ok(Json(serde_json::to_value(payload).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Unable to serialize heating_plan_by_room response: {}", e),
+        )
+    })?))
+}
+
+async fn room_temperature_by_mode(
+    Query(params): Query<RoomTemperatureByModeQuery>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let payload = get_room_temperature_by_mode(&params).await.map_err(|e| {
+        let message = e.to_string();
+        let status = if message.contains("Unknown room")
+            || message.contains("valid ISO")
+            || message.contains("earlier than")
+        {
+            StatusCode::BAD_REQUEST
+        } else {
+            StatusCode::INTERNAL_SERVER_ERROR
+        };
+        (status, message)
+    })?;
+
+    Ok(Json(serde_json::to_value(payload).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!(
+                "Unable to serialize room_temperature_by_mode response: {}",
+                e
+            ),
+        )
+    })?))
+}
+
 async fn index2_radiator(
     AxumPath(room): AxumPath<String>,
     Json(payload): Json<RadiatorStatus>,
@@ -64,17 +129,12 @@ async fn index2_radiator(
     let url = format!("{}/radiator/{}", base_url.trim_end_matches('/'), room);
 
     let client = reqwest::Client::new();
-    let response = client
-        .post(url)
-        .json(&payload)
-        .send()
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::BAD_GATEWAY,
-                format!("Cannot reach radiator-api: {}", e),
-            )
-        })?;
+    let response = client.post(url).json(&payload).send().await.map_err(|e| {
+        (
+            StatusCode::BAD_GATEWAY,
+            format!("Cannot reach radiator-api: {}", e),
+        )
+    })?;
 
     let status = response.status();
     let response_text = response.text().await.map_err(|e| {
@@ -234,6 +294,9 @@ async fn main() {
         .route("/index/radiator/:room", post(index2_radiator))
         .route("/index2/data", get(index2_data))
         .route("/index2/radiator/:room", post(index2_radiator))
+        .route("/heating_plan", get(heating_plan))
+        .route("/heating_plan_by_room", get(heating_plan_by_room))
+        .route("/room_temperature_by_mode", get(room_temperature_by_mode))
         .nest_service("/static", ServeDir::new("dashboard-api/static"))
         .layer(cors);
 
