@@ -1,3 +1,7 @@
+// ============================================================================
+// TODO : Reecrire ce module en React / ReScript
+// ============================================================================
+
 use axum::extract::Path as AxumPath;
 use axum::http::{Method, StatusCode};
 use std::collections::HashMap;
