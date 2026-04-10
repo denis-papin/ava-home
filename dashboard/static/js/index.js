@@ -33,7 +33,7 @@ async function refreshData() {
         rooms.forEach((room) => updateRoom(room, data));
         updateTargets(data);
     } catch (error) {
-        console.error("Cannot refresh dashboard/index2 data", error);
+        console.error("Cannot refresh dashboard/index data", error);
         rooms.forEach(refreshElapsedLabel);
     }
 }
@@ -138,7 +138,8 @@ function removeStatusClasses(element, prefix) {
 async function spinStatus(room) {
     const currentStatus = roomStatus[room] || "STOP";
     const targetStatus = nextStatus[currentStatus] || "STOP";
-    const url = `/dashboard/index2/radiator/${room}`;
+    const radiatorBaseUrl = document.body.getAttribute("data-dashboard-radiator-base-url");
+    const url = `${radiatorBaseUrl}/${room}`;
 
     try {
         const response = await fetch(url, {

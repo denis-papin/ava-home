@@ -48,44 +48,61 @@ lazy_static! {
     static ref FILE_LOCKER: Mutex<u16> = Mutex::new(0);
 }
 
-// #[get("/index")]
-async fn index() -> Html<String> {
+// #[get("/index_old")]
+async fn index_old() -> Html<String> {
     let mut context = build_dashboard_context().await;
     context.insert("ws_hostname".to_string(), get_prop_value("ws.hostname"));
     context.insert("ws_port".to_string(), get_prop_value("ws.port"));
+    context.insert("dashboard_base_url".to_string(), "/dashboard".to_string());
+    context.insert(
+        "dashboard_static_base_url".to_string(),
+        "/dashboard/static".to_string(),
+    );
 
-    let template_str = include_str!("../templates/dashboard.hbs");
+    let template_str = include_str!("../templates/index_old.hbs");
 
     let mut handlebars = handlebars::Handlebars::new();
     handlebars
-        .register_template_string("dashboard", template_str)
+        .register_template_string("index_old", template_str)
         .expect("Failed to register template");
 
-    // Template::render("dashboard", context)
     Html(
         handlebars
-            .render("dashboard", &context)
+            .render("index_old", &context)
             .expect("Failed to render template"),
     )
 }
 
-async fn index2() -> Html<String> {
+async fn index() -> Html<String> {
     let mut context = build_dashboard_context().await;
+    context.insert("dashboard_base_url".to_string(), "/dashboard".to_string());
+    context.insert(
+        "dashboard_static_base_url".to_string(),
+        "/dashboard/static".to_string(),
+    );
+    context.insert(
+        "dashboard_index_data_url".to_string(),
+        "/dashboard/index/data".to_string(),
+    );
+    context.insert(
+        "dashboard_index_radiator_base_url".to_string(),
+        "/dashboard/index/radiator".to_string(),
+    );
     context.insert(
         "radiator_api_base_url".to_string(),
         get_optional_prop_value("radiator-api.base-url").unwrap_or_default(),
     );
 
-    let template_str = include_str!("../templates/index2.hbs");
+    let template_str = include_str!("../templates/index.hbs");
 
     let mut handlebars = handlebars::Handlebars::new();
     handlebars
-        .register_template_string("index2", template_str)
+        .register_template_string("index", template_str)
         .expect("Failed to register template");
 
     Html(
         handlebars
-            .render("index2", &context)
+            .render("index", &context)
             .expect("Failed to render template"),
     )
 }
@@ -269,8 +286,10 @@ async fn main() {
     // Build our application with some routes
     let base_url = format!("/{}", PROJECT_CODE);
     let key_routes = Router::new()
-        .route("/index_old", get(index))
-        .route("/index", get(index2))
+        .route("/index_old", get(index_old))
+        .route("/index", get(index))
+        .route("/index/data", get(index2_data))
+        .route("/index/radiator/:room", post(index2_radiator))
         .route("/index2/data", get(index2_data))
         .route("/index2/radiator/:room", post(index2_radiator))
         .nest_service("/static", ServeDir::new("dashboard/static"))
