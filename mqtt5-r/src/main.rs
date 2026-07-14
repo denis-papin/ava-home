@@ -67,7 +67,9 @@ async fn main() {
     let mut mqttoptions = MqttOptions::new(&params.client_id, &params.server_addr, 1883);
     mqttoptions.set_keep_alive(Duration::from_secs(params.keep_alive as u64));
     mqttoptions.set_clean_start(true);
-    mqttoptions.set_credentials("ava", "avatece3.X");
+    let mqtt_user = env::var("AVA_MQTT_USER").expect("Missing AVA_MQTT_USER");
+    let mqtt_password = env::var("AVA_MQTT_PASSWORD").expect("Missing AVA_MQTT_PASSWORD");
+    mqttoptions.set_credentials(mqtt_user, mqtt_password);
 
     let (mut client, mut eventloop) = AsyncClient::new(mqttoptions, 15);
 

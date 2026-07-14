@@ -783,7 +783,7 @@ mod tests {
         init();
 
         let r_sql_pool = SQLPool::new(
-            "host=pg13 port=5432 dbname=p2_prod_2 user=denis password=wrong_pass.",
+            "host=localhost port=5432 dbname=test_db user=test_user password=test_password",
             1,
         )
         .map_err(err_fwd!("Fail the pool"));
@@ -795,7 +795,7 @@ mod tests {
     fn a20_simple_query() -> anyhow::Result<()> {
         init();
         init_db_pool(
-            "host=pg13 port=5432 dbname=p2_prod_2 user=denis password=Oratece4.",
+            "host=localhost port=5432 dbname=test_db user=test_user password=test_password",
             2,
         );
 
@@ -839,7 +839,7 @@ mod tests {
                                     AND id > :p_id AND  :p_id < 400 "#;
 
         init_db_pool(
-            "host=pg13 port=5432 dbname=p2_prod_2 user=denis password=Oratece4.",
+            "host=localhost port=5432 dbname=test_db user=test_user password=test_password",
             2,
         );
 
@@ -892,7 +892,7 @@ mod tests {
         init();
 
         init_db_pool(
-            "host=pg13 port=5432 dbname=p2_prod_2 user=denis password=Oratece4.",
+            "host=localhost port=5432 dbname=test_db user=test_user password=test_password",
             2,
         );
 
@@ -930,7 +930,7 @@ mod tests {
         init();
 
         init_db_pool(
-            "host=pg13 port=5432 dbname=p2_prod_2 user=denis password=Oratece4.",
+            "host=localhost port=5432 dbname=test_db user=test_user password=test_password",
             2,
         );
 
@@ -986,7 +986,7 @@ mod tests {
         init();
 
         let mut client = Client::connect(
-            "host=postgresql95-c1 port=5433 dbname=p2_prod_2 user=denis password=Oratece4.",
+            "host=localhost port=5432 dbname=test_db user=test_user password=test_password",
             NoTls,
         )
         .unwrap();

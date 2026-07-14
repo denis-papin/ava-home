@@ -1,4 +1,5 @@
 gnome-terminal -- /home/denis/Projects/wks-ava-home/ava-home/target/debug/regulator-heart-beat  &
-gnome-terminal -- /home/denis/Projects/wks-ava-home/ava-home/target/debug/regulator heatece3.X  c70a66ff039d41b4a220e198b0fcc8b3 &
+: "${AVA_REGULATOR_PASSWORD:?Missing AVA_REGULATOR_PASSWORD}"
+: "${AVA_REGULATOR_TOKEN:?Missing AVA_REGULATOR_TOKEN}"
+gnome-terminal -- /home/denis/Projects/wks-ava-home/ava-home/target/debug/regulator "$AVA_REGULATOR_PASSWORD" "$AVA_REGULATOR_TOKEN" &
 gnome-terminal -- /home/denis/Projects/wks-ava-home/ava-home/target/debug/event-storage &
-

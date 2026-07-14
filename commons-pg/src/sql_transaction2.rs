@@ -72,7 +72,7 @@ pub struct SQLPool2 {
 
 impl SQLPool2 {
     pub async fn new(connect_string: &str, pool_size: u32) -> anyhow::Result<Self> {
-        // connect_string :  "postgres://doka:doka@localhost:5432/ad_test_03";
+        // connect_string :  "postgres://test_user:test_password@localhost:5432/test_db";
 
         // Configure le pool de connexions
         let pool = PgPoolOptions::new()
@@ -473,7 +473,7 @@ mod tests {
     }
 
     async fn init_pool() -> anyhow::Result<()> {
-        init_db_pool2("postgres://doka:doka@localhost:5432/ad_test_03", 3).await
+        init_db_pool2("postgres://test_user:test_password@localhost:5432/test_db", 3).await
     }
 
     async fn create(trans: &mut PgConnection, title: &str) -> anyhow::Result<()> {
@@ -486,7 +486,7 @@ mod tests {
     #[tokio::test]
     async fn a10_raw_sqlx_connection() -> anyhow::Result<()> {
         init();
-        let url = "postgres://doka:doka@localhost:5432/ad_test_03";
+        let url = "postgres://test_user:test_password@localhost:5432/test_db";
 
         // Configure le pool de connexions
         let pool = PgPoolOptions::new()
@@ -539,7 +539,7 @@ mod tests {
     async fn a15_cnx_and_trans() -> anyhow::Result<()> {
         init();
         let r = init_pool_once().await;
-        // init_db_pool2("postgres://doka:doka@localhost:5432/ad_test_03", 3).await?;
+        // init_db_pool2("postgres://test_user:test_password@localhost:5432/test_db", 3).await?;
 
         let mut cnx = SQLConnection2::from_pool().await?;
         let mut trans = cnx.begin().await?;
@@ -567,7 +567,7 @@ mod tests {
     //
     // #[tokio::test]
     // async fn a16_cnx_and_trans() -> anyhow::Result<()> {
-    //     init_db_pool2("postgres://doka:doka@localhost:5432/ad_test_03", 3).await?;
+    //     init_db_pool2("postgres://test_user:test_password@localhost:5432/test_db", 3).await?;
     //
     //     let mut cnx = SQLConnection2::from_pool().await?;
     //     let mut trans = cnx.sql_transaction().await?;
@@ -583,7 +583,7 @@ mod tests {
     #[tokio::test]
     async fn a20_simple_query() -> anyhow::Result<()> {
         let r = init_pool_once().await;
-        // init_db_pool2("postgres://doka:doka@localhost:5432/ad_test_03", 3).await?;
+        // init_db_pool2("postgres://test_user:test_password@localhost:5432/test_db", 3).await?;
 
         let mut cnx = SQLConnection2::from_pool().await?;
         let mut trans = cnx.begin().await?;
@@ -620,7 +620,7 @@ mod tests {
     async fn a22_simple_insert() -> anyhow::Result<()> {
         init();
         let r = init_pool_once().await;
-        // init_db_pool2("postgres://doka:doka@localhost:5432/ad_test_03", 3).await?;
+        // init_db_pool2("postgres://test_user:test_password@localhost:5432/test_db", 3).await?;
 
         let mut cnx = SQLConnection2::from_pool().await?;
         let mut trans = cnx.begin().await?;
@@ -661,7 +661,7 @@ mod tests {
     async fn a30_insert_with_sequence() -> anyhow::Result<()> {
         init();
         let r = init_pool_once().await;
-        // init_db_pool2("postgres://doka:doka@localhost:5432/ad_test_03", 3).await?;
+        // init_db_pool2("postgres://test_user:test_password@localhost:5432/test_db", 3).await?;
 
         let mut cnx = SQLConnection2::from_pool().await?;
         let mut trans = cnx.begin().await?;
@@ -703,7 +703,7 @@ mod tests {
     async fn a40_query_with_filter() -> anyhow::Result<()> {
         init();
         let r = init_pool_once().await;
-        // init_db_pool2("postgres://doka:doka@localhost:5432/ad_test_03", 3).await?;
+        // init_db_pool2("postgres://test_user:test_password@localhost:5432/test_db", 3).await?;
 
         let mut cnx = SQLConnection2::from_pool().await?;
         let mut trans = cnx.begin().await?;
@@ -746,7 +746,7 @@ mod tests {
     #[tokio::test]
     async fn a50_query_with_filter_offset_limit() -> anyhow::Result<()> {
         let r = init_pool_once().await;
-        // init_db_pool2("postgres://doka:doka@localhost:5432/ad_test_03", 3).await?;
+        // init_db_pool2("postgres://test_user:test_password@localhost:5432/test_db", 3).await?;
 
         let mut cnx = SQLConnection2::from_pool().await?;
         let mut trans = cnx.begin().await?;
