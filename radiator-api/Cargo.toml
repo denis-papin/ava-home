@@ -1,0 +1,25 @@
+[package]
+name = "radiator-api"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+axum = { workspace = true }
+chrono = { workspace = true }
+env_logger = { workspace = true }
+log = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_derive = { workspace = true }
+tokio = { workspace = true }
+tokio-postgres = { workspace = true }
+tower-http = { version = "^0.6", features = ["cors"] }
+
+ava-toolkit = { path = "../ava-toolkit" }
+common-config = { path = "../common-config" }
+radiator-toolkit = { path = "../radiator-toolkit" }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }

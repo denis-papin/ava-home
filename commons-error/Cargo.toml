@@ -11,5 +11,3 @@ anyhow = { workspace = true }
 log = { workspace = true }
 log4rs = { workspace = true }
 
-#[dev-dependencies]
-#log4rs = { workspace = true }

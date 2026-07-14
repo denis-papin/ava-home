@@ -4,21 +4,21 @@ use std::sync::Arc;
 
 use log::info;
 
-use crate::generic_device::GenericDevice;
+use ava_toolkit::generic_device::{GenericDevice, ZIGBEE_FAMILY};
 use crate::message_enum::MessageEnum;
 
 pub (crate) const KITCHEN_SWITCH : &str = "kitchen_switch";
 pub (crate) const KITCHEN_LAMP: &str = "kitchen_lamp";
 pub(crate) const HALL_LAMP : &str = "hall_lamp";
 
-pub (crate) fn build_device_repo() -> HashMap<String, Arc<RefCell<GenericDevice>>> {
+pub (crate) fn build_device_repo() -> HashMap<String, Arc<RefCell<GenericDevice<MessageEnum>>>> {
     info!("Inside the Repo Builder");
-    let mut device_repo : HashMap<String, Arc<RefCell<GenericDevice>>> = HashMap::new();
-    let dev_list: Vec<GenericDevice> = vec![
-        GenericDevice::new(KITCHEN_SWITCH, MessageEnum::default_inter_switch()),
+    let mut device_repo : HashMap<String, Arc<RefCell<GenericDevice<MessageEnum>>>> = HashMap::new();
+    let dev_list: Vec<GenericDevice<MessageEnum>> = vec![
+        GenericDevice::new(ZIGBEE_FAMILY,KITCHEN_SWITCH, MessageEnum::default_inter_switch(), false),
         // GenericDevice::new(KITCHEN_INTER_DIM, MessageEnum::default_inter_dim()),
-        GenericDevice::new(KITCHEN_LAMP, MessageEnum::default_lamp_rgb()),
-        GenericDevice::new(HALL_LAMP, MessageEnum::default_lamp_rgb()),
+        GenericDevice::new(ZIGBEE_FAMILY,KITCHEN_LAMP, MessageEnum::default_lamp_rgb(), false),
+        GenericDevice::new(ZIGBEE_FAMILY,HALL_LAMP, MessageEnum::default_lamp_rgb(), false),
     ];
 
     for dev in dev_list {
@@ -29,7 +29,7 @@ pub (crate) fn build_device_repo() -> HashMap<String, Arc<RefCell<GenericDevice>
     device_repo
 }
 
-pub (crate) fn device_to_listen(device_repo: &HashMap<String, Arc<RefCell<GenericDevice>>>) -> Vec<Arc<RefCell<GenericDevice>>> {
+pub (crate) fn device_to_listen(device_repo: &HashMap<String, Arc<RefCell<GenericDevice<MessageEnum>>>>) -> Vec<Arc<RefCell<GenericDevice<MessageEnum>>>> {
     vec![
         // device_repo.get(KITCHEN_INTER_DIM).unwrap().clone(),
         device_repo.get(KITCHEN_LAMP).unwrap().clone(),

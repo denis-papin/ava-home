@@ -1,9 +1,10 @@
 use std::collections::HashMap;
+use std::process::exit;
 use std::time::SystemTime;
 
 use chrono::{DateTime, Utc};
-use log::info;
-use serde_derive::{Deserialize, Serialize};
+use common_config::properties::get_prop_pg_connect_string;
+use log::{error, info};
 use tokio_postgres::NoTls;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -17,10 +18,17 @@ pub (crate) enum RadiatorAction {
 pub(crate) async fn compute() -> HashMap<String, f64> {
 
     // URL de la base de données PostgreSQL
-    let db_url = "postgresql://denis:dentece3.X@192.168.0.149/avahome";
-
+    let (db_url, _db_pool_size) = match get_prop_pg_connect_string()
+    {
+        Ok(x) => x,
+        Err(e) => {
+            error!("{:?}", e);
+            exit(-64);
+        }
+    };
+    
     // Établir une connexion à la base de données
-    let (client, connection) = tokio_postgres::connect(db_url, NoTls).await.unwrap();
+    let (client, connection) = tokio_postgres::connect(&db_url, NoTls).await.unwrap();
 
     // Spawn une tâche pour gérer la processus de connexion en arrière-plan
     tokio::spawn(async move {
@@ -79,18 +87,6 @@ pub (crate) fn determine_action(t_current: f64, tc: f32) -> RadiatorAction {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-struct Attribute {
-    mode: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct DevData {
-    did: String,
-    updated_at: u32,
-    attr: Attribute,
-}
-
 // async fn get_mode(heatzy_application_id: &str,  heatzy_token: &str, did: &str) -> anyhow::Result<RadiatorMode> {
 //     let mut custom_header = header::HeaderMap::new();
 //     custom_header.insert(header::USER_AGENT, header::HeaderValue::from_static("reqwest"));
@@ -132,4 +128,3 @@ struct DevData {
 //         Err(anyhow!("{:?}", response))
 //     }
 // }
-

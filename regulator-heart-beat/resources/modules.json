@@ -1,0 +1,8 @@
+{
+  "devices": [
+    { "family": "regulator", "name": "regulate_radiator", "message_type": "RegulationMap", "process_same_message": false }
+  ],
+  "loops": [],
+  "devices_to_init": [],
+  "devices_to_listen": []
+}

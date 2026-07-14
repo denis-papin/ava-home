@@ -1,95 +1,123 @@
-use crate::device_message::{InterDim, InterSwitch, LampRGB};
-use crate::message_enum::MessageEnum::{INTER_DIMMER, INTER_SWITCH, LAMP_RGB};
+use std::collections::HashMap;
+use serde_derive::{Deserialize, Serialize};
+use ava_toolkit::device_message::{InterDimMsg, InterSwitchMsg, LampRgbMsg};
+use ava_toolkit::generic_device::Locality;
+use crate::message_enum::MessageEnum::{InterDimmer, InterSwitch, LampRgb};
 
 /// Object by enums
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub (crate) enum MessageEnum {
-    LAMP_RGB(LampRGB),
-    INTER_DIMMER(InterDim),
-    INTER_SWITCH(InterSwitch),
+    LampRgb(LampRgbMsg),
+    InterDimmer(InterDimMsg),
+    InterSwitch(InterSwitchMsg),
 }
 
+impl Locality for MessageEnum {
 
-
-impl MessageEnum {
-
-    pub (crate) fn query_for_state(&self) -> String {
+    fn query_for_state(&self) -> String {
         match self {
-            LAMP_RGB(_) => {
+            LampRgb(_) => {
                 let msg =  r#"{"color":{"x":"","y":""}}"#;
                 msg.to_string()
             }
-            INTER_DIMMER(_) => {
+            InterDimmer(_) => {
                 let msg = r#"{"color":{"x":"","y":""}}"#;
                 msg.to_string()
             }
-            INTER_SWITCH(_) => {
+            InterSwitch(_) => {
                 let msg = r#"{"state":""}"#;
                 msg.to_string()
             }
         }
     }
 
-    pub (crate) fn raw_message(&self) -> String {
+    fn find_set_topic(&self, topic: &str) -> String {
         match self {
-            LAMP_RGB(msg) => {
+            LampRgb(_) => {
+                format!("{}/set", topic)
+            }
+            _ => {
+                topic.to_string()
+            }
+        }
+    }
+    
+    fn raw_message(&self) -> String {
+        match self {
+            LampRgb(msg) => {
                 serde_json::to_string(msg).unwrap() // TODO
                 // msg.to_owned()
             }
-            INTER_DIMMER(msg) => {
+            InterDimmer(msg) => {
                 serde_json::to_string(msg).unwrap() // TODO
             }
-            INTER_SWITCH(msg) => {
+            InterSwitch(msg) => {
                 serde_json::to_string(msg).unwrap() // TODO
             }
         }
     }
-    pub (crate) fn json_to_local(&self, json_msg: &str) -> Result<MessageEnum, String> {
-        match self {
-            LAMP_RGB(_) => {
-                Ok(LAMP_RGB(LampRGB::from_json(json_msg)?))
-            }
-            INTER_DIMMER(_) => {
-                Ok(INTER_DIMMER(InterDim::from_json(json_msg)?))
-            }
-            INTER_SWITCH(_) => {
-                Ok(INTER_SWITCH(InterSwitch::from_json(json_msg)?))
-            }
-        }
-    }
-
-    pub (crate) fn default_lamp_rgb() -> Self {
-        LAMP_RGB(LampRGB::new())
-    }
-
-    pub (crate) fn default_inter_dim() -> Self {
-        INTER_DIMMER(InterDim::new())
-    }
-
-    pub (crate) fn default_inter_switch() -> Self {
-        INTER_SWITCH(InterSwitch::new())
-    }
-
     /// Convert the original message to the type of the current Self
-    pub (crate) fn to_local(&self, original_message: &MessageEnum, last_message: &MessageEnum) -> Self {
+   fn to_local(&self, original_message: &MessageEnum, last_message: &MessageEnum) -> Self {
         match self {
-            LAMP_RGB(_) => {
+            LampRgb(_) => {
                 original_message.to_lamp_rgb(&last_message)
             }
-            INTER_DIMMER(_) => {
+            InterDimmer(_) => {
                 original_message.to_inter_dim(&last_message)
             }
-            INTER_SWITCH(_) => {
+            InterSwitch(_) => {
                 original_message.to_inter_switch(&last_message)
             }
         }
     }
 
+    fn to_local_with_data(&self, _original_message: &Self, _last_message: &Self, _ext_data: Option<&HashMap<String, f64>>, _topic: Option<&str>) -> Self {
+        todo!()
+    }
+
+    fn json_to_local(&self, json_msg: &str) -> Result<MessageEnum, String> {
+        match self {
+            LampRgb(_) => {
+                Ok(LampRgb(LampRgbMsg::from_json(json_msg)?))
+            }
+            InterDimmer(_) => {
+                Ok(InterDimmer(InterDimMsg::from_json(json_msg)?))
+            }
+            InterSwitch(_) => {
+                Ok(InterSwitch(InterSwitchMsg::from_json(json_msg)?))
+            }
+        }
+    }
+
+    async fn process(&self, _topic: &str, _args: &[String]) {
+        unimplemented!()
+    }
+
+    async fn compute(&self) -> Option<HashMap<String, f64>> {
+        None
+    }
+}
+
+impl MessageEnum {
+
+    pub (crate) fn default_lamp_rgb() -> Self {
+        LampRgb(LampRgbMsg::new())
+    }
+
+    pub (crate) fn _default_inter_dim() -> Self {
+        InterDimmer(InterDimMsg::new())
+    }
+
+    pub (crate) fn default_inter_switch() -> Self {
+        InterSwitch(InterSwitchMsg::new())
+    }
+
+
     /// Convert the current type of message to LampRGB
     fn to_lamp_rgb(&self, last_message: &MessageEnum) -> Self {
         // We know the "last_message" is of type LAMP_RGB
         let rgb = match last_message {
-            LAMP_RGB(rgb) => {
+            LampRgb(rgb) => {
                 rgb
             }
             _ => {
@@ -98,8 +126,8 @@ impl MessageEnum {
         };
 
         match self {
-            LAMP_RGB(msg) => {
-                LAMP_RGB(LampRGB {
+            LampRgb(msg) => {
+                LampRgb(LampRgbMsg {
                     //color_mode: rgb.color_mode.clone(),
                     color: rgb.color.clone(),
                     brightness: rgb.brightness,
@@ -107,16 +135,16 @@ impl MessageEnum {
                 })
 
             }
-            INTER_DIMMER(msg) => {
-                LAMP_RGB(LampRGB {
+            InterDimmer(msg) => {
+                LampRgb(LampRgbMsg {
                     //color_mode: rgb.color_mode.clone(),
                     color: rgb.color.clone(),
                     brightness: msg.brightness,
                     state: msg.state.clone(),
                 })
             }
-            INTER_SWITCH(msg) => {
-                LAMP_RGB(LampRGB {
+            InterSwitch(msg) => {
+                LampRgb(LampRgbMsg {
                     //color_mode: rgb.color_mode.clone(),
                     color: rgb.color.clone(),
                     brightness: rgb.brightness,
@@ -129,18 +157,18 @@ impl MessageEnum {
     /// Convert the current type of message to InterSwitch
     fn to_inter_switch(&self, _last_message: &MessageEnum) -> Self {
         match self {
-            LAMP_RGB(msg) => {
-                INTER_SWITCH(InterSwitch {
+            LampRgb(msg) => {
+                InterSwitch(InterSwitchMsg {
                     state: msg.state.clone(),
                 })
             }
-            INTER_DIMMER(msg) => {
-                INTER_SWITCH(InterSwitch {
+            InterDimmer(msg) => {
+                InterSwitch(InterSwitchMsg {
                     state: msg.state.clone(),
                 })
             }
-            INTER_SWITCH(msg) => {
-                INTER_SWITCH(msg.clone())
+            InterSwitch(msg) => {
+                InterSwitch(msg.clone())
             }
         }
     }
@@ -150,7 +178,7 @@ impl MessageEnum {
     fn to_inter_dim(&self, last_message: &MessageEnum) -> Self {
         // We know the "last_message" is of type INTER_DIMMER
         let inter = match last_message {
-            INTER_DIMMER(inter) => {
+            InterDimmer(inter) => {
                 inter
             }
             _ => {
@@ -159,17 +187,17 @@ impl MessageEnum {
         };
 
         match self {
-            LAMP_RGB(msg) => {
-                INTER_DIMMER(InterDim {
+            LampRgb(msg) => {
+                InterDimmer(InterDimMsg {
                     brightness: msg.brightness,
                     state: msg.state.clone(),
                 })
             }
-            INTER_DIMMER(msg) => {
-                INTER_DIMMER(msg.clone())
+            InterDimmer(msg) => {
+                InterDimmer(msg.clone())
             }
-            INTER_SWITCH(msg) => {
-                INTER_DIMMER(InterDim {
+            InterSwitch(msg) => {
+                InterDimmer(InterDimMsg {
                     brightness: inter.brightness,
                     state: msg.state.clone(),
                 })

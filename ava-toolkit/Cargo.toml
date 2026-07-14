@@ -1,0 +1,18 @@
+[package]
+name = "ava-toolkit"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+commons-error = {path="../commons-error"}
+
+chrono = { workspace = true }
+rumqttc = { workspace = true }
+tokio = { workspace = true }
+env_logger = { workspace = true }
+log = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_derive = { workspace = true }
+uuid = { workspace = true }
+tokio-postgres = { workspace = true }

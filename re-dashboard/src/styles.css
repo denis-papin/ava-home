@@ -1,0 +1,528 @@
+:root {
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  color: #f4efe6;
+  background:
+    radial-gradient(circle at top, rgba(246, 166, 35, 0.14), transparent 28%),
+    radial-gradient(circle at right, rgba(95, 173, 255, 0.12), transparent 32%),
+    linear-gradient(135deg, #151515 0%, #1f2430 44%, #2f1f18 100%);
+  line-height: 1.5;
+  font-weight: 400;
+  --surface: rgba(18, 20, 24, 0.72);
+  --surface-strong: rgba(22, 25, 31, 0.94);
+  --surface-soft: rgba(255, 255, 255, 0.06);
+  --border: rgba(255, 255, 255, 0.12);
+  --text-soft: rgba(244, 239, 230, 0.74);
+  --amber: #ffbe78;
+  --green: #5ad39b;
+  --yellow: #f3c969;
+  --red: #ff7b72;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.dashboardPage {
+  width: min(1240px, 100%);
+  margin: 0 auto;
+  padding: 40px 24px 56px;
+}
+
+.hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.hero__meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  font-size: 0.82rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2.8rem, 6vw, 5.4rem);
+  line-height: 0.92;
+  letter-spacing: -0.04em;
+}
+
+.lead {
+  max-width: 48rem;
+  margin: 18px 0 0;
+  font-size: 1.06rem;
+  color: var(--text-soft);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: var(--amber);
+  color: #24180f;
+  font-weight: 700;
+}
+
+.badgeAlt {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f6efe5;
+}
+
+.alert {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 123, 114, 0.28);
+  border-radius: 18px;
+  background: rgba(88, 24, 26, 0.42);
+  color: #ffd0cb;
+  margin-bottom: 18px;
+}
+
+.roomGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 18px;
+  margin-bottom: 26px;
+}
+
+.roomCard {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+  backdrop-filter: blur(20px);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.26);
+}
+
+.roomCard__body {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px;
+}
+
+.roomCard__label {
+  margin: 0 0 8px;
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.78rem;
+}
+
+.roomCard__temperatureLine {
+  display: flex;
+  align-items: end;
+  gap: 6px;
+}
+
+.roomCard__temperature {
+  font-size: clamp(2.4rem, 7vw, 3.8rem);
+  line-height: 0.9;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.roomCard__unit {
+  font-size: 1.15rem;
+  color: var(--text-soft);
+  padding-bottom: 6px;
+}
+
+.roomCard__unit--small {
+  font-size: 1rem;
+  padding-bottom: 0;
+  margin-left: 4px;
+}
+
+.roomCard__elapsed {
+  margin: 14px 0 0;
+  color: var(--text-soft);
+}
+
+.thermoIcon {
+  width: 58px;
+  height: 58px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(255, 190, 120, 0.2), rgba(95, 173, 255, 0.16));
+  color: var(--amber);
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.roomCard__footer {
+  width: 100%;
+  border: 0;
+  border-top: 1px solid var(--border);
+  padding: 18px 24px 20px;
+  text-align: left;
+  color: inherit;
+  background: var(--surface);
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  cursor: pointer;
+  transition:
+    background 180ms ease,
+    transform 180ms ease;
+}
+
+.roomCard__footer:hover:not(:disabled) {
+  background: var(--surface-strong);
+}
+
+.roomCard__footer:disabled {
+  cursor: progress;
+  opacity: 0.72;
+}
+
+.roomCard__targetLabel {
+  margin: 0 0 4px;
+  font-size: 0.85rem;
+  color: var(--text-soft);
+}
+
+.roomCard__targetValue {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 700;
+}
+
+.roomCard__statusGroup {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.statusDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+}
+
+.statusDot--green {
+  background: var(--green);
+}
+
+.statusDot--yellow {
+  background: var(--yellow);
+}
+
+.statusDot--red {
+  background: var(--red);
+}
+
+.statusText {
+  font-weight: 700;
+}
+
+.statusText--green {
+  color: var(--green);
+}
+
+.statusText--yellow {
+  color: var(--yellow);
+}
+
+.statusText--red {
+  color: var(--red);
+}
+
+.roomCard__action {
+  color: var(--text-soft);
+  font-size: 0.84rem;
+}
+
+.timelineCard {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+  backdrop-filter: blur(20px);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.26);
+}
+
+.timelineCard__controls,
+.timelineCard__panel {
+  padding: 26px;
+}
+
+.timelineCard__controls {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(135deg, rgba(255, 190, 120, 0.1), transparent 42%),
+    linear-gradient(220deg, rgba(95, 173, 255, 0.12), transparent 50%);
+}
+
+.timelineCard__copy h2,
+.timelineMeta h3 {
+  margin: 0;
+  font-size: 1.6rem;
+  line-height: 1.05;
+}
+
+.timelineCard__copy p,
+.timelineMeta p {
+  margin: 8px 0 0;
+  color: var(--text-soft);
+}
+
+.timelineCard__eyebrow {
+  margin: 0 0 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  font-size: 0.74rem;
+  color: var(--amber);
+}
+
+.timelineFilters {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  align-items: end;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field span {
+  font-size: 0.85rem;
+  color: rgba(247, 241, 232, 0.84);
+}
+
+.field select,
+.field input {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(14, 18, 22, 0.38);
+  color: var(--text-main);
+  border-radius: 14px;
+  min-height: 48px;
+  padding: 0 14px;
+  font-size: 1rem;
+}
+
+.field select:focus,
+.field input:focus {
+  outline: 2px solid rgba(255, 190, 120, 0.4);
+  outline-offset: 2px;
+}
+
+.primaryButton {
+  border: 0;
+  min-height: 48px;
+  border-radius: 14px;
+  padding: 0 18px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff9f0;
+  background: linear-gradient(135deg, #d36744, #9b4631);
+  box-shadow: 0 14px 30px rgba(211, 103, 68, 0.24);
+  cursor: pointer;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.primaryButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 34px rgba(211, 103, 68, 0.3);
+}
+
+.primaryButton:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.timelineCard__panel {
+  display: grid;
+  gap: 18px;
+}
+
+.timelineMeta {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.timelineLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.timelineLegend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-main);
+  font-size: 0.9rem;
+}
+
+.timelineLegend__swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+}
+
+.timelineLegend__swatch--heat {
+  background: rgba(220, 95, 69, 0.8);
+}
+
+.timelineLegend__swatch--eco {
+  background: rgba(98, 153, 120, 0.8);
+}
+
+.timelineLegend__swatch--frost {
+  background: rgba(130, 176, 228, 0.8);
+}
+
+.timelineLegend__swatch--stop {
+  background: rgba(92, 135, 198, 0.8);
+}
+
+.timelineLegend__swatch--neutral {
+  background: rgba(188, 168, 130, 0.8);
+}
+
+.timelineStatus {
+  margin: 0;
+  color: var(--text-soft);
+  min-height: 24px;
+}
+
+.timelineHost {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
+    rgba(8, 11, 16, 0.34);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 22px;
+  padding: 12px;
+  min-height: 460px;
+}
+
+.chartSvg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.axisLabel,
+.tickLabel,
+.gridLabel {
+  fill: rgba(247, 241, 232, 0.78);
+  font-size: 12px;
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+}
+
+.timelineEmpty {
+  min-height: 320px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: var(--text-soft);
+}
+
+.timelineStats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 14px;
+}
+
+.timelineStatCard {
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.timelineStatCard span {
+  display: block;
+  color: var(--text-soft);
+  font-size: 0.86rem;
+}
+
+.timelineStatCard strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 1.2rem;
+}
+
+@media (max-width: 760px) {
+  .dashboardPage {
+    padding: 28px 18px 44px;
+  }
+
+  .hero {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .hero__meta {
+    justify-content: flex-start;
+  }
+
+  .roomCard__footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .roomCard__statusGroup {
+    align-items: flex-start;
+  }
+
+  .timelineFilters {
+    grid-template-columns: 1fr;
+  }
+
+  .timelineMeta {
+    flex-direction: column;
+  }
+
+  .timelineLegend {
+    justify-content: flex-start;
+  }
+}
