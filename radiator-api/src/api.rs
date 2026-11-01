@@ -15,6 +15,8 @@ use serde_derive::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio_postgres::NoTls;
 
+use crate::tracking::{current_tracking_id, TRACKING_ID};
+
 const RAD_SALON: &str = "external/rad_salon";
 const RAD_BUREAU: &str = "external/rad_bureau";
 const RAD_COULOIR: &str = "external/rad_couloir";
@@ -343,11 +345,17 @@ async fn open_db_connection(
 ) -> anyhow::Result<(tokio_postgres::Client, tokio::task::JoinHandle<()>)> {
     let (client, connection) = tokio_postgres::connect(&state.db_url, NoTls).await?;
 
-    let join_handle = tokio::spawn(async move {
+    let connection_task = async move {
         if let Err(e) = connection.await {
             log_error!("💣 Database connection error: {}", e);
         }
-    });
+    };
+
+    // Keep the tracking number of the call in the logs of the spawned connection task.
+    let join_handle = match current_tracking_id() {
+        Some(id) => tokio::spawn(TRACKING_ID.scope(id, connection_task)),
+        None => tokio::spawn(connection_task),
+    };
 
     Ok((client, join_handle))
 }

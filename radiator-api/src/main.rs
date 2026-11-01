@@ -3,6 +3,7 @@ use std::net::SocketAddr;
 use std::process::exit;
 
 use axum::http::Method;
+use axum::middleware;
 use axum::routing::post;
 use axum::Router;
 use common_config::conf_reader::{read_config, read_env};
@@ -13,6 +14,7 @@ use std::sync::{Arc, RwLock};
 use tower_http::cors::{Any, CorsLayer};
 
 mod api;
+mod tracking;
 
 #[tokio::main]
 async fn main() {
@@ -21,7 +23,7 @@ async fn main() {
         "RUST_LOG",
         env::var_os("RUST_LOG").unwrap_or_else(|| "info".into()),
     );
-    env_logger::init();
+    tracking::init_logger();
 
     info!("Starting AVA radiator-api 0.1.0");
 
@@ -68,6 +70,7 @@ async fn main() {
         .route("/radiator/:room", post(api::set_radiator_mode))
         .route("/update-radiator", post(api::update_radiator))
         .with_state(app_state)
+        .layer(middleware::from_fn(tracking::track_request))
         .layer(cors);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
