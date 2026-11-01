@@ -1,10 +1,20 @@
 use std::sync::{Arc, RwLock};
+use std::time::Duration;
 
 use anyhow::anyhow;
 use ava_toolkit::device_message::RadiatorMode;
 use log::info;
 use reqwest::header;
 use serde::Deserialize;
+
+/// Maximum time allowed for a whole Heatzy HTTP call (connect, send, read response).
+const HEATZY_HTTP_TIMEOUT: Duration = Duration::from_secs(30);
+
+fn heatzy_http_client() -> reqwest::Result<reqwest::Client> {
+    reqwest::Client::builder()
+        .timeout(HEATZY_HTTP_TIMEOUT)
+        .build()
+}
 
 #[derive(Clone, Debug)]
 pub struct HeatzyClient {
@@ -107,7 +117,7 @@ impl HeatzyClient {
         );
         custom_header.insert("X-Gizwits-User-token", heatzy_token.parse().unwrap());
 
-        let client = reqwest::Client::new();
+        let client = heatzy_http_client().map_err(HeatzyCallError::Request)?;
         let response = client
             .post(url)
             .headers(custom_header)
@@ -169,7 +179,7 @@ impl HeatzyClient {
             token: String,
         }
 
-        let client = reqwest::Client::new();
+        let client = heatzy_http_client()?;
         let response = client
             .post(url)
             .headers(custom_header)
@@ -206,6 +216,12 @@ enum HeatzyCallError {
 impl std::fmt::Display for HeatzyCallError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            HeatzyCallError::Request(e) if e.is_timeout() => write!(
+                f,
+                "no response from Heatzy after {}s: {}",
+                HEATZY_HTTP_TIMEOUT.as_secs(),
+                e
+            ),
             HeatzyCallError::Request(e) => write!(f, "request error: {}", e),
             HeatzyCallError::HttpStatus { status, body } => {
                 if body.is_empty() {

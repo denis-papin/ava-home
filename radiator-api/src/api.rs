@@ -8,7 +8,8 @@ use axum::http::StatusCode;
 use axum::Json;
 use chrono::{Local, NaiveTime};
 use common_config::properties::set_prop_value;
-use log::{error, info};
+use commons_error::*;
+use log::{error, info, warn};
 use radiator_toolkit::HeatzyClient;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Value;
@@ -160,9 +161,13 @@ pub async fn set_radiator_mode(
     let radiator = find_radiator_by_room(&room)?;
     let requested_mode = parse_direct_mode(&payload.mode)?;
 
-    let (client, _connection) = open_db_connection(&state).await.map_err(internal_error)?;
+    let (client, _connection) = open_db_connection(&state)
+        .await
+        .map_err(err_fwd!("💣 Cannot open the DB connection"))
+        .map_err(internal_error)?;
     let current_states = get_latest_radiator_states(&client)
         .await
+        .map_err(err_fwd!("💣 Cannot load the latest radiator states"))
         .map_err(internal_error)?;
 
     if current_states.get(radiator.radiator) == Some(&requested_mode) {
@@ -179,6 +184,11 @@ pub async fn set_radiator_mode(
 
     apply_radiator_mode_change(&client, &state, radiator, requested_mode)
         .await
+        .map_err(err_fwd!(
+            "💣 Cannot set radiator {} to mode [{}]",
+            radiator.radiator,
+            mode_as_str(requested_mode)
+        ))
         .map_err(internal_error)?;
 
     Ok(Json(SetRadiatorModeResponse {
@@ -195,22 +205,28 @@ pub async fn update_radiator(
     info!("🚀 Process radiator update request: {:?}", payload);
 
     // 1) Open a dedicated DB connection for this request.
-    let (client, _connection) = open_db_connection(&state).await.map_err(internal_error)?;
+    let (client, _connection) = open_db_connection(&state)
+        .await
+        .map_err(err_fwd!("💣 Cannot open the DB connection"))
+        .map_err(internal_error)?;
 
     save_input_temperatures(&client, &payload)
         .await
+        .map_err(err_fwd!("💣 Cannot store the incoming temperatures"))
         .map_err(internal_error)?;
     info!("📝 Stored incoming temperatures into temperature_sensor_history");
 
     // 2) Load target temperatures from the currently active heating plan.
     let regulation_map = get_current_regulation_map(&client)
         .await
+        .map_err(err_fwd!("💣 Cannot load the current heating plan"))
         .map_err(internal_error)?;
     info!("✅ Current regulation map: {:?}", regulation_map);
 
     // 3) Load latest persisted radiator states to avoid unnecessary calls.
     let current_states = get_latest_radiator_states(&client)
         .await
+        .map_err(err_fwd!("💣 Cannot load the latest radiator states"))
         .map_err(internal_error)?;
     info!("✅ Latest radiator states: {:?}", current_states);
 
@@ -240,13 +256,12 @@ pub async fn update_radiator(
         let current_mode = current_states
             .get(radiator.radiator)
             .ok_or_else(|| {
-                (
-                    StatusCode::BAD_REQUEST,
-                    format!(
-                        "Missing current state in DB for radiator [{}]",
-                        radiator.radiator
-                    ),
-                )
+                let msg = format!(
+                    "Missing current state in DB for radiator [{}]",
+                    radiator.radiator
+                );
+                log_error!("💣 {}", msg);
+                (StatusCode::BAD_REQUEST, msg)
             })?
             .clone();
 
@@ -260,17 +275,15 @@ pub async fn update_radiator(
         }
 
         let t_current = *room_temperatures.get(radiator.radiator).ok_or_else(|| {
-            (
-                StatusCode::BAD_REQUEST,
-                format!("Missing temperature for radiator [{}]", radiator.radiator),
-            )
+            let msg = format!("Missing temperature for radiator [{}]", radiator.radiator);
+            log_error!("💣 {}", msg);
+            (StatusCode::BAD_REQUEST, msg)
         })?;
 
         let t_target = *room_targets.get(radiator.radiator).ok_or_else(|| {
-            (
-                StatusCode::BAD_REQUEST,
-                format!("Missing target temperature for radiator [{}]", radiator.radiator),
-            )
+            let msg = format!("Missing target temperature for radiator [{}]", radiator.radiator);
+            log_error!("💣 {}", msg);
+            (StatusCode::BAD_REQUEST, msg)
         })?;
 
         info!(
@@ -298,6 +311,11 @@ pub async fn update_radiator(
 
                 apply_radiator_mode_change(&client, &state, radiator, next_mode)
                     .await
+                    .map_err(err_fwd!(
+                        "💣 Cannot set radiator {} to mode [{}]",
+                        radiator.radiator,
+                        mode_as_str(next_mode)
+                    ))
                     .map_err(internal_error)?;
 
                 updated_radiators.push(UpdatedRadiator {
@@ -327,7 +345,7 @@ async fn open_db_connection(
 
     let join_handle = tokio::spawn(async move {
         if let Err(e) = connection.await {
-            error!("Database connection error: {}", e);
+            log_error!("💣 Database connection error: {}", e);
         }
     });
 
@@ -474,36 +492,30 @@ fn find_radiator_by_room(room: &str) -> Result<RadiatorConfig, (StatusCode, Stri
         .find(|radiator| radiator.room == room)
         .copied()
         .ok_or_else(|| {
-            (
-                StatusCode::BAD_REQUEST,
-                format!(
-                    "Unknown room [{}]. Supported rooms: {}",
-                    room, SUPPORTED_ROOMS
-                ),
-            )
+            let msg = format!(
+                "Unknown room [{}]. Supported rooms: {}",
+                room, SUPPORTED_ROOMS
+            );
+            log_warn!("⚠️ {}", msg);
+            (StatusCode::BAD_REQUEST, msg)
         })
 }
 
 fn parse_direct_mode(mode: &str) -> Result<RadiatorMode, (StatusCode, String)> {
-    let parsed = mode_from_str(mode).map_err(|_| {
-        (
-            StatusCode::BAD_REQUEST,
-            format!(
-                "Unsupported direct mode [{}]. Supported modes: {}",
-                mode, SUPPORTED_DIRECT_MODES
-            ),
-        )
-    })?;
+    let unsupported_mode = || {
+        let msg = format!(
+            "Unsupported direct mode [{}]. Supported modes: {}",
+            mode, SUPPORTED_DIRECT_MODES
+        );
+        log_warn!("⚠️ {}", msg);
+        (StatusCode::BAD_REQUEST, msg)
+    };
+
+    let parsed = mode_from_str(mode).map_err(|_| unsupported_mode())?;
 
     match parsed {
         RadiatorMode::CFT | RadiatorMode::STOP | RadiatorMode::ECO => Ok(parsed),
-        _ => Err((
-            StatusCode::BAD_REQUEST,
-            format!(
-                "Unsupported direct mode [{}]. Supported modes: {}",
-                mode, SUPPORTED_DIRECT_MODES
-            ),
-        )),
+        _ => Err(unsupported_mode()),
     }
 }
 

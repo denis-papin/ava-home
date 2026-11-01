@@ -7,6 +7,7 @@ use axum::routing::post;
 use axum::Router;
 use common_config::conf_reader::{read_config, read_env};
 use common_config::properties::{get_prop_pg_connect_string, get_prop_value, set_prop_values};
+use commons_error::*;
 use log::{error, info};
 use std::sync::{Arc, RwLock};
 use tower_http::cors::{Any, CorsLayer};
@@ -44,7 +45,7 @@ async fn main() {
     let (db_url, _) = match get_prop_pg_connect_string() {
         Ok(v) => v,
         Err(e) => {
-            error!("Cannot read database properties: {}", e);
+            log_error!("💣 Cannot read database properties: {}", e);
             exit(-64);
         }
     };
@@ -79,7 +80,7 @@ fn read_props_or_die(property_name: &str) -> String {
     match get_prop_value(property_name) {
         Ok(value) => value,
         Err(e) => {
-            error!("{}", e);
+            log_error!("💣 {}", e);
             panic!("Cannot find property [{}]", property_name);
         }
     }
