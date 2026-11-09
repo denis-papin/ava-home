@@ -2,19 +2,19 @@ use axum::extract::Path as AxumPath;
 use axum::extract::Query;
 use axum::http::{Method, StatusCode};
 use std::collections::HashMap;
+use std::env;
 use std::net::SocketAddr;
-use std::ops::Deref;
 use std::path::Path as FsPath;
 use std::process::exit;
-use std::sync::RwLock;
 
 use axum::routing::{get, post};
 use axum::Json;
 use axum::Router;
-use lazy_static::*;
-use log::*;
-use serde_derive::*;
-use tokio::sync::Mutex;
+use common_config::conf_reader::{read_config, read_env};
+use common_config::properties::{
+    get_prop_pg_connect_string, get_prop_value, set_prop_values,
+};
+use log::{error, info};
 use tower_http::cors::{Any, CorsLayer};
 
 use crate::clairdelune_api::{
@@ -23,34 +23,13 @@ use crate::clairdelune_api::{
 };
 use crate::dao::get_current_regulation_map;
 use crate::dao_db::RadiatorStatus;
-use commons_error::*;
 use commons_pg::sql_transaction2::init_db_pool2;
-use conf_reader::*;
 
 use crate::dao_db::build_current_temp_context;
 
 mod clairdelune_api;
-mod conf_reader;
 mod dao;
 mod dao_db;
-
-// PROPERTIES must be locked when on write, but not locked on read actions
-// It contains a double map { 0 : { "server.port" : 30040, "app.secret-folder" : "/secret", .... },... }
-// where only the map[0] is used in our case.
-lazy_static! {
-    #[derive(Debug)]
-    static ref PROPERTIES : RwLock<HashMap<u32, &'static mut HashMap<String,String>> > = RwLock::new(
-        {
-            let mut m = HashMap::new();
-            let props : HashMap<String,String> = HashMap::new();
-            m.insert(0, Box::leak(Box::new( props )));
-            m
-        });
-}
-
-lazy_static! {
-    static ref FILE_LOCKER: Mutex<u16> = Mutex::new(0);
-}
 
 async fn index2_data() -> Json<HashMap<String, String>> {
     Json(build_dashboard_context().await)
@@ -156,45 +135,8 @@ async fn index2_radiator(
     Ok(Json(json_body))
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct TokenId(pub String);
-
-///
-/// Set properties[0] with the configuration file values
-///
-fn set_props(props: HashMap<String, String>) {
-    let mut w = PROPERTIES.write().unwrap();
-    let item = w.get_mut(&0).unwrap();
-    *item = Box::leak(Box::new(props));
-}
-
-///
-/// Get prop value from the application.properties file
-///
-fn get_prop_value(prop_name: &str) -> String {
-    // https://doc.rust-lang.org/std/sync/struct.RwLock.html
-    PROPERTIES
-        .read()
-        .unwrap()
-        .deref()
-        .get(&0)
-        .unwrap()
-        .deref()
-        .get(prop_name)
-        .unwrap()
-        .to_owned()
-}
-
 fn get_optional_prop_value(prop_name: &str) -> Option<String> {
-    PROPERTIES
-        .read()
-        .unwrap()
-        .deref()
-        .get(&0)
-        .unwrap()
-        .deref()
-        .get(prop_name)
-        .cloned()
+    get_prop_value(prop_name).ok()
 }
 
 async fn build_dashboard_context() -> HashMap<String, String> {
@@ -213,39 +155,36 @@ async fn build_dashboard_context() -> HashMap<String, String> {
     context
 }
 
-pub fn get_prop_pg_connect_string() -> anyhow::Result<(String, u32)> {
-    let db_hostname = get_prop_value("db.hostname");
-    let db_port = get_prop_value("db.port");
-    let db_name = get_prop_value("db.name");
-    let db_user = get_prop_value("db.user");
-    let db_password = get_prop_value("db.password");
-    let db_pool_size = get_prop_value("db.pool_size")
-        .parse::<u32>()
-        .map_err(err_fwd!("Cannot read the pool size"))?;
-    // let cs = format!("host={} port={} dbname={} user={} password={}", db_hostname, db_port, db_name, db_user,db_password);
-    let cs = format!(
-        "postgres://{}:{}@{}:{}/{}",
-        db_user, db_password, db_hostname, db_port, db_name
-    );
-    Ok((cs, db_pool_size))
-}
-
 #[tokio::main]
 async fn main() {
     const PROGRAM_NAME: &str = "DASH - The Ava Home Dashboard API";
     println!("😎 Init {}", PROGRAM_NAME);
 
     const PROJECT_CODE: &str = "dashboard-api";
-    const VAR_NAME: &str = "DASH_ENV";
+    const VAR_NAME: &str = "AVA_ENV";
     println!(
         "😎 Config file using PROJECT_CODE={} VAR_NAME={}",
         PROJECT_CODE, VAR_NAME
     );
 
-    let props = read_config(PROJECT_CODE, VAR_NAME);
-    set_props(props);
-    let port = get_prop_value("server.port").parse::<u16>().unwrap();
-    let log_config: String = get_prop_value("log4rs.config");
+    env::set_var(
+        "RUST_LOG",
+        env::var_os("RUST_LOG").unwrap_or_else(|| "info".into()),
+    );
+
+    let o_config_file = read_env(VAR_NAME);
+    let props = read_config(
+        PROJECT_CODE,
+        &o_config_file,
+        &Some("AVA_CLUSTER_PROFILE".to_string()),
+    );
+    set_prop_values(props);
+
+    let port = get_prop_value("server.port")
+        .unwrap()
+        .parse::<u16>()
+        .unwrap();
+    let log_config = get_prop_value("log4rs.config").unwrap();
     let log_config_path = FsPath::new(&log_config);
 
     println!("😎 Read log properties from {:?}", &log_config_path);
@@ -259,21 +198,19 @@ async fn main() {
     }
 
     // Init DB pool
-    let (connect_string, db_pool_size) = match get_prop_pg_connect_string()
-        .map_err(err_fwd!("Cannot read the database connection information"))
-    {
+    let (connect_string, db_pool_size) = match get_prop_pg_connect_string() {
         Ok(x) => x,
         Err(e) => {
-            log_error!("{:?}", e);
+            error!("{:?}", e);
             exit(-64);
         }
     };
 
-    log_info!("Connnect String : [{}]", &connect_string);
+    info!("Connnect String : [{}]", &connect_string);
 
     let _r = init_db_pool2(&connect_string, db_pool_size).await;
 
-    log_info!("🚀 Start {} on port {}", PROGRAM_NAME, port);
+    info!("🚀 Start {} on port {}", PROGRAM_NAME, port);
 
     let cors = CorsLayer::new()
         .allow_methods([Method::GET, Method::POST, Method::OPTIONS, Method::PATCH, Method::DELETE])
@@ -301,5 +238,5 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 
-    log_info!("🏁 End {}", PROGRAM_NAME);
+    info!("🏁 End {}", PROGRAM_NAME);
 }

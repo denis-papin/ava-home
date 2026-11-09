@@ -16,7 +16,6 @@ rs-uuid = "0.3.1"
 log = "0.4"
 log4rs = { workspace = true }
 okapi = { version = "0.4", features = ["derive_json_schema"] }
-java-properties = "1.2.0"
 obfstr = "0.2"
 
 uuid = "^0.5"
@@ -36,8 +35,6 @@ postgres = { workspace = true }
 postgres-types = { workspace = true }
 
 anyhow = { workspace = true }
-lazy_static = { workspace = true }
-mut_static = { workspace = true }
 tokio = { workspace = true }
 sqlx = { workspace = true }
 chrono = { workspace = true }
@@ -45,3 +42,4 @@ chrono = { workspace = true }
 commons-error = {path= "../commons-error"}
 commons-pg = {path= "../commons-pg" }
 ava-toolkit = {path="../ava-toolkit"}
+common-config = {path="../common-config"}
