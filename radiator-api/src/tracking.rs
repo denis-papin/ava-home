@@ -35,7 +35,10 @@ pub fn current_tracking_id() -> Option<u64> {
 
 /// Axum middleware: run the whole request under its own tracking number.
 pub async fn track_request(request: Request, next: Next) -> Response {
-    TRACKING_ID.scope(next_tracking_id(), next.run(request)).await
+    let handler = TRACKING_ID
+        .scope(next_tracking_id(), async { next.run(request) })
+        .await;
+    handler.await
 }
 
 /// Log format: [2026-10-31T07:15:02Z] [INFO] [radiator_api::api] [67890] message
